@@ -62,7 +62,7 @@ jobs:
         os: [ubuntu-24.04, windows-latest]
         crate: ${{ fromJSON(needs.changes.outputs.crate_dirs) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: ${{ matrix.crate == 'crates/hmi-engine' && 45 || 25 }}
     defaults:
       run:
         working-directory: ${{ matrix.crate }}
@@ -81,11 +81,32 @@ jobs:
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           cache-bin: 'false'
       - run: cargo fmt --check
-      - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
+      - if: matrix.crate != 'crates/hmi-engine'
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - if: matrix.crate != 'crates/hmi-engine'
+        run: cargo test --locked
       - name: rustdoc
+        if: matrix.crate != 'crates/hmi-engine'
         shell: bash
         run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked
+      - name: Engine clippy (all test-server targets)
+        if: matrix.crate == 'crates/hmi-engine'
+        run: cargo clippy --all-targets --locked --features test-server -- -D warnings
+      - name: Engine tests (including OPC UA and S7)
+        if: matrix.crate == 'crates/hmi-engine'
+        run: cargo test --locked --features test-server -- --test-threads=1
+      - name: Engine rustdoc
+        if: matrix.crate == 'crates/hmi-engine'
+        shell: bash
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked --features test-server
+      - name: Engine dependency notice inventory
+        if: matrix.crate == 'crates/hmi-engine' && runner.os == 'Linux'
+        run: python3 ../../.github/ci/check_engine_notices.py
+      - name: Engine advisory gate (no ignored advisories)
+        if: matrix.crate == 'crates/hmi-engine' && runner.os == 'Linux'
+        run: |
+          cargo install cargo-audit --version 0.23.0 --locked
+          cargo audit --file Cargo.lock
       - if: matrix.crate == 'crates/project-model'
         run: cargo run --locked --example validate -- fixtures/valid/minimal.hmi.json fixtures/valid/bottling-line.hmi.json
       - run: git diff --exit-code -- Cargo.lock

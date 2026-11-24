@@ -1,0 +1,53 @@
+{
+  "comment": "One example of every engine protocol message, in canonical form. core/runtime (Kotlin) and engine/src/protocol.rs (Rust) must both decode and re-encode each entry to an identical JSON value. Change this file only together with EngineProtocol.VERSION.",
+  "requests": [
+    {"type": "hello", "id": 1, "protocol": 3},
+    {"type": "configure", "id": 2, "config": {"version": 1, "sources": [{"id": "plc", "driver": "opcua", "settings": {"endpoint": "opc.tcp://127.0.0.1:4840", "securityPolicy": "Basic256Sha256", "securityMode": "SignAndEncrypt", "pkiDir": "/var/lib/hmistudio/pki"}}], "points": [{"mappingId": "m1", "variableId": "line.running", "sourceId": "plc", "address": "ns=2;s=Line1.Running", "valueType": "BOOL", "access": "READ", "writeConfirmed": false}, {"mappingId": "m2", "variableId": "line.speedSetpoint", "sourceId": "plc", "address": "ns=2;i=1001", "valueType": "FLOAT", "access": "READ_WRITE", "writeConfirmed": true}]}, "credentials": {"plc": {"username": "operator", "password": "example-only"}}},
+    {"type": "configure", "id": 3, "config": {"version": 1, "sources": [], "points": []}, "credentials": {}},
+    {"type": "start", "id": 4},
+    {"type": "stop", "id": 5},
+    {"type": "armWrites", "id": 6, "actor": "j.rossi", "ttlSeconds": 300},
+    {"type": "disarmWrites", "id": 7},
+    {"type": "write", "id": 8, "variableId": "line.speedSetpoint", "value": {"type": "float", "value": 42.5}, "actor": "j.rossi"},
+    {"type": "write", "id": 9, "variableId": "line.start", "value": {"type": "bool", "value": true}, "actor": "j.rossi"},
+    {"type": "write", "id": 10, "variableId": "line.count", "value": {"type": "int", "value": -7}, "actor": "j.rossi"},
+    {"type": "write", "id": 11, "variableId": "line.total", "value": {"type": "long", "value": 9007199254740991}, "actor": "j.rossi"},
+    {"type": "write", "id": 12, "variableId": "line.ratio", "value": {"type": "double", "value": 0.125}, "actor": "j.rossi"},
+    {"type": "write", "id": 13, "variableId": "line.recipe", "value": {"type": "string", "value": "Recipe \"A\" / ü"}, "actor": "j.rossi"},
+    {"type": "browse", "id": 14, "sourceId": "plc"},
+    {"type": "browse", "id": 15, "sourceId": "plc", "nodeId": "ns=2;s=Line1"},
+    {"type": "setDemand", "id": 17, "variableIds": ["line.running", "line.speed"]},
+    {"type": "setDemand", "id": 18, "variableIds": []},
+    {"type": "setDemand", "id": 19},
+    {"type": "pulse", "id": 20, "variableId": "line.reset", "actor": "j.rossi"},
+    {"type": "configure", "id": 21, "config": {"version": 1, "sources": [{"id": "plc", "driver": "opcua", "settings": {}}], "points": [{"mappingId": "reset", "variableId": "line.reset", "sourceId": "plc", "address": "ns=2;s=Reset", "valueType": "BOOL", "access": "WRITE", "writeConfirmed": true, "pulseMs": 500}, {"mappingId": "sp", "variableId": "line.setpoint", "sourceId": "plc", "address": "ns=2;s=Setpoint", "valueType": "DOUBLE", "access": "READ_WRITE", "writeConfirmed": true, "limits": {"min": 0.0, "max": 100.0}}]}, "credentials": {}},
+    {"type": "shutdown", "id": 16}
+  ],
+  "messages": [
+    {"type": "helloOk", "id": 1, "protocol": 3, "engineVersion": "0.1.0", "drivers": ["loopback", "opcua"]},
+    {"type": "ok", "id": 4},
+    {"type": "error", "id": 2, "code": "INVALID_CONFIG", "message": "point 'm2' is write-capable but not confirmed"},
+    {"type": "writeResult", "id": 8, "accepted": true},
+    {"type": "writeResult", "id": 9, "accepted": false, "refusal": "WRITES_DISARMED"},
+    {"type": "writeResult", "id": 10, "accepted": false, "refusal": "DRIVER_ERROR", "message": "the device rejected the write: BadUserAccessDenied"},
+    {"type": "browseResult", "id": 14, "nodes": [{"nodeId": "ns=2;s=Line1", "displayName": "Line1", "nodeClass": "OBJECT", "hasChildren": true}, {"nodeId": "ns=2;s=Line1.Running", "displayName": "Running", "nodeClass": "VARIABLE", "hasChildren": false, "valueType": "BOOL", "writable": true, "stableNodeId": "nsu=urn:example:plc;s=Line1.Running"}]},
+    {"type": "sourceState", "sourceId": "plc", "state": "CONNECTED"},
+    {"type": "sourceState", "sourceId": "plc", "state": "CONNECTING", "message": "connection lost: BadServerHalted"},
+    {"type": "values", "values": [{"variableId": "line.running", "value": {"type": "bool", "value": true}, "quality": "GOOD", "sourceTimestampMs": 1763215200123}, {"variableId": "line.speed", "quality": "BAD", "status": "ConnectionLost"}, {"variableId": "line.spare", "quality": "UNCERTAIN", "status": "NotPolled"}, {"variableId": "line.temp", "value": {"type": "double", "value": 21.5}, "quality": "UNCERTAIN", "status": "UncertainLastUsableValue"}]},
+    {"type": "writesArmed", "armed": true, "actor": "j.rossi", "expiresInSeconds": 300},
+    {"type": "writesArmed", "armed": false, "actor": "j.rossi"},
+    {"type": "writeAudit", "variableId": "line.start", "actor": "j.rossi", "value": {"type": "bool", "value": true}, "accepted": false, "refusal": "NOT_CONFIRMED"},
+    {"type": "writeAudit", "variableId": "line.speedSetpoint", "actor": "j.rossi", "value": {"type": "float", "value": 42.5}, "accepted": true},
+    {"type": "writeResult", "id": 22, "accepted": false, "refusal": "OUT_OF_LIMITS"},
+    {"type": "writeResult", "id": 23, "accepted": false, "refusal": "WRONG_COMMAND"},
+    {"type": "writeResult", "id": 24, "accepted": false, "refusal": "BUSY"},
+    {"type": "pulseReleased", "variableId": "line.reset", "actor": "j.rossi", "released": true},
+    {"type": "pulseReleased", "variableId": "line.reset", "actor": "j.rossi", "released": false, "message": "the source is not connected"}
+  ],
+  "rejectedRequests": [
+    {"type": "teleport", "id": 1},
+    {"type": "hello", "id": 1, "protocol": 3, "extra": true},
+    {"type": "write", "id": 2, "variableId": "x", "value": {"type": "decimal", "value": 1}, "actor": "a"},
+    {"type": "configure", "id": 3, "config": {"version": 1, "sources": [], "points": [], "screens": []}}
+  ]
+}

@@ -1,0 +1,463 @@
+{
+  "comment": "Write-guard rules, shared by core/runtime/WriteGuard.kt and engine/src/guard.rs. Each case: state + request -> expected refusal (null = allowed). A case with \"pulse\": true is a momentary pulse request (value TRUE). Rule order: configured, known variable, writable mapping, confirmed, type, finite, command kind (pulse only to momentary points, values only to the others), limits, armed, source connected.",
+  "config": {
+    "version": 1,
+    "sources": [
+      {
+        "id": "plc",
+        "driver": "opcua",
+        "settings": {}
+      },
+      {
+        "id": "plc2",
+        "driver": "opcua",
+        "settings": {}
+      }
+    ],
+    "points": [
+      {
+        "mappingId": "r",
+        "variableId": "line.running",
+        "sourceId": "plc",
+        "address": "ns=2;s=Running",
+        "valueType": "BOOL",
+        "access": "READ",
+        "writeConfirmed": false
+      },
+      {
+        "mappingId": "w",
+        "variableId": "line.start",
+        "sourceId": "plc",
+        "address": "ns=2;s=Start",
+        "valueType": "BOOL",
+        "access": "WRITE",
+        "writeConfirmed": true
+      },
+      {
+        "mappingId": "rw",
+        "variableId": "line.speed",
+        "sourceId": "plc",
+        "address": "ns=2;s=Speed",
+        "valueType": "FLOAT",
+        "access": "READ_WRITE",
+        "writeConfirmed": true
+      },
+      {
+        "mappingId": "unconfirmed",
+        "variableId": "line.stop",
+        "sourceId": "plc",
+        "address": "ns=2;s=Stop",
+        "valueType": "BOOL",
+        "access": "WRITE",
+        "writeConfirmed": false
+      },
+      {
+        "mappingId": "other",
+        "variableId": "line2.start",
+        "sourceId": "plc2",
+        "address": "ns=2;s=Start",
+        "valueType": "BOOL",
+        "access": "WRITE",
+        "writeConfirmed": true
+      },
+      {
+        "mappingId": "ratio",
+        "variableId": "line.ratio",
+        "sourceId": "plc",
+        "address": "ns=2;s=Ratio",
+        "valueType": "DOUBLE",
+        "access": "WRITE",
+        "writeConfirmed": true
+      },
+      {
+        "mappingId": "reset",
+        "variableId": "line.reset",
+        "sourceId": "plc",
+        "address": "ns=2;s=Reset",
+        "valueType": "BOOL",
+        "access": "WRITE",
+        "writeConfirmed": true,
+        "pulseMs": 500
+      },
+      {
+        "mappingId": "sp",
+        "variableId": "line.setpoint",
+        "sourceId": "plc",
+        "address": "ns=2;s=Setpoint",
+        "valueType": "DOUBLE",
+        "access": "READ_WRITE",
+        "writeConfirmed": true,
+        "limits": {
+          "min": 0.0,
+          "max": 100.0
+        }
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "no configuration",
+      "configured": false,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.start",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "NOT_CONFIGURED"
+    },
+    {
+      "name": "unknown variable",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "nope",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "UNKNOWN_VARIABLE"
+    },
+    {
+      "name": "read-only mapping",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.running",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "NOT_WRITABLE"
+    },
+    {
+      "name": "unconfirmed mapping",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.stop",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "NOT_CONFIRMED"
+    },
+    {
+      "name": "unconfirmed beats disarmed",
+      "configured": true,
+      "armed": false,
+      "connected": [],
+      "variableId": "line.stop",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "NOT_CONFIRMED"
+    },
+    {
+      "name": "wrong type",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.speed",
+      "value": {
+        "type": "int",
+        "value": 5
+      },
+      "expected": "TYPE_MISMATCH"
+    },
+    {
+      "name": "double for a float",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.speed",
+      "value": {
+        "type": "double",
+        "value": 5.0
+      },
+      "expected": "TYPE_MISMATCH"
+    },
+    {
+      "name": "type beats disarmed",
+      "configured": true,
+      "armed": false,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.speed",
+      "value": {
+        "type": "string",
+        "value": "fast"
+      },
+      "expected": "TYPE_MISMATCH"
+    },
+    {
+      "name": "disarmed",
+      "configured": true,
+      "armed": false,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.start",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "WRITES_DISARMED"
+    },
+    {
+      "name": "disarmed beats disconnected",
+      "configured": true,
+      "armed": false,
+      "connected": [],
+      "variableId": "line.start",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "WRITES_DISARMED"
+    },
+    {
+      "name": "source not connected",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line2.start",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "SOURCE_NOT_CONNECTED"
+    },
+    {
+      "name": "allowed write-only",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.start",
+      "value": {
+        "type": "bool",
+        "value": false
+      },
+      "expected": null
+    },
+    {
+      "name": "allowed read-write",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc",
+        "plc2"
+      ],
+      "variableId": "line.speed",
+      "value": {
+        "type": "float",
+        "value": 12.5
+      },
+      "expected": null
+    },
+    {
+      "name": "allowed other source",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc",
+        "plc2"
+      ],
+      "variableId": "line2.start",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": null
+    },
+    {
+      "name": "pulse to a momentary command",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.reset",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": null,
+      "pulse": true
+    },
+    {
+      "name": "plain write to a momentary command",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.reset",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "WRONG_COMMAND"
+    },
+    {
+      "name": "pulse to a non-momentary command",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.start",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "WRONG_COMMAND",
+      "pulse": true
+    },
+    {
+      "name": "pulse while disarmed",
+      "configured": true,
+      "armed": false,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.reset",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "WRITES_DISARMED",
+      "pulse": true
+    },
+    {
+      "name": "pulse to a disconnected source",
+      "configured": true,
+      "armed": true,
+      "connected": [],
+      "variableId": "line.reset",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "SOURCE_NOT_CONNECTED",
+      "pulse": true
+    },
+    {
+      "name": "setpoint inside the limits",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "double",
+        "value": 42.5
+      },
+      "expected": null
+    },
+    {
+      "name": "setpoint at the maximum",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "double",
+        "value": 100.0
+      },
+      "expected": null
+    },
+    {
+      "name": "setpoint at the minimum",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "double",
+        "value": 0.0
+      },
+      "expected": null
+    },
+    {
+      "name": "setpoint above the maximum",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "double",
+        "value": 100.5
+      },
+      "expected": "OUT_OF_LIMITS"
+    },
+    {
+      "name": "setpoint below the minimum",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "double",
+        "value": -0.1
+      },
+      "expected": "OUT_OF_LIMITS"
+    },
+    {
+      "name": "limits before arming",
+      "configured": true,
+      "armed": false,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "double",
+        "value": 150.0
+      },
+      "expected": "OUT_OF_LIMITS"
+    },
+    {
+      "name": "setpoint type still checked first",
+      "configured": true,
+      "armed": true,
+      "connected": [
+        "plc"
+      ],
+      "variableId": "line.setpoint",
+      "value": {
+        "type": "bool",
+        "value": true
+      },
+      "expected": "TYPE_MISMATCH"
+    }
+  ]
+}

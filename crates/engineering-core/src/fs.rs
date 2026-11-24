@@ -14,7 +14,7 @@ use std::sync::Mutex;
 pub trait FileSystem: Send + Sync {
     /// Reads a whole file.
     fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
-    /// Creates or truncates `path`, writes `data`, flushes and syncs it to
+    /// Exclusively creates `path`, writes `data`, flushes and syncs it to
     /// stable storage before returning.
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()>;
     /// Atomically replaces `to` with `from` (same directory).
@@ -44,8 +44,7 @@ impl FileSystem for StdFileSystem {
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
         let mut f = std::fs::OpenOptions::new()
             .write(true)
-            .create(true)
-            .truncate(true)
+            .create_new(true)
             .open(path)?;
         f.write_all(data)?;
         f.flush()?;

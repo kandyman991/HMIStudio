@@ -15,4 +15,4 @@ ROADMAP.md is the summary. This plan defines engineering merge gates and milesto
 | RUST-08 migration acceptance | Prior milestones | Compatibility, installation and acceptance on Windows/Linux/Android runtime targets |
 | RUST-09 advanced engineering | Stable core | Optional AI, vector/3D features; separate scoped validation |
 
-RUST-00/01 merged as 7a07d7e (PR #1). Manual acceptance deferred to RUST-02. Dependency residual risks tracked in #4. RUST-03A PR #2 integration candidate; corrected local tests passed, final hosted CI pending. PR #3 RUST-03B stacked candidate on ca60316; integrate updated PR #2 ancestry before reviewing and merging. RUST-02 remains planned.
+RUST-00/01 merged as 7a07d7e (PR #1). Manual acceptance deferred to RUST-02. Dependency residual risks tracked in #4. RUST-03A merged as 0ccf044 (PR #2); exact-head CI passed. RUST-03B PR #3 reconciled and corrected, local validation passed; verify exact corrected-head CI before merge. Next RUST-02 workspace and typed desktop integration. No filesystem containment, runtime or production acceptance claimed.

@@ -302,7 +302,10 @@ fn stale_temp_file_from_a_crash_does_not_block_saving() {
     assert!(std::fs::read_to_string(&path)
         .unwrap()
         .contains("after crash"));
-    assert!(!dir.join(".line.hmi.json.tmp").exists());
+    assert_eq!(
+        std::fs::read_to_string(dir.join(".line.hmi.json.tmp")).unwrap(),
+        "{ half a proj"
+    );
 }
 
 #[test]
@@ -441,8 +444,11 @@ fn inconsistent_or_stale_autosave_is_reported_not_trusted() {
     let info = inspect_recovery(&hmi_engineering_core::fs::StdFileSystem, &path).unwrap();
     assert!(info.consistent && !info.base_unchanged);
     // Snapshot damaged (e.g. crash mid-write of a non-atomic copy).
-    let snap = sidecar_dir(&path).join("autosave.hmi.json");
-    write(&snap, "{ \"format\": ");
+    let snap = sidecar_dir(&path).join("autosave.meta.json");
+    let mut envelope: Value =
+        serde_json::from_str(&std::fs::read_to_string(&snap).unwrap()).unwrap();
+    envelope["project"] = json!("damaged");
+    write(&snap, &envelope.to_string());
     let info = inspect_recovery(&hmi_engineering_core::fs::StdFileSystem, &path).unwrap();
     assert!(!info.consistent);
     assert!(
@@ -490,11 +496,21 @@ fn interrupted_autosave_never_produces_a_bad_recovery() {
     );
     assert!(s.autosave().is_err());
     assert!(ffs.fired());
-    // Either nothing or a consistent snapshot may be offered, never a torn one.
-    match inspect_recovery(&hmi_engineering_core::fs::StdFileSystem, &path) {
-        None => {}
-        Some(info) => assert!(info.consistent),
-    }
+    let info = inspect_recovery(&hmi_engineering_core::fs::StdFileSystem, &path).unwrap();
+    assert!(info.consistent);
+    let recovered =
+        ProjectSession::recover(&path, SessionConfig::default(), std_fs(), &registry()).unwrap();
+    assert_eq!(
+        recovered
+            .session
+            .project()
+            .screens
+            .iter()
+            .find(|x| x.id.as_str() == "scr-filler")
+            .unwrap()
+            .name,
+        "one"
+    );
     // The session still knows the slot is stale and retries.
     assert!(!s.status().autosave_current);
     assert!(matches!(
@@ -550,7 +566,7 @@ fn untitled_projects_autosave_to_the_recovery_dir() {
 }
 
 #[test]
-fn clean_close_removes_autosave_forced_close_keeps_it() {
+fn close_preserves_autosave_until_explicit_discard() {
     let dir = TempDir::new("close");
     let (mut s, path) = saved_session(&dir);
     run(
@@ -574,6 +590,11 @@ fn clean_close_removes_autosave_forced_close_keeps_it() {
         .is_err());
     let mut s2 = open(&path).session;
     s2.close(false).unwrap();
+    assert!(inspect_recovery(&hmi_engineering_core::fs::StdFileSystem, &path).is_some());
+    hmi_engineering_core::persistence::discard_recovery(
+        &hmi_engineering_core::fs::StdFileSystem,
+        &path,
+    );
     assert!(inspect_recovery(&hmi_engineering_core::fs::StdFileSystem, &path).is_none());
 }
 
@@ -725,4 +746,70 @@ fn opening_older_schema_migrates_in_memory_and_writes_only_on_save() {
     // The pre-migration file is kept as a backup.
     let b = list_backups(&hmi_engineering_core::fs::StdFileSystem, &path);
     assert_eq!(std::fs::read_to_string(&b[0]).unwrap(), old);
+}
+
+#[test]
+fn stale_recovery_requires_explicit_overwrite() {
+    let dir = TempDir::new("recover-conflict");
+    let (mut s, path) = saved_session(&dir);
+    run(
+        &mut s,
+        vec![Command::RenameScreen {
+            screen: sid("scr-filler"),
+            name: "Recovered".into(),
+        }],
+    );
+    s.autosave().unwrap();
+    let edited = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("Bottling Line 3", "External");
+    write(&path, &edited);
+    let mut r = ProjectSession::recover(&path, SessionConfig::default(), std_fs(), &registry())
+        .unwrap()
+        .session;
+    assert!(matches!(
+        r.save(SaveOptions::default()),
+        Err(SaveError::ExternalModification { .. })
+    ));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), edited);
+    run(
+        &mut r,
+        vec![Command::RenameScreen {
+            screen: sid("scr-filler"),
+            name: "Recovered again".into(),
+        }],
+    );
+    r.autosave().unwrap();
+    let mut r = ProjectSession::recover(&path, SessionConfig::default(), std_fs(), &registry())
+        .unwrap()
+        .session;
+    assert!(matches!(
+        r.save(SaveOptions::default()),
+        Err(SaveError::ExternalModification { .. })
+    ));
+    r.save(SaveOptions {
+        overwrite_external_changes: true,
+        ..Default::default()
+    })
+    .unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn old_temp_symlink_is_not_followed() {
+    let dir = TempDir::new("tmp-link");
+    let (mut s, path) = saved_session(&dir);
+    let unrelated = dir.join("unrelated.txt");
+    write(&unrelated, "keep me");
+    std::os::unix::fs::symlink(&unrelated, dir.join(".line.hmi.json.tmp")).unwrap();
+    run(
+        &mut s,
+        vec![Command::RenameScreen {
+            screen: sid("scr-filler"),
+            name: "New".into(),
+        }],
+    );
+    s.save(SaveOptions::default()).unwrap();
+    assert_eq!(std::fs::read_to_string(unrelated).unwrap(), "keep me");
+    assert!(std::fs::read_to_string(path).unwrap().contains("New"));
 }

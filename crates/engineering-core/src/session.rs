@@ -76,6 +76,8 @@ pub(crate) struct Storage {
     pub path: Option<PathBuf>,
     /// Exact bytes last read from / written to `path`.
     pub known_disk: Option<Vec<u8>>,
+    /// Original disk fingerprint from a recovered autosave, including absence.
+    pub recovery_base: Option<Option<String>>,
     /// State id that matches `path` on disk.
     pub saved_state: Option<u64>,
     /// State id last written to the autosave slot.
@@ -334,9 +336,11 @@ impl ProjectSession {
         let mut work: Project = (*self.current.project).clone();
         let mut changes = ChangeSet::default();
         let mut allocated = AllocatedIds::new();
+        let mut retired = self.retired.clone();
         for (index, cmd) in txn.commands.iter().enumerate() {
+            let prior: BTreeSet<_> = ids::collect_ids(&work).into_iter().collect();
             let mut cx = Ctx {
-                alloc: ids::allocator(&work, &self.retired),
+                alloc: ids::allocator(&work, &retired),
                 changes: &mut changes,
                 allocated: &mut allocated,
                 index,
@@ -346,17 +350,32 @@ impl ProjectSession {
                 op: cmd.op_name(),
                 error,
             })?;
+            for id in ids::collect_ids(&work) {
+                if !prior.contains(&id) && retired.contains(&id) {
+                    return Err(TransactionError::Command {
+                        index,
+                        op: cmd.op_name(),
+                        error: crate::error::CommandError::AlreadyExists { id },
+                    });
+                }
+                retired.insert(id);
+            }
         }
 
         let label = txn.display_label();
         if work == *self.current.project {
+            if txn.validation == ValidationPolicy::Strict && self.current.report.has_errors() {
+                return Err(TransactionError::Validation {
+                    errors: self.current.report.errors().cloned().collect(),
+                });
+            }
             return Ok(self.outcome(
                 self.revision,
                 false,
                 ChangeCause::Transaction,
                 label,
                 ChangeSet::default(),
-                allocated,
+                AllocatedIds::new(),
                 false,
             ));
         }
@@ -387,7 +406,7 @@ impl ProjectSession {
             id: self.next_state_id,
         };
         self.next_state_id += 1;
-        self.retired.extend(ids::collect_ids(&after.project));
+        self.retired = retired;
         self.current = after.clone();
         self.revision += 1;
         self.redo.clear();

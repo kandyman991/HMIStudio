@@ -8,11 +8,10 @@ project document format is the RUST-03A canonical JSON
 
 ```text
 line3.hmi.json                          project document (canonical JSON, LF)
-.line3.hmi.json.tmp                     exists only during a save
+.line3.hmi.json.<pid>-<counter>.tmp     exclusive temporary file
 line3.hmi.json.studio/                  sidecar directory
     backups/backup-000001.hmi.json      previous file versions (rotation)
-    autosave.hmi.json                   autosave snapshot (canonical project JSON)
-    autosave.meta.json                  autosave envelope
+    autosave.meta.json                  atomic v2 envelope with embedded canonical project JSON
 ```
 
 Untitled projects autosave to `SessionConfig.untitled_recovery_dir` (host-chosen,
@@ -30,7 +29,7 @@ e.g. an app-data folder); without it, autosave returns `noAutosaveLocation`.
 | Recover | `ProjectSession::recover(path)` opens the autosave snapshot bound to `path`, dirty. Refuses inconsistent snapshots. The autosave stays until the user saves or calls `discard_recovery`. `recover_untitled` for untitled projects. |
 | Check external | Compares the file with the exact bytes last read/written: `notSaved`, `unchanged`, `modified`, `deleted`. |
 | Reload | Replaces the session's project with the disk version (refuses unsaved changes unless forced); clears history. |
-| Close | Refuses unsaved changes unless forced. Clean close removes autosave; forced close keeps it so work stays recoverable. |
+| Close | Refuses unsaved changes unless forced. Both clean and forced close preserve recovery data; explicit discard or save removes it. |
 
 ## Save protocol
 
@@ -41,28 +40,22 @@ e.g. an app-data folder); without it, autosave returns `noAutosaveLocation`.
 3. External modification: if the target's bytes differ from the bytes last read or
    written (or it was deleted), abort (`externalModification`) unless
    `overwriteExternalChanges`.
-4. Write `.<name>.tmp` in the target directory, flush, `fsync`; read it back and
+4. Exclusively create a unique `.<name>.<pid>-<counter>.tmp` in the target directory, flush, `fsync`; read it back and
    compare byte-for-byte (catches short or silently truncated writes).
-5. Write a backup of the current target (`fsync`); failure aborts the save.
+5. Write a backup of the current target (`fsync` and read-back verification); failure aborts the save.
    Rotate to `backup_count` (default 5); pruning failures are warnings.
-6. Rename the temp file over the target; `fsync` the directory (Unix).
+6. Re-read the target and abort if changed since staging. Rename the temp file over the target; `fsync` the directory (Unix).
 
 Steps 1–6 leave the original file untouched on any failure; the temp file is
-removed. The session stays dirty. A stale temp file from an earlier crash is
-simply overwritten by the next save.
+removed. The session stays dirty. A stale temp file from an earlier crash is left untouched; it does not block a subsequent save.
 
 ## Autosave and recovery
 
-- The envelope holds `format: "hmi-studio.autosave"`, `version`, `revision`,
-  `projectFingerprint` (FNV-1a 64 of the snapshot) and `baseFingerprint` (of the
-  project file bytes the session was based on).
-- Write order: delete envelope → atomically write snapshot → atomically write
-  envelope. A crash at any point leaves either no recoverable data or a
-  consistent pair; a torn snapshot is never offered (`consistent: false` is
-  refused).
-- `RecoveryInfo.baseUnchanged` tells the UI whether the project file changed after
-  the autosave (e.g. saved elsewhere), so it can warn before recovering.
-- Fingerprints detect changes; they are not a security mechanism.
+- Version 2 of the unreleased recovery envelope contains format, version, revision, projectFingerprint, baseFingerprint and the canonical project JSON string. It replaces the unreleased two-file v1 format; v1 is not accepted.
+- Write the entire envelope through exclusive temp creation, read-back and atomic replacement, then sync the directory. Failed staging or replacement leaves the prior envelope recoverable.
+- Recovery rechecks the snapshot fingerprint and version. The original base fingerprint is retained across recovery and further autosaves; a changed/deleted base requires explicit overwrite on save.
+- Closing a session does not discard an earlier recovery. Explicit discard or a successful save removes it.
+- Fingerprints detect changes; they are not a security mechanism. No cross-process locking is implemented; the final disk recheck narrows but does not eliminate races. Host integration must enforce trusted storage paths, symlink containment and single-writer ownership.
 
 ## Platform behavior
 

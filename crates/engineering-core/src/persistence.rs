@@ -4,11 +4,10 @@
 //!
 //! ```text
 //! line3.hmi.json                       project (canonical RUST-03A JSON)
-//! .line3.hmi.json.tmp                  transient; only exists during a save
+//! .line3.hmi.json.<pid>-<counter>.tmp  uniquely staged temporary file
 //! line3.hmi.json.studio/
 //!     backups/backup-000001.hmi.json   previous versions (rotated)
-//!     autosave.hmi.json                autosave snapshot (canonical JSON)
-//!     autosave.meta.json               autosave envelope (fingerprints)
+//!     autosave.meta.json               atomic envelope (snapshot + fingerprints)
 //! ```
 //!
 //! ## Save protocol
@@ -27,7 +26,7 @@
 //!    directory where supported.
 //!
 //! A failure in steps 1–6 leaves the original file untouched. Autosave uses
-//! the same temp+rename discipline for each of its two files.
+//! the same temp+rename discipline for a single envelope.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -64,9 +63,15 @@ pub fn sidecar_dir(path: &Path) -> PathBuf {
 }
 
 fn temp_path(path: &Path) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
     let mut name = std::ffi::OsString::from(".");
     name.push(path.file_name().unwrap_or_default());
-    name.push(".tmp");
+    name.push(format!(
+        ".{}-{}.tmp",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
     path.with_file_name(name)
 }
 
@@ -256,6 +261,7 @@ struct AutosaveMeta {
     project_fingerprint: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     base_fingerprint: Option<String>,
+    project: String,
 }
 
 /// Information about recoverable autosave data.
@@ -272,20 +278,23 @@ pub struct RecoveryInfo {
     pub base_unchanged: bool,
 }
 
-fn autosave_paths(dir: &Path) -> (PathBuf, PathBuf) {
-    (
-        dir.join("autosave.hmi.json"),
-        dir.join("autosave.meta.json"),
-    )
+fn autosave_path(dir: &Path) -> PathBuf {
+    dir.join("autosave.meta.json")
 }
 
 /// Writes and verifies `data` in the temporary file next to `target`.
 fn stage_temp(fs: &dyn FileSystem, target: &Path, data: &[u8]) -> Result<PathBuf, SaveError> {
-    let tmp = temp_path(target);
-    if let Err(e) = fs.write_synced(&tmp, data) {
-        let _ = fs.remove_file(&tmp);
-        return Err(io_err("write temp", &tmp, &e));
-    }
+    let tmp = loop {
+        let candidate = temp_path(target);
+        match fs.write_synced(&candidate, data) {
+            Ok(()) => break candidate,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => {
+                let _ = fs.remove_file(&candidate);
+                return Err(io_err("write temp", &candidate, &e));
+            }
+        }
+    };
     match fs.read(&tmp) {
         Ok(back) if back == data => Ok(tmp),
         Ok(_) => {
@@ -363,10 +372,23 @@ fn write_backup(
         .last()
         .and_then(|p| backup_sequence(p))
         .unwrap_or(0)
-        + 1;
+        .checked_add(1)
+        .ok_or_else(|| SaveError::Io {
+            stage: "backup",
+            path: dir.display().to_string(),
+            message: "backup sequence exhausted".into(),
+        })?;
     let file = dir.join(format!("backup-{next:06}.hmi.json"));
     fs.write_synced(&file, previous)
         .map_err(|e| io_err("backup", &file, &e))?;
+    if !matches!(fs.read(&file), Ok(bytes) if bytes == previous) {
+        let _ = fs.remove_file(&file);
+        return Err(SaveError::Io {
+            stage: "backup",
+            path: file.display().to_string(),
+            message: "backup read-back differs".into(),
+        });
+    }
     let mut all = existing;
     all.push(file.clone());
     while all.len() > keep {
@@ -396,20 +418,16 @@ pub fn inspect_recovery(fs: &dyn FileSystem, path: &Path) -> Option<RecoveryInfo
 }
 
 fn inspect_dir(fs: &dyn FileSystem, dir: &Path, base: Option<&Path>) -> Option<RecoveryInfo> {
-    let (snap, meta) = autosave_paths(dir);
-    let meta: AutosaveMeta = serde_json::from_slice(&fs.read(&meta).ok()?).ok()?;
-    if meta.format != AUTOSAVE_FORMAT {
+    let path = autosave_path(dir);
+    let meta: AutosaveMeta = serde_json::from_slice(&fs.read(&path).ok()?).ok()?;
+    if meta.format != AUTOSAVE_FORMAT || meta.version != 2 {
         return None;
     }
-    let snap_bytes = fs.read(&snap).ok();
-    let consistent = snap_bytes
-        .as_deref()
-        .is_some_and(|b| fingerprint(b) == meta.project_fingerprint);
     let current_base = base.and_then(|p| fs.read(p).ok()).map(|b| fingerprint(&b));
     Some(RecoveryInfo {
-        autosave_path: snap.display().to_string(),
+        autosave_path: path.display().to_string(),
         revision: meta.revision,
-        consistent,
+        consistent: fingerprint(meta.project.as_bytes()) == meta.project_fingerprint,
         base_unchanged: current_base == meta.base_fingerprint,
     })
 }
@@ -420,10 +438,7 @@ pub fn discard_recovery(fs: &dyn FileSystem, path: &Path) {
 }
 
 fn remove_autosave_in(fs: &dyn FileSystem, dir: &Path) {
-    let (snap, meta) = autosave_paths(dir);
-    // Envelope first: a snapshot without envelope is never offered.
-    let _ = fs.remove_file(&meta);
-    let _ = fs.remove_file(&snap);
+    let _ = fs.remove_file(&autosave_path(dir));
 }
 
 impl ProjectSession {
@@ -500,15 +515,31 @@ impl ProjectSession {
                 message: "autosave snapshot is incomplete or does not match its envelope".into(),
             });
         }
-        let snap = PathBuf::from(&info.autosave_path);
-        let (_, text) = read_text(fs.as_ref(), &snap)?;
-        let parsed = parse_project_with(&text, migrations).map_err(|error| OpenError::Load {
-            path: info.autosave_path.clone(),
-            error,
+        let meta_path = autosave_path(dir);
+        let (_, meta_text) = read_text(fs.as_ref(), &meta_path)?;
+        let meta: AutosaveMeta = serde_json::from_str(&meta_text).map_err(|e| OpenError::Io {
+            path: meta_path.display().to_string(),
+            message: e.to_string(),
         })?;
+        if meta.format != AUTOSAVE_FORMAT
+            || meta.version != 2
+            || meta.revision != info.revision
+            || fingerprint(meta.project.as_bytes()) != meta.project_fingerprint
+        {
+            return Err(OpenError::Io {
+                path: info.autosave_path,
+                message: "autosave changed during recovery".into(),
+            });
+        }
+        let parsed =
+            parse_project_with(&meta.project, migrations).map_err(|error| OpenError::Load {
+                path: info.autosave_path.clone(),
+                error,
+            })?;
         let mut session = ProjectSession::bare(parsed.project, config, fs.clone());
         session.storage.path = base.map(Path::to_path_buf);
         session.storage.known_disk = base.and_then(|p| fs.read(p).ok());
+        session.storage.recovery_base = base.map(|_| meta.base_fingerprint);
         // Unsaved by definition; the autosave slot holds this state.
         session.storage.autosaved_state = Some(session.current_state_id());
         let report = session.report().clone();
@@ -565,6 +596,21 @@ impl ProjectSession {
                     path: path.display().to_string(),
                 });
             }
+        } else if self
+            .storage
+            .recovery_base
+            .as_ref()
+            .is_some_and(|base| *base != on_disk.as_deref().map(fingerprint))
+            && !options.overwrite_external_changes
+        {
+            return Err(SaveError::ExternalModification {
+                path: path.display().to_string(),
+                status: if on_disk.is_some() {
+                    ExternalStatus::Modified
+                } else {
+                    ExternalStatus::Deleted
+                },
+            });
         } else if let Some(known) = &self.storage.known_disk {
             let status = match &on_disk {
                 None => Some(ExternalStatus::Deleted),
@@ -608,6 +654,25 @@ impl ProjectSession {
             }
             _ => None,
         };
+        let current = match fs.read(path) {
+            Ok(bytes) => Some(bytes),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => {
+                let _ = fs.remove_file(&tmp);
+                return Err(io_err("recheck target", path, &e));
+            }
+        };
+        if current != on_disk {
+            let _ = fs.remove_file(&tmp);
+            return Err(SaveError::ExternalModification {
+                path: path.display().to_string(),
+                status: if current.is_some() {
+                    ExternalStatus::Modified
+                } else {
+                    ExternalStatus::Deleted
+                },
+            });
+        }
         commit_temp(fs, &tmp, path)?;
         if let Err(e) = fs.sync_dir(&dir) {
             warnings.push(format!("directory sync failed: {e}"));
@@ -624,6 +689,7 @@ impl ProjectSession {
         }
         remove_autosave_in(fs, &sidecar_dir(path));
         self.storage.known_disk = Some(data.clone());
+        self.storage.recovery_base = None;
         self.storage.autosaved_state = None;
         self.storage.migrated_from = None;
         self.mark_saved();
@@ -665,33 +731,48 @@ impl ProjectSession {
         let text = to_json_string(self.project()).map_err(|e| SaveError::Serialize {
             message: e.to_string(),
         })?;
-        let (snap, meta_path) = autosave_paths(&dir);
+        let meta_path = autosave_path(&dir);
         let meta = AutosaveMeta {
             format: AUTOSAVE_FORMAT.into(),
-            version: 1,
+            version: 2,
             revision: self.revision(),
             project_fingerprint: fingerprint(text.as_bytes()),
-            base_fingerprint: self.storage.known_disk.as_deref().map(fingerprint),
+            base_fingerprint: self
+                .storage
+                .recovery_base
+                .clone()
+                .unwrap_or_else(|| self.storage.known_disk.as_deref().map(fingerprint)),
+            project: text,
         };
         let mut meta_text =
             serde_json::to_string_pretty(&meta).map_err(|e| SaveError::Serialize {
                 message: e.to_string(),
             })?;
         meta_text.push('\n');
-        // Remove the envelope first: a crash between the two writes then
-        // leaves either nothing recoverable or a consistent pair.
-        let _ = fs.remove_file(&meta_path);
-        atomic_write(fs, &snap, text.as_bytes())?;
+        // A single atomic envelope preserves the previous recoverable state
+        // if writing or replacing the next snapshot fails.
         atomic_write(fs, &meta_path, meta_text.as_bytes())?;
+        fs.sync_dir(&dir)
+            .map_err(|e| io_err("autosave sync", &dir, &e))?;
         self.storage.autosaved_state = Some(self.current_state_id());
         Ok(AutosaveOutcome::Written {
-            path: snap.display().to_string(),
+            path: meta_path.display().to_string(),
             revision: self.revision(),
         })
     }
 
     /// Compares the file on disk with the bytes last read or written.
     pub fn check_external(&self) -> ExternalStatus {
+        if let (Some(path), Some(base)) = (&self.storage.path, &self.storage.recovery_base) {
+            let current = self.fs.read(path).ok().map(|b| fingerprint(&b));
+            if &current != base {
+                return if current.is_some() {
+                    ExternalStatus::Modified
+                } else {
+                    ExternalStatus::Deleted
+                };
+            }
+        }
         let (Some(path), Some(known)) = (&self.storage.path, &self.storage.known_disk) else {
             return ExternalStatus::NotSaved;
         };
@@ -725,6 +806,7 @@ impl ProjectSession {
         })?;
         let outcome = self.replace_project(parsed.project);
         self.storage.known_disk = Some(bytes);
+        self.storage.recovery_base = None;
         self.storage.migrated_from =
             (!parsed.migrations.is_empty()).then_some(parsed.source_version);
         if self.storage.migrated_from.is_none() {
@@ -740,8 +822,7 @@ impl ProjectSession {
     }
 
     /// Closes the session. Refuses with unsaved changes unless `force`.
-    /// A clean close removes autosave data; a forced close keeps it so the
-    /// work stays recoverable.
+    /// Closing preserves recovery data; only explicit discard or save removes it.
     pub fn close(&mut self, force: bool) -> Result<(), CloseError> {
         if self.closed {
             return Ok(());
@@ -749,11 +830,8 @@ impl ProjectSession {
         if self.is_dirty() && !force {
             return Err(CloseError::UnsavedChanges);
         }
-        if !self.is_dirty() {
-            if let Ok(dir) = self.autosave_dir() {
-                remove_autosave_in(self.fs.as_ref(), &dir);
-            }
-        }
+        // Closing an opened disk version is not permission to discard
+        // pre-existing recovery data. Explicit discard or save owns cleanup.
         self.closed = true;
         Ok(())
     }

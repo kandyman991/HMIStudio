@@ -366,3 +366,18 @@ fn undo_restores_references_exactly() {
     assert_eq!(s.project(), &before);
     assert!(s.report().is_valid());
 }
+
+#[test]
+fn explicitly_supplied_retired_id_is_rejected() {
+    let mut s = session(minimal());
+    let parent = s.project().screens[0].root.id.clone();
+    let insert = Command::InsertNode {
+        parent,
+        index: None,
+        node: text_node("new-explicit", "a"),
+        assign_new_ids: false,
+    };
+    s.execute(Transaction::single(insert.clone())).unwrap();
+    s.undo(None).unwrap();
+    assert!(s.execute(Transaction::single(insert)).is_err());
+}

@@ -26,7 +26,7 @@ required-features = ["test-server"]
 test-server = ["async-opcua/server", "dep:snap7-server"]
 
 [dependencies]
-async-opcua = { version = "0.19", default-features = false, features = ["client"] }
+async-opcua = { git = "https://github.com/FreeOpcUa/async-opcua.git", rev = "ca18bb73bac4ff2627943c760c97123062988468", default-features = false, features = ["client"] }
 async-trait = "0.1"
 # Native S7 client (pure Rust, by the author of Snap7). Pinned exactly: reviewed version.
 rust7 = "=0.1.2"
@@ -37,7 +37,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "sync", "time", "net"] }
 
 [dev-dependencies]
-async-opcua = { version = "0.19", default-features = false, features = ["client", "server"] }
+async-opcua = { git = "https://github.com/FreeOpcUa/async-opcua.git", rev = "ca18bb73bac4ff2627943c760c97123062988468", default-features = false, features = ["client", "server"] }
 snap7-server = "0.1.7"
 
 [profile.release]

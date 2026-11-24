@@ -10,7 +10,7 @@
 ## Workflow
 - Branch from verified main; one scoped milestone per PR. Do not overwrite concurrent work.
 - Document decisions, acceptance criteria, limitations and reproducible tests. Require exact-head CI and independent review before merge. Never claim unrun checks passed. No force pushes to main.
-- Batch reviewed fixes and run targeted preflight before pushing; avoid unnecessary builds, repeated uploads and CI churn. Follow docs/CI_RUNNER_POLICY.md.
+- Batch reviewed fixes and run targeted preflight before pushing. Follow CI-02 in docs/CI_RUNNER_POLICY.md: require exact-head Required CI and handoff, applicable independent checks and review; use change-aware routing, cache dependencies and skip irrelevant installer jobs. Packaging-affecting changes, release tags and milestone/manual installer requests still require both bundles. Do not call a skipped check passed.
 - Public repository: never transfer private source, customer projects, proprietary drivers, credentials, signing material or SDKs without documented authorization and license review. No project license is assumed until owner chooses one. Never publish raw private chats or private operational records.
 - Prefer standard hosted CI; never run untrusted public PRs on private self-hosted machines. Minimize permissions, artifact retention and secrets. Commit lockfiles; review dependency licenses and vulnerabilities.
 - Tauri 2 desktop shell; HTML/CSS/TypeScript frontend; Rust authoritative engineering core. Typed commands only, no generic shell or privileged filesystem bridge.

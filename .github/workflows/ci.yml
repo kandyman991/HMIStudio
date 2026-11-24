@@ -2,15 +2,96 @@ name: Desktop CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}
+  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'automatic' }}
   cancel-in-progress: true
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      frontend: ${{ steps.plan.outputs.frontend }}
+      native: ${{ steps.plan.outputs.native }}
+      package: ${{ steps.plan.outputs.package }}
+      crates: ${{ steps.plan.outputs.crates }}
+      crate_dirs: ${{ steps.plan.outputs.crate_dirs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test change routing
+        run: python3 -m unittest discover -s .github/ci -p 'test_*.py' -v
+      - name: Select applicable checks
+        id: plan
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          CI_REF: ${{ github.ref }}
+        run: python3 .github/ci/plan.py
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: git diff --exit-code -- package-lock.json
+  crates:
+    needs: changes
+    if: needs.changes.outputs.crates == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+        crate: ${{ fromJSON(needs.changes.outputs.crate_dirs) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: ${{ matrix.crate }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ${{ matrix.crate }}
+          key: ${{ matrix.crate }}
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          cache-bin: 'false'
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - name: rustdoc
+        shell: bash
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked
+      - if: matrix.crate == 'crates/project-model'
+        run: cargo run --locked --example validate -- fixtures/valid/minimal.hmi.json fixtures/valid/bottling-line.hmi.json
+      - run: git diff --exit-code -- Cargo.lock
   desktop:
+    needs: [changes, frontend]
+    if: needs.changes.outputs.native == 'true' && needs.frontend.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -24,26 +105,69 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - name: Linux native dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+          key: native-${{ needs.changes.outputs.package }}
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          cache-bin: 'false'
       - run: npm ci --no-audit --no-fund
       - run: npm run build
       - run: npm run tauri -- icon assets/icon.svg
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
-      - run: npm run tauri -- build --bundles ${{ matrix.bundle }} -- --locked
+      - name: Build installer when required
+        if: needs.changes.outputs.package == 'true'
+        run: npm run tauri -- build --bundles ${{ matrix.bundle }} -- --locked
       - run: git diff --exit-code -- package-lock.json src-tauri/Cargo.lock
       - uses: actions/upload-artifact@v4
+        if: needs.changes.outputs.package == 'true'
         with:
           name: hmi-studio-${{ matrix.os }}
-          path: |
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.deb
+          path: src-tauri/target/release/bundle/**/*.${{ matrix.bundle }}
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
+  required:
+    name: Required CI
+    needs: [changes, frontend, crates, desktop]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce applicable checks
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+          CRATES: ${{ needs.crates.result }}
+          DESKTOP: ${{ needs.desktop.result }}
+          WANT_FRONTEND: ${{ needs.changes.outputs.frontend }}
+          WANT_CRATES: ${{ needs.changes.outputs.crates }}
+          WANT_NATIVE: ${{ needs.changes.outputs.native }}
+          WANT_PACKAGE: ${{ needs.changes.outputs.package }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CHANGES" = success
+          check() {
+            case "$1:$2" in
+              true:success|false:skipped) ;;
+              *) echo "Required CI mismatch: $3 ($1/$2)"; exit 1 ;;
+            esac
+          }
+          check "$WANT_FRONTEND" "$FRONTEND" frontend
+          check "$WANT_CRATES" "$CRATES" crates
+          check "$WANT_NATIVE" "$DESKTOP" desktop
+          case "$WANT_PACKAGE:$WANT_NATIVE" in true:true|false:true|false:false) ;; *) exit 1 ;; esac
+          echo "All applicable checks passed; intentionally skipped jobs are not test passes."

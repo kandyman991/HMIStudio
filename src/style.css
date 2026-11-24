@@ -71,7 +71,7 @@ header>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 .artboard-caption span{color:#e1c28a}
 .artboard-ruler{height:22px;background:repeating-linear-gradient(90deg,#64788e 0 1px,transparent 1px 10px),#263441;display:flex;color:#d1dfed;border-bottom:1px solid #708398}
 .artboard-ruler span{width:100px;flex:none;font-size:10px;padding:3px 4px}
-.artboard{width:800px;height:480px;background:#e9eef3;color:#203447;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;outline:1px solid #8195a9;box-shadow:0 8px 24px #0008}
+.artboard{isolation:isolate;width:800px;height:480px;background:#e9eef3;color:#203447;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;outline:1px solid #8195a9;box-shadow:0 8px 24px #0008}
 .preview-node{box-sizing:border-box}
 .preview-flow{outline:1px dashed #7995ab;outline-offset:-1px}
 .preview-node.preview-selected{outline:2px solid #1682e9;outline-offset:-2px}

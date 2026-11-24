@@ -3,29 +3,30 @@
   "kind": "historical_observation",
   "observed_date": "2026-11-24",
   "repository": "kandyman991/HMIStudio",
-  "main_sha": "0ccf044d2a65cc86400e053647e95520fcfe98c1",
+  "main_sha": "101c8f311a5fb8110ccfe127c0f4edde39c100f0",
   "observed_pr": {
     "number": 3,
-    "head": "33db7fcdf51a5e43a4da703af75e5f3e3919f76d",
-    "state": "open",
+    "head": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+    "state": "closed",
     "draft": false
   },
   "observed_ci": {
-    "run_id": 45399624280,
-    "source_sha": "33db7fcdf51a5e43a4da703af75e5f3e3919f76d",
+    "run_id": 45408061199,
+    "source_sha": "897693263da6e1d3f5644944fe3bc566288a5cdf",
     "windows": "success",
     "linux": "success"
   },
   "limitations": [
-    "Historical observation predates corrected PR #3 head; verify live refs and CI.",
+    "Historical observation; verify live refs and CI.",
+    "RUST-02A native CI and independent review pending.",
     "Desktop manual acceptance deferred to RUST-02.",
     "Foundation dependency/redistribution issues tracked in #4.",
-    "Kotlin interoperability, trusted storage and single-writer host enforcement not validated."
+    "Native project persistence, Kotlin interoperability and full docking not validated."
   ],
-  "next_action": "Verify corrected PR #3 CI and merge; proceed RUST-02 and typed host integration.",
+  "next_action": "Review RUST-02A and exact-head CI; proceed with workspace docking and trusted persistence.",
   "observed_handoff_ci": {
-    "run_id": 45405558243,
-    "source_sha": "36943f5015363ac13cd471aeee6646d4d8f4d53e",
+    "run_id": 45408061233,
+    "source_sha": "897693263da6e1d3f5644944fe3bc566288a5cdf",
     "conclusion": "success"
   }
 }

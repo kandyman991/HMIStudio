@@ -9,3 +9,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
+hmi-engineering-core = { path = "../crates/engineering-core" }
+hmi-project-model = { path = "../crates/project-model" }
+
+[dev-dependencies]
+serde_json = "1"

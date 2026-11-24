@@ -16,6 +16,6 @@ npm run tauri -- dev
 
 ## Status
 
-RUST-00/01 merged (PR #1): a reconstructed workspace shell, not the original HTML prototype (which was not available during recovery). Only the implemented Rust commands are functional; unavailable engineering actions are explicitly marked. No PLC connectivity or runtime export yet. Dependency lockfiles are committed; exact-head native CI and review passed for PR #1; dependency residual risks and redistribution obligations tracked in issue #4. Manual installer launch/close and visual fidelity acceptance are deferred to RUST-02 under D-008, not passed. No private source has been migrated. No open-source license is declared pending owner selection.
+RUST-00/01 merged (PR #1): a reconstructed workspace shell, not the original HTML prototype (which was not available during recovery). RUST-03A/03B model and engineering core are merged. RUST-02A candidate replaces the demo engine with the authoritative in-memory project session; unavailable actions remain explicitly disabled. No PLC connectivity or runtime export yet. Dependency lockfiles are committed; exact-head native CI and review passed for PR #1; dependency residual risks and redistribution obligations tracked in issue #4. Manual installer launch/close and visual fidelity acceptance are deferred to RUST-02 under D-008, not passed. No private source has been migrated. No open-source license is declared pending owner selection.
 
 See [architecture](docs/ARCHITECTURE.md), [roadmap](ROADMAP.md) and [engineering rules](AGENTS.md).

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "kind": "historical_observation",
+  "observed_date": "2026-11-24",
+  "repository": "kandyman991/HMIStudio",
+  "main_sha": "196d40fdb61a45c19883cf914c2c0f44af0343d9",
+  "observed_pr": {
+    "number": 1,
+    "head": "b11912d600080e3c8176d15cd7e06a20ea244863",
+    "state": "open",
+    "draft": true
+  },
+  "observed_ci": {
+    "run_id": 45374916620,
+    "source_sha": "b11912d600080e3c8176d15cd7e06a20ea244863",
+    "windows": "success",
+    "linux": "success"
+  },
+  "limitations": [
+    "Snapshot predates continuity commit; verify live refs and CI.",
+    "No desktop install/launch acceptance yet.",
+    "Original HTML not recovered."
+  ],
+  "next_action": "Commit dependency locks and validate exact final head; independent review and desktop acceptance."
+}

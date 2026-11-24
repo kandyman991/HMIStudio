@@ -256,7 +256,7 @@ pub fn validate(source: &RuntimeSource, points: &[RuntimePoint]) -> Result<(), S
         shared: Arc::new(Shared::new(
             source.id.clone(),
             Vec::new(),
-            tokio::sync::mpsc::unbounded_channel().0,
+            crate::driver::EventSink::new(tokio::sync::mpsc::channel(256).0),
         )),
         session: Arc::new(Mutex::new(None)),
         task: None,

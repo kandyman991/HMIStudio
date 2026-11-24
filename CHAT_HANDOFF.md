@@ -103,3 +103,23 @@ Append or supersede entries when milestone state changes. Include date, source S
 - REUSE-02B PR #16 merged at `78f3a64c06d00afcc392edccad9da9fd757d0392` preserving import and remediation commits; exact-head Desktop CI 45458106267 and handoff 45458106080 passed, review 6044916091. Chrono maintenance warning and pinned unreleased OPC UA dependency remain documented release limitations.
 - PR #7 reconciled from `de9e207a43b9c8ab322b1d3db33fd0832febe596` with that main, clean ordinary merge. Independent review fixes exact range/map integer comparison, safe linear transform limits, bounded operator input, shutdown/cancel admission and result handling, default allocation limit and extreme duration cancellation. See docs/TAG_ENGINE_VALIDATION.md; 50 local Rust tests, fmt/Clippy/rustdoc, 15 CI regressions passed; strict local RustSec audit zero vulnerabilities/warnings, 20 archive checksums/licenses verified. Dedicated CI exact-head checkout and cache align with CI-02; strict independent audit retained. No changed tag lockfile, UI, model, physical drivers or engine bridge.
 - Next exact action: verify reconciled PR #7 exact head, fresh Required CI, handoff and dedicated audit/checks, independent final review and merge. No manual installer acceptance. REUSE-02C bridge preflight thereafter: bounded/coalesced subscriptions/resync, process supervision, framing, exact numeric limits or safe refusal, no stale command replay; preserve simulator and production boundary.
+
+## REUSE-02C.1 bridge supervision — local candidate, uncommitted — 2026-11-24
+- Branch `feat/reuse-02c1-bridge-supervision` at base `5fa32afa14d2b5d765e6563bef9a840c4adf2b2a` (main after PR #7). Working tree only: nothing committed or pushed, no hosted CI, no review. Earlier uncommitted bounded-transport, event-sink, framing, supervisor and O-5 changes are preserved.
+- Added:
+  - bounded S7 command queue (8) with not-transmitted overflow and a coalesced demand wake;
+  - stop by flag rather than queue, with a bounded join;
+  - transmit-time refusal of stopping, withdrawn and pre-connection writes;
+  - engine supervision of in-flight `write`/`browse` against client disconnect, closed output, event failure and `shutdown`, with ordered deferral (max 32);
+  - `OUTCOME_UNKNOWN:` / `NOT_TRANSMITTED:` driver outcomes;
+  - immediate release of pulses whose start outcome is unknown;
+  - no replay or re-arming.
+  
+  Protocol 3 and Kotlin are unchanged. A test-only driver factory and a simulated PLC transport were also added. Details are in docs/reuse/REUSE_02C1_BRIDGE_SUPERVISION.md.
+- Local Linux results (rustc 1.100.0, `--locked`):
+  - fmt clean, and strict Clippy (`-D warnings`) clean for hmi-engine (default and test-server) and tag-engine;
+  - hmi-engine 53/53 with test-server, 35/35 with default features; tag-engine 61/61;
+  - 13 new deterministic tests; 7 of 8 re-introduced defects caught.
+  
+  The intermittent tag-engine `bridge_supervisor` failure (an `ETXTBSY` fixture race) was fixed: 0 failures in 200 parallel runs, against 41 in 100 before. Simulated drivers only.
+- Open findings F-1 to F-9: arming across reconnection, unconfirmed release after an unknown start, release bounds of non-S7 drivers, no explicit protocol-3 uncertain code, bridge still not wired. Next: authorize commit; run exact-head hosted CI and independent review; owner decisions on F-1 and F-2 before any physical write; then bounded subscription delivery, resync and request correlation.

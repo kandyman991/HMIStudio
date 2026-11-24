@@ -65,3 +65,54 @@ fn exits_when_its_client_goes_away() {
         std::thread::sleep(Duration::from_millis(50));
     }
 }
+
+fn await_exit(child: &mut std::process::Child) {
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        if child.try_wait().unwrap().is_some() {
+            return;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("engine did not exit");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn output_disconnect_with_input_still_open() {
+    let mut child = engine();
+    let mut input = child.stdin.take().unwrap();
+    drop(child.stdout.take());
+    let _ = writeln!(input, r#"{{"type":"hello","id":1,"protocol":3}}"#);
+    await_exit(&mut child);
+    drop(input);
+}
+
+#[test]
+fn oversized_unterminated_frame_ends_session() {
+    let mut child = engine();
+    let mut input = child.stdin.take().unwrap();
+    let _ = input.write_all(&vec![b'x'; 1024 * 1024 + 1]);
+    await_exit(&mut child);
+    drop(input);
+}
+
+#[test]
+fn unread_output_flood_ends_session() {
+    let mut child = engine();
+    let mut input = child.stdin.take().unwrap();
+    // Keep stdout open but never drain it. The writer must not block indefinitely.
+    let feeder = std::thread::spawn(move || {
+        for id in 1..100_000 {
+            if writeln!(input, r#"{{"type":"hello","id":{id},"protocol":3}}"#).is_err() {
+                break;
+            }
+        }
+        input
+    });
+    await_exit(&mut child);
+    drop(feeder.join().unwrap());
+}

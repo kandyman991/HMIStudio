@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -30,11 +32,13 @@ jobs:
       - name: Linux native dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run build
       - run: npm run tauri -- icon assets/icon.svg
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
-      - run: npm run tauri -- build --bundles ${{ matrix.bundle }}
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - run: npm run tauri -- build --bundles ${{ matrix.bundle }} -- --locked
+      - run: git diff --exit-code -- package-lock.json src-tauri/Cargo.lock
       - uses: actions/upload-artifact@v4
         with:
           name: hmi-studio-${{ matrix.os }}

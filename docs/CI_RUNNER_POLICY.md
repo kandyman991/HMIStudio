@@ -6,7 +6,7 @@ Public successor policy, not the legacy private repository's runner contract.
 - Use pull_request (not pull_request_target for untrusted builds), least privilege, no secrets in PR jobs, bounded timeouts and short artifact retention. Artifacts are build outputs, not engineering memory.
 - Batch corrections and run targeted preflight before pushing. Keep cancel-in-progress for superseded runs. Do not repeatedly rerun unchanged failing jobs without evidence.
 - Both Windows and Linux builds are currently routine on this public repository; do not transplant private-repo manual Windows rules without a new decision.
-- Commit dependency lockfiles and require npm ci and Cargo locked resolution before milestone acceptance. Current initial workflow is bootstrap only until these changes land.
+- Commit dependency lockfiles and require npm ci and Cargo locked resolution before milestone acceptance. PR #1 now configures locked installs, tests and packaging and rejects lockfile changes during CI. Final-head execution remains to be verified.
 - Verify exact final PR head, review and applicable platform acceptance. Build/package success is not install/launch/close or hardware acceptance.
 - Avoid needless artifact uploads and expensive builds for docs-only housekeeping when safe; never use skip-ci to circumvent required exact-head checks. Retention currently seven days for installers.
 - Snapshot workflow is read-only, never uploads artifacts or writes refs. Metadata is evidence, not authority.

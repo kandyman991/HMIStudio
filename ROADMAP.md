@@ -16,7 +16,7 @@
 ## RUST-00/01 acceptance
 - Review rules and architecture; select license before distributing migrated code.
 - Recover original HTML and compare fidelity; current implementation is a reconstruction.
-- Commit generated npm and Cargo lockfiles and switch CI to locked installs/builds.
+- Verify committed npm and Cargo lockfiles and locked CI installs/builds.
 - Verify exact-head frontend build, Rust tests, Windows MSI and Linux DEB builds.
 - Install/launch/close on both OSs, verify Rust command responses, inspect visual design.
 - No production capabilities or private code transfer.

@@ -55,7 +55,7 @@ function Preview({node,selected,select,parent}:{node:Node;selected:string|null;s
   const cls="preview-node"+(selected===node.id?" preview-selected":"");
   if(isFlow(node.element))return <div className={cls+" preview-flow"} style={style} title={label(node)+(limits.length?" · "+limits.join("; "):"")} onClick={e=>{e.stopPropagation();select(node.id);}}>{node.children?.map(n=><Preview key={n.id} node={n} parent={node.element} selected={selected} select={select}/>)}</div>;
   if(node.element.type!=="component")return <button type="button" className={cls+" preview-unsupported"} style={style} onClick={e=>{e.stopPropagation();select(node.id);}} title={limits.join("; ")}>Unsupported · {label(node)} (see layers)</button>;
-  return <button type="button" className={cls+" preview-component "+(["text","button","gauge"].includes(kind)?kind:"placeholder")} style={style} title={limits.join("; ")||label(node)} onClick={e=>{e.stopPropagation();select(node.id);}}>{kind==="gauge"?<><small>Static gauge</small><strong>{String(node.properties?.value??0)}</strong></>:kind==="text"||kind==="button"?label(node):"Placeholder · "+kind}</button>;
+  return <button type="button" className={cls+" preview-component "+(["text","button","gauge"].includes(kind)?kind:"placeholder")} style={style} title={limits.join("; ")||label(node)} onClick={e=>{e.stopPropagation();select(node.id);}}>{kind==="gauge"?<><small>Static gauge</small><strong>{String(node.properties?.value??0)}</strong></>:kind==="text"||kind==="button"?(typeof node.properties?.text==="string"?node.properties.text:label(node)):"Placeholder · "+kind}</button>;
 }
 function countLimits(node:Node):number{return previewLimit(node).length+(node.children??[]).reduce((sum,n)=>sum+countLimits(n),0);}
 function SizeEditor({axis,size,disabled,commit}:{axis:string;size:Size|undefined;disabled:boolean;commit:(s:Size)=>void}){
@@ -64,7 +64,7 @@ function SizeEditor({axis,size,disabled,commit}:{axis:string;size:Size|undefined
   const [value,setValue]=useState(current.mode==="fixed"?String(current.value):current.mode==="fill"?String((current.fraction??1)*100):"100");
   const n=parseFixed(value);
   const valid=mode==="auto"||(n!==undefined&&(mode==="fixed"||(n>0&&n<=100)));
-  return <form className="layout-field" onSubmit={e=>{e.preventDefault();if(disabled||!valid)return;commit(mode==="auto"?{mode}:mode==="fixed"?{mode,value:n!}:{mode,fraction:n!/100});}}>
+  return <form className="layout-field" onSubmit={e=>{e.preventDefault();if(disabled||!valid)return;const next:Size=mode==="auto"?{mode}:mode==="fixed"?{mode,value:n!}:{mode,fraction:n!/100};setMode(current.mode);setValue(current.mode==="fixed"?String(current.value):current.mode==="fill"?String((current.fraction??1)*100):"100");commit(next);}}>
     <label>{axis}<select disabled={disabled} value={mode} onChange={e=>setMode(e.currentTarget.value as Size["mode"])}><option value="auto">Hug / auto</option><option value="fixed">Fixed dp</option><option value="fill">Fill %</option></select></label>
     {mode!=="auto"&&<input aria-label={axis+(mode==="fixed"?" dp":" percent")} type="number" min={mode==="fill"?0.01:0} max={mode==="fill"?100:undefined} step="any" value={value} disabled={disabled} onChange={e=>setValue(e.currentTarget.value)}/>}
     <button type="submit" disabled={disabled||!valid}>Apply</button>
@@ -76,7 +76,7 @@ function FlowEditor({element,disabled,commit}:{element:Element;disabled:boolean;
   const [arrangement,setArrangement]=useState<Arrangement>(element.arrangement??"start");
   const [wrap,setWrap]=useState(element.wrap??false);
   const gap=parseFixed(spacing);
-  return <form className="layout-field" onSubmit={e=>{e.preventDefault();if(!disabled&&gap!==undefined)commit({...element,spacing:gap,alignment,arrangement,wrap});}}>
+  return <form className="layout-field" onSubmit={e=>{e.preventDefault();if(!disabled&&gap!==undefined){const next={...element,spacing:gap,alignment,arrangement,wrap};setSpacing(String(element.spacing??0));setAlignment(element.alignment??"start");setArrangement(element.arrangement??"start");setWrap(element.wrap??false);commit(next);}}}>
     <label>Gap (dp)<input type="number" min="0" step="any" value={spacing} disabled={disabled} onChange={e=>setSpacing(e.currentTarget.value)}/></label>
     <label>Main axis<select value={arrangement} disabled={disabled} onChange={e=>setArrangement(e.currentTarget.value as Arrangement)}>{(["start","center","end","spaceBetween","spaceAround","spaceEvenly"] as const).map(a=><option key={a}>{a}</option>)}</select></label>
     <label>Cross axis<select value={alignment} disabled={disabled} onChange={e=>setAlignment(e.currentTarget.value as Cross)}>{(["start","center","end"] as const).map(a=><option key={a}>{a}</option>)}</select></label>

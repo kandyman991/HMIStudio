@@ -6,25 +6,26 @@
   "main_sha": "196d40fdb61a45c19883cf914c2c0f44af0343d9",
   "observed_pr": {
     "number": 1,
-    "head": "80a6b74ed29b58aa1068f549289ed3bcc6c3f431",
+    "head": "0f2dddb810f617341d774534170fffc0e8e41a5d",
     "state": "open",
     "draft": true
   },
   "observed_ci": {
-    "run_id": 45374916620,
-    "source_sha": "b11912d600080e3c8176d15cd7e06a20ea244863",
+    "run_id": 45377768471,
+    "source_sha": "0f2dddb810f617341d774534170fffc0e8e41a5d",
     "windows": "success",
     "linux": "success"
   },
   "limitations": [
-    "Snapshot predates lockfile commit; verify live refs and CI.",
+    "Historical observation predates review correction; verify live refs and CI.",
     "No desktop install/launch acceptance yet.",
-    "Original HTML not recovered."
+    "Original HTML not recovered; no approved deviation.",
+    "Full dependency vulnerability and license review not established."
   ],
-  "next_action": "Verify locked exact-head native CI, independent review and desktop acceptance.",
+  "next_action": "Verify corrected exact-head CI and independent review; obtain prototype comparison or owner-approved deviation and Windows/Linux desktop acceptance.",
   "observed_handoff_ci": {
-    "run_id": 45376915780,
-    "source_sha": "80a6b74ed29b58aa1068f549289ed3bcc6c3f431",
+    "run_id": 45377768467,
+    "source_sha": "0f2dddb810f617341d774534170fffc0e8e41a5d",
     "conclusion": "success"
   }
 }

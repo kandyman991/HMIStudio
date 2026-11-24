@@ -12,6 +12,11 @@
 - Parallel assignment: RUST-03A project model may proceed in its own independent crate. Its branch/PR/test state is not verified here. Inspect live GitHub before integration; do not overwrite concurrent work.
 - No private source has been imported. No license selected. No production or physical-device acceptance claimed.
 
+## Independent review observation — 2026-11-24
+- Reviewed predecessor `0f2dddb810f617341d774534170fffc0e8e41a5d`: [Desktop CI](https://github.com/kandyman991/HMIStudio/actions/runs/45377768471) and [handoff CI](https://github.com/kandyman991/HMIStudio/actions/runs/45377768467) succeeded. Both desktop jobs passed npm ci, frontend build, rustfmt, locked Rust tests, locked packaging, lockfile-diff check and artifact upload. Registry sources in both lockfiles are public; this is not a complete vulnerability or license audit.
+- Review found inconsistent lockfile status in decision/policy records and a UI command overlap risk: the React busy flag alone is not a synchronous single-flight guard, and menu insertion could be offered before the initial snapshot. Corrected records, added an immediate single-flight guard and disabled menu insertion until snapshot availability. Native/local preflight not executed during review; require fresh CI and final-head review.
+- No verified prototype comparison or approved deviation, nor Windows/Linux install/launch/close evidence. PR remains candidate and draft; no acceptance or merge claimed.
+
 ## Next exact action
 Verify live PR #1 head and checks. Obtain exact-head locked CI and independent review, batch any required fixes. Recover the actual prototype or document owner-approved deviation, then perform desktop acceptance. Merge only after the agreed gates. Next milestone: RUST-02 workspace; coordinate RUST-03A integration separately.
 

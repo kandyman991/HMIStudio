@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import "./style.css";
@@ -12,13 +12,14 @@ function Studio(){
  const [status,setStatus]=useState("Connecting to engineering core…");
  const [menu,setMenu]=useState<string|null>(null);
  const [busy,setBusy]=useState(false);
- async function command(command:Command){setBusy(true);try{const result=await invoke<Snapshot>("engineering_command",{command});setSnapshot(result);setStatus("Rust engineering core ready · in-memory demo");}catch(e){setStatus("Command failed: "+String(e));}finally{setBusy(false)}}
+ const inFlight=useRef(false);
+ async function command(command:Command){if(inFlight.current)return;inFlight.current=true;setBusy(true);try{const result=await invoke<Snapshot>("engineering_command",{command});setSnapshot(result);setStatus("Rust engineering core ready · in-memory demo");}catch(e){setStatus("Command failed: "+String(e));}finally{inFlight.current=false;setBusy(false)}}
  useEffect(()=>{void command({type:"snapshot"})},[]);
  const chosen=snapshot?.components.find(c=>c.id===snapshot.selected);
  function action(name:string){setMenu(null);const kind=name.toLowerCase();if(kind==="button"||kind==="text"||kind==="gauge"){void command({type:"insert",kind});}else if(name==="About"){setStatus("HMI Studio "+(snapshot?.version??"0.1.0")+" · development shell");}else{setStatus(name+" — not implemented in this milestone");}}
  return <main className="studio" onClick={()=>setMenu(null)}>
  <header><strong>◈ HMI STUDIO</strong><span>Untitled project — development shell</span><small>v{snapshot?.version??"0.1.0"}</small></header>
- <nav aria-label="Main menu" onClick={e=>e.stopPropagation()}>{Object.entries(menus).map(([name,items])=><div className="menu" key={name}><button aria-expanded={menu===name} onClick={()=>setMenu(menu===name?null:name)}>{name}</button>{menu===name&&<div className="dropdown">{items.map(item=><button disabled={busy} key={item} onClick={()=>action(item)}>{item}{name!=="Insert"&&item!=="About"?" · planned":""}</button>)}</div>}</div>)}</nav>
+ <nav aria-label="Main menu" onClick={e=>e.stopPropagation()}>{Object.entries(menus).map(([name,items])=><div className="menu" key={name}><button aria-expanded={menu===name} onClick={()=>setMenu(menu===name?null:name)}>{name}</button>{menu===name&&<div className="dropdown">{items.map(item=><button disabled={busy||(name==="Insert"&&!snapshot)} key={item} onClick={()=>action(item)}>{item}{name!=="Insert"&&item!=="About"?" · planned":""}</button>)}</div>}</div>)}</nav>
  <div className="toolbar"><button onClick={()=>action("New project")}>＋ New</button><button onClick={()=>action("Save project")}>▣ Save</button><button onClick={()=>action("Undo")}>↶</button><button onClick={()=>action("Redo")}>↷</button><i/>{["Button","Text","Gauge"].map(n=><button key={n} disabled={busy||!snapshot} onClick={()=>action(n)}>＋ {n}</button>)}<i/><button onClick={()=>action("Align left")}>Align</button><span className="grow"/><button onClick={()=>action("Start simulation")}>▷ Preview</button><button className="accent" onClick={()=>action("Publish")}>↑ Publish</button></div>
  <section className="workspace">
  <aside className="left"><h3>PROJECT EXPLORER</h3><div className="tree">▾ Untitled project<br/>　▾ Screens<br/><span className="active">　　 Overview</span><br/>　▸ PLC connections<br/>　▸ Tags<br/>　▸ Alarms<br/>　▸ Recipes<br/>　▸ Assets</div><h3>COMPONENTS / LAYERS</h3>{snapshot?.components.map(c=><button className={"layer "+(chosen?.id===c.id?"active":"")} disabled={busy} key={c.id} onClick={()=>void command({type:"select",id:c.id})}>{c.kind} · {c.label}</button>)}</aside>

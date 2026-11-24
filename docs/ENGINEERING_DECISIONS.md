@@ -18,7 +18,7 @@ Simulation and development operations do not require production approval. Real m
 Curated Git records plus live GitHub evidence are the source of engineering continuity. Do not rely on artifact memory or chat memory. Read-only automated snapshots supplement, not replace, curated records.
 
 ## D-006 — Hosted desktop CI (initial direction)
-Use standard GitHub-hosted Windows/Linux jobs in this public repository, no private self-hosted runner for untrusted PRs. Exact-head evidence required; lockfiles pending. See CI_RUNNER_POLICY.md.
+Use standard GitHub-hosted Windows/Linux jobs in this public repository, no private self-hosted runner for untrusted PRs. Exact-head evidence required; lockfiles committed; predecessor 0f2dddb passed locked CI. Reverify final head. See CI_RUNNER_POLICY.md.
 
 ## D-007 — Semantic layout (accepted direction)
 Nested layout containers, constraints and adaptive rules; allow absolute positioning where explicitly needed, not as the sole project representation. The runtime mapping is a future validation task.

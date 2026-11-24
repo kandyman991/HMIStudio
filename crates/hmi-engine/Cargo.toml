@@ -1,0 +1,54 @@
+[package]
+name = "hmi-engine"
+version = "0.1.0"
+edition = "2021"
+description = "HMI Studio runtime engine: communication drivers behind a versioned process boundary"
+license = "UNLICENSED"
+publish = false
+
+[[bin]]
+name = "hmi-engine"
+path = "src/main.rs"
+
+# S7 test PLC (snap7-server) used only by tests.
+[[bin]]
+name = "hmi-s7-test-server"
+path = "src/bin/s7_test_server.rs"
+required-features = ["test-server"]
+
+# OPC UA server used only by tests (Rust integration tests and the Kotlin end-to-end tests).
+[[bin]]
+name = "hmi-opcua-test-server"
+path = "src/bin/opcua_test_server.rs"
+required-features = ["test-server"]
+
+[features]
+test-server = ["async-opcua/server", "dep:snap7-server"]
+
+[dependencies]
+async-opcua = { git = "https://github.com/FreeOpcUa/async-opcua.git", rev = "ca18bb73bac4ff2627943c760c97123062988468", default-features = false, features = ["client"] }
+async-trait = "0.1"
+# Native S7 client (pure Rust, by the author of Snap7). Pinned exactly: reviewed version.
+rust7 = "=0.1.2"
+snap7-server = { version = "0.1.7", optional = true }
+futures-util = { version = "0.3", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "sync", "time", "net"] }
+
+[dev-dependencies]
+async-opcua = { git = "https://github.com/FreeOpcUa/async-opcua.git", rev = "ca18bb73bac4ff2627943c760c97123062988468", default-features = false, features = ["client", "server"] }
+snap7-server = "0.1.7"
+
+[profile.release]
+panic = "abort"
+
+[[test]]
+name = "s7"
+path = "tests/s7.rs"
+required-features = ["test-server"]
+
+[[test]]
+name = "opcua"
+path = "tests/opcua.rs"
+required-features = ["test-server"]

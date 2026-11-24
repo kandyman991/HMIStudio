@@ -15,4 +15,14 @@ ROADMAP.md is the summary. This plan defines engineering merge gates and milesto
 | RUST-08 migration acceptance | Prior milestones | Compatibility, installation and acceptance on Windows/Linux/Android runtime targets |
 | RUST-09 advanced engineering | Stable core | Optional AI, vector/3D features; separate scoped validation |
 
-RUST-00/01 merged as 7a07d7e (PR #1); manual acceptance deferred to RUST-02. RUST-03A merged as 0ccf044 (PR #2). RUST-03B merged as 101c8f3 (PR #3), exact-head core/desktop/handoff CI passed. RUST-02A in development: restricted in-memory session bridge and workspace shell improvements. See WORKSPACE_IMPLEMENTATION.md for slices and outstanding acceptance. Issue #4 remains open. No filesystem containment, runtime or production acceptance claimed.
+RUST-00/01 merged as 7a07d7e (PR #1); manual acceptance deferred to RUST-02. RUST-03A merged as 0ccf044 (PR #2). RUST-03B merged as 101c8f3 (PR #3), exact-head core/desktop/handoff CI passed. RUST-02A/B merged (PRs #5 and #6); RUST-02C merged (PR #8, 4ca18a59); manual desktop acceptance remains open in #10. RUST-04A draft preparation is limited to nested flow insertion and sibling ordering; no dependency acceptance or visual parity claimed. See NATIVE_PERSISTENCE.md. See WORKSPACE_IMPLEMENTATION.md for slices and outstanding acceptance. Issue #4 remains open. No filesystem containment, runtime or production acceptance claimed.
+
+## CI-02 — Change-aware CI (merged; follow-up validation pending)
+Merged PR #14 (`39eba35`); full CI and independent review passed. Documentation-only routing passed on PR #9 (zero artifacts). Remaining evidence: independent manual dispatch. Acceptance criteria: regression tests for change classification, exact-head full CI for workflow changes, independent review, verify required check contexts and manual installer path, demonstrate documentation-only routing with no installer uploads. Keep handoff and applicable dependency checks mandatory. See CI_RUNNER_POLICY.md; no milestone or release acceptance implied.
+
+## Reuse track (REUSE-01/02A merged; REUSE-02B in progress)
+See reuse/REUSE_MILESTONE_PLAN.md and reuse/AUDIT_SUMMARY.md. REUSE-01 merged as `238fd18` (PR #9), audit-only; REUSE-02A verifies pinned source, rights, disclosure and dependencies before import. Later bridge, model, runtime and deployment decisions remain open. Preserve both runtime delivery modes, generated Kotlin/Compose evaluation, simulation freedom, and independent production acceptance.
+
+REUSE-02A: see reuse/REUSE_02A_PREFLIGHT.md for verified inputs, limited screening and outstanding transfer gates.
+
+REUSE-02B source-only import follows merged #15 and private #57; see crates/hmi-engine/PROVENANCE.md. Exact-head Windows/Linux test-server, notice inventory, advisory gate and independent review required before merge; no bridge or production/release acceptance.

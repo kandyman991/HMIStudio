@@ -1,0 +1,43 @@
+name: Engineering core CI
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/engineering-core/**'
+      - 'crates/project-model/**'
+      - '.github/workflows/engineering-core.yml'
+  pull_request:
+    paths:
+      - 'crates/engineering-core/**'
+      - 'crates/project-model/**'
+      - '.github/workflows/engineering-core.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: engineering-core-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    working-directory: crates/engineering-core
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - name: rustdoc
+        shell: bash
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked

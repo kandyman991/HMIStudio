@@ -3,28 +3,29 @@
   "kind": "historical_observation",
   "observed_date": "2026-11-24",
   "repository": "kandyman991/HMIStudio",
-  "main_sha": "196d40fdb61a45c19883cf914c2c0f44af0343d9",
+  "main_sha": "7a07d7e74cc156ed76238e89068ff320b84a5978",
   "observed_pr": {
-    "number": 1,
-    "head": "3767484d2afd590273ee7347f4674f7e655d8289",
+    "number": 2,
+    "head": "ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd",
     "state": "open",
-    "draft": true
+    "draft": false
   },
   "observed_ci": {
-    "run_id": 45379956997,
-    "source_sha": "3767484d2afd590273ee7347f4674f7e655d8289",
+    "run_id": 45385961404,
+    "source_sha": "ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd",
     "windows": "success",
     "linux": "success"
   },
   "limitations": [
-    "Historical observation predates D-008 policy commit; verify live refs and CI.",
-    "Desktop install/launch/close and prototype comparison or approved deviation deferred to RUST-02; not passed.",
-    "Full dependency vulnerability and license review not established."
+    "Historical observation predates final PR #2 fixes; verify live refs and CI.",
+    "Desktop manual acceptance deferred to RUST-02.",
+    "Foundation dependency/redistribution issues tracked in #4.",
+    "Kotlin interoperability not validated."
   ],
-  "next_action": "Verify final-head CI, independent review and applicable dependency checks; merge without routine manual installation under D-008.",
+  "next_action": "Verify corrected PR #2 CI and review, merge, then integrate and review stacked PR #3.",
   "observed_handoff_ci": {
-    "run_id": 45379957113,
-    "source_sha": "3767484d2afd590273ee7347f4674f7e655d8289",
+    "run_id": 45395978594,
+    "source_sha": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
     "conclusion": "success"
   }
 }

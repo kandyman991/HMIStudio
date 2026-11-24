@@ -1,0 +1,2 @@
+# Fixtures and the committed schema are compared byte-for-byte in tests.
+* text=auto eol=lf

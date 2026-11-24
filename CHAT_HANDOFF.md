@@ -22,8 +22,12 @@
 - Manual Windows/Linux install/launch/close, command interaction and original prototype comparison or approved deviation are explicitly deferred to RUST-02 workspace acceptance. No manual test or visual fidelity result claimed. Do not block routine development or request owner installation before then.
 - PR #2 RUST-03A is open at observed head ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd; verify its own CI and review. Do not overwrite concurrent work.
 
+## Integration observation — 2026-11-24
+- PR #1 merged as 7a07d7e74cc156ed76238e89068ff320b84a5978; reviewed source 1ec641d6b668e2343eb1ad187eb161c86b191d82 passed desktop CI 45395978746 and handoff CI 45395978594. Dependency concerns and third-party distribution obligations tracked in #4. RUST-01 manual acceptance remains deferred to RUST-02.
+- PR #2 predecessor ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd passed project model CI 45385961404. Reconciled with main without conflicts; corrected portable paths and action read permissions, 76 local tests passed, crate advisory scan clean. See docs/PROJECT_MODEL_VALIDATION.md. Final corrected-head CI still required.
+- PR #3 observed head 33db7fcdf51a5e43a4da703af75e5f3e3919f76d is stacked on ca60316; preserve its ancestry and integrate updated main before review.
 ## Next exact action
-Verify live PR #1 head, required exact-head CI, independent review and applicable dependency security/license checks; merge after engineering gates pass without requiring manual desktop testing. Integrate PR #2 after its engineering gates pass; proceed with RUST-02 workspace and RUST-03B engineering operations. Carry deferred RUST-01 manual evidence into RUST-02 acceptance.
+Verify PR #2 final corrected head, CI and independent review, then merge with ancestry preserved. Integrate and independently review PR #3; proceed with RUST-02 workspace. Carry deferred desktop acceptance and issue #4 forward.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

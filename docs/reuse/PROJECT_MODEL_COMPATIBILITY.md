@@ -30,7 +30,7 @@ command semantics.
 | `componentDefinitions` | `components` (`ComponentDefinition`) | see §5 |
 | `variables` (`InternalVariable`) | `tags` | see §3 |
 | `externalSources` | `connections` | `driver` → `DriverKind` (`RUST_ENGINE_INTEGRATION.md` §5); `configuration` map → `parameters`; `commissioningAllowed` → **missing** |
-| `externalMappings` | tag `connection` + `address` | one READ_WRITE mapping per variable maps directly; more than one mapping per variable → **missing** |
+| `externalMappings` | tag `connection` + `address` | one mapping may map directly subject to access and semantics; distinct read and write endpoints cannot collapse into one address → blocking diagnostic |
 | `alarms` | `alarms` | `sourceVariableId` → `tag` + `IsTrue {}`; severity INFO→Info, WARNING→Warning, HIGH→Alarm, CRITICAL→Critical; `message` → `LocalizedText` |
 | `assets` | `resources` | ids, media type, data |
 | `theme` | `themes`, `styles` | ADAPT; per-field review in REUSE-03 |

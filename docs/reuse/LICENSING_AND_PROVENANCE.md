@@ -34,9 +34,7 @@ and jpackage runtimes are bundled in the MSI and .deb.
 ## 2. Obligations if distributed
 
 - **MPL-2.0** is file-level copyleft. The binary can be distributed under any licence. The source of the MPL-covered
-  files, including any modifications to them, must be made available, and recipients must be told how to get it. The
-  crates are used unmodified from crates.io, so naming the versions and their source location in the notices is
-  normally enough. Any patch to an `async-opcua` file would have to be published.
+  files, including any modifications to them, must be made available, and recipients must be told how to get it. The crates are reportedly unmodified; verify the exact corresponding source is available and provide compliant source-access instructions to recipients. Version names alone are not proof of compliance. Any patch to an `async-opcua` file would have to be published.
 - **Apache-2.0**: include the licence text and any NOTICE files.
 - **Unicode-3.0 and BSD**: include the copyright and licence text.
 - **JRE (GPLv2 with Classpath Exception)** in the runtime installers: include its licence and make the source
@@ -46,8 +44,7 @@ and jpackage runtimes are bundled in the MSI and .deb.
 
 ## 3. Provenance rules for any transfer
 
-1. A transfer happens only after the owner has chosen licences for the destination and for the transferred code
-   (decision O-1).
+1. O-1 records proprietary first-party direction (no open-source license selected). A selective transfer requires evidence of rights and provenance and applicable dependency obligations, not a blanket open-source license. See AUDIT_SUMMARY.md owner decision record.
 2. Import is a single squashed commit per component, with a `PROVENANCE.md` that records the source repository,
    source SHA, source paths, file list with SHA-256, the licence decision reference, and the audit PR. No private
    history is imported (D-003: "no unaudited private source/history").
@@ -62,8 +59,7 @@ and jpackage runtimes are bundled in the MSI and .deb.
 5. Third-party crates stay as `Cargo.lock` dependencies. They are not vendored as copies.
 
 **This audit transferred no source code.** It publishes module and file paths, interface names, counts and behaviour
-summaries of the private repository. **Owner confirmation that publishing this level of detail is acceptable is
-requested (decision O-7).** If it is not, the PR should be closed rather than merged.
+summaries of the private repository. **O-7 owner authorization for these audit details is recorded in AUDIT_SUMMARY.md.** It does not extend to secrets, customer data or source code.
 
 ## 4. Repository strategy options
 
@@ -78,8 +74,7 @@ requested (decision O-7).** If it is not, the PR should be closed rather than me
 **Recommendation (subject to O-1 and O-2):**
 
 1. **Engine: vendor** it into HMIStudio as `crates/hmi-engine`, a squashed import with provenance, at a pinned SHA
-   from HMI Forge, once it has a licence. After that, HMIStudio is the engine's home. HMI Forge freezes its `engine/`
-   directory and consumes released engine binaries from HMIStudio.
+   from HMI Forge, after per-file provenance and dependency review. HMIStudio is the intended engine home; freeze or retire the legacy copy only after cross-repository compatibility is verified.
 2. **Kotlin runtime: separate runtime repository.** HMI Forge itself can become that repository: keep the `runtime*`,
    `hmi-ui`, `core`, `engine-client` and `storage-jvm` modules, and retire `studio-desktop` after REUSE-06. Whether it
    stays private or becomes public is decision O-2. If it stays private, HMIStudio's public CI tests against the

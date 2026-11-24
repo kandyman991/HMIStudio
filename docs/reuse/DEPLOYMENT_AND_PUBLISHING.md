@@ -47,7 +47,7 @@ Proposal for HMIStudio:
   device-settings preset.
 - Option 1: delivered as an archive, plus a first-start rule that installs the bundled package (simplest).
 - Option 2: built as a per-project installer. This means jpackage or APK rebuilds per project, with signing for
-  each; it is not recommended (§2 of `COMPOSE_RUNTIME_INTEGRATION.md`).
+  each; it remains an option to evaluate under O-11 and the standalone export requirement (§2 of `COMPOSE_RUNTIME_INTEGRATION.md`).
 - Both still need the HMI Forge package checks and admission rules.
 
 ## 4. Mode B in HMI Forge today
@@ -60,7 +60,7 @@ Proposal for HMIStudio:
    controlled start. Immediate or idle-based activation is refused.
 3. Sequence anti-downgrade per project and publisher. Rollback is a separate, audited action.
 
-The device side is merged for desktop only. The Studio side is the unmerged draft #55.
+The device side is merged for desktop only. Preserve publisher ownership checks on upload, activation and rollback; paired status alone does not authorize actions on another publisher's packages. The Studio side is the unmerged draft #55.
 
 **Mode B status: partial.** Android has no listener; it imports files and verifies signatures.
 

@@ -37,3 +37,6 @@ footer{gap:12px;overflow:hidden}footer span{overflow:hidden;text-overflow:ellips
 .screen-tab{display:flex;flex:0 0 auto;align-items:center;gap:1px}.screen-tab button:last-child{padding-inline:7px}
 .shortcut{float:right;margin-left:18px;color:#a2b1c2}
 .field label{display:grid;gap:6px}
+
+.recovery-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#40382a;color:#f7e2ac}
+header>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

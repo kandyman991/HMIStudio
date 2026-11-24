@@ -26,14 +26,13 @@ per-project code generation or compilation takes place.
 | Android | rebuild and re-sign the APK per project; Play/MDM update cycle | one signed APK per ABI, packages are data | as (2) |
 | Signed deployment (D-034) | binary signing per project | package signature (exists) | both |
 | Editor ↔ runtime parity | generator must reproduce semantics; second implementation of rules | same `core` rules as Preview (HMI Forge); for HMIStudio the Studio preview is HTML, so parity must be tested | as (2) |
-| Performance | best | sufficient for HMI screens (not measured on physical panels) | as (2), with fast paths |
+| Performance | unmeasured | physical-panel performance unmeasured | unmeasured |
 | Safety and review | generated code needs review per project | fixed reviewed runtime; project cannot add code | extensions need their own review gate |
 | Existing evidence | none | RT-01A–C tests, emulator acceptance | none |
 
 **Recommendation: (2) data-driven, keeping (3) as a later and separately approved option.** Approach (2) is what
 exists and is tested. It is the only one that satisfies D-002 Mode B without a toolchain on the engineer's machine,
-and it keeps the operator runtime free of per-project code, which is better for safety review. Approach (1) is not
-recommended. Approach (3) is the place for custom widgets later, behind its own decision and review gate, and is out
+and it keeps the operator runtime free of per-project code, which is better for safety review. Approach (1) is not recommended for ordinary Mode B publishing, but generated Kotlin/Compose project exports remain a requirement to evaluate under O-11; no architectural rejection is accepted. Approach (3) is the place for custom widgets later, behind its own decision and review gate, and is out
 of scope for REUSE-02 … 06.
 
 ## 3. Adapting the runtime to the canonical model
@@ -46,7 +45,7 @@ renderer, so it has to be specified and tested. Two phases:
 | **P1 compile** (REUSE-04a) | HMI Forge runtime package (format 2) | none, or minimal, for already-mapped features | Rust compiler canonical → `HmiProject` JSON (current runtime schema) → `.hmipkg` writer and signer; refuses unmappable features |
 | **P2 native** (REUSE-04b) | canonical project JSON inside a package (new package format 3) | a Kotlin decoder for the canonical schema, validated against `hmi-project.v1.schema.json`, and a mapping into the existing render and runtime model; `hmi-ui` adds semantic `Element` tree layout (Row, Column, Box, Grid, Scroll, Absolute, Instance), responsive rules and missing kinds | package format 3 writer |
 
-Phase 1 delivers a working runtime early, with zero runtime risk. Phase 2 removes the derived model. The
+Phase 1 aims to deliver runtime compatibility early; package admission, semantic parity and target-platform behavior still require testing. Phase 2 removes the derived model. The
 divergence controls are in `PROJECT_MODEL_COMPATIBILITY.md` §6.
 
 ## 4. Parity verification

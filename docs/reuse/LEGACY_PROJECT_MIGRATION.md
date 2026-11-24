@@ -9,7 +9,7 @@ HMIStudio canonical projects (`project-model`, HMIStudio `264ace7`). Nothing in 
 | --- | --- | --- |
 | Portable project file | `*.hmiforge.json` (`storage-jvm/PortableProjectFiles`) | strict JSON, the schema version is declared, and assets are inline |
 | Revision store | `.hmistudio` bundle (D-006: immutable checksummed revisions, atomic HEAD) | the importer reads HEAD (or a chosen revision) after verifying its checksum |
-| Runtime package | `.hmipkg` format 1 or 2 | contains `project.json`. Allowed as an input of last resort; the signature is checked, but trust is not required for import |
+| Runtime package | `.hmipkg` format 1 or 2 | contains `project.json`. Allowed as an input of last resort; structural/hash checks are not signature verification. Require an independently supplied publisher public key for cryptographic verification; otherwise label signature unverified. Import only as quarantined editable data, never as deployment authorization |
 
 ## 2. Principles (binding for the importer)
 
@@ -30,8 +30,9 @@ HMIStudio canonical projects (`project-model`, HMIStudio `264ace7`). Nothing in 
 4. **The import is deterministic.** The same input gives byte-identical canonical JSON and the same report. Ids that
    are not valid in the HMIStudio global namespace, or that collide across categories, are renamed by a fixed rule,
    and the old → new map is stored in the report and in `extensions["hmiforge.idMap"]`.
-5. **Read-only towards the source.** The source file is never written. The output is a new HMIStudio project.
-6. **Minimal-version files.** HMI Forge writes the lowest schema version that a project needs. The importer accepts
+5. **Untrusted inputs:** bound archive and JSON sizes/depth; reject duplicate entries, traversal, malformed encodings and decompression bombs. Do not execute actions or connect to PLCs on import. Redact credentials and other sensitive data from extensions and reports; preserve only in an explicitly authorized secure local store or refuse with a blocking diagnostic. Never treat imported trust or permissions as active authorization.
+6. **Read-only towards the source.** The source file is never written. The output is a new HMIStudio project.
+7. **Minimal-version files.** HMI Forge writes the lowest schema version that a project needs. The importer accepts
    v1–v10 and refuses anything else, including newer versions, with a clear message. This mirrors
    `SUPPORTED_SCHEMA_VERSIONS`.
 

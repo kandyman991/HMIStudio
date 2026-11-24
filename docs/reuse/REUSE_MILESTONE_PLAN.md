@@ -1,6 +1,6 @@
 # REUSE-01 — Reuse milestone plan (REUSE-01 … REUSE-06)
 
-Status: **proposed**. This plan does not authorize REUSE-02 or any later milestone. Each needs owner authorization.
+Status: **proposed**. This plan records the staged roadmap. Owner authorization and remaining decisions are recorded in AUDIT_SUMMARY.md; REUSE-02A preparation is distinct from source transfer and bridge implementation.
 Owner decisions O-1 … O-12 are listed in `AUDIT_SUMMARY.md` §6.
 
 ## Relation to the RUST series
@@ -33,6 +33,8 @@ The edits to `ROADMAP.md`, `docs/MILESTONE_PLAN.md` and `docs/ENGINEERING_DECISI
 - **Out of scope:** any code, any HMI Forge change, and REUSE-02.
 
 ## REUSE-02 — Engine bridge
+
+Begin with REUSE-02A: exact pinned file inventory, rights/provenance, sensitive-content screening, dependency advisory/notice triage, isolated protocol-3 fixtures and test plan. No public code transfer until these gates pass. Before bridge integration resolve O-5 and relevant model/driver decisions; require bounded framing/queues, failure supervision and exact numeric-limit enforcement or safe refusal. Existing simulator remains independent.
 
 - **Scope:**
   - import the `hmi-engine` crate into `crates/hmi-engine` (vendored, with provenance);
@@ -132,7 +134,7 @@ The edits to `ROADMAP.md`, `docs/MILESTONE_PLAN.md` and `docs/ENGINEERING_DECISI
 - **Parallelism:**
   - Kotlin P2 work runs in parallel with the Rust compiler once the schema is frozen;
   - the parity harness can start with REUSE-03 fixtures.
-- **Out of scope:** generated Kotlin source (`COMPOSE_RUNTIME_INTEGRATION.md` §2), alarms runtime, recipes.
+- **Out of scope for the initial compatibility implementation:** generated Kotlin source (evaluate separately under O-11; do not remove the export requirement), alarms runtime, recipes.
 
 ## REUSE-05 — Deployment Mode A and Mode B (RUST-07)
 

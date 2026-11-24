@@ -18,8 +18,7 @@ Status: **proposed**. The source is HMI Forge `92a612d`, `engine/` (`hmi-engine`
     GOOD/BAD/UNCERTAIN, status and source timestamp), `writesArmed`, `writeAudit` and `pulseReleased`.
   - Unknown fields are refused (`deny_unknown_fields`). Non-finite numbers are never written.
 - **Runtime:** one tokio task drives a `select!` over requests, driver events, a 500 ms tick and the next pulse due.
-  When the client goes away or sends `shutdown`, every source is disconnected: an engine without its client must
-  not stay connected to machinery.
+  Normal stdin EOF and explicit `shutdown` disconnect sources. This is not a guarantee under pipe failure, stalled clients or abrupt termination; see the independent review in AUDIT_SUMMARY.md.
 - **Drivers:** an `async_trait` `Driver` trait (start, write, set demand, browse and stop) with an event sink.
   `DRIVERS = ["loopback", "opcua", "s7"]`.
 - **Guard:** writes are refused unless they are armed. An arming lasts at most 900 s, belongs to an actor, and a
@@ -90,7 +89,7 @@ HMIStudio `DataType` has `Bool`, signed and unsigned integers from 8 to 64 bits,
 | Array, Struct | — | **not representable**; expand to scalar members only if each member has its own address, otherwise refuse |
 
 Proposed protocol 4 (decision O-9): add `DateTime`, `UInt64`, arrays and structs. Protocol 3 stays supported:
-`hello` already negotiates the version, and the engine's own contract tests must keep passing unchanged.
+`hello` currently checks an exact version, rather than negotiating. A backward-compatible codec/handshake must be implemented and tested; protocol 3 fixtures must keep passing unchanged.
 
 ## 5. Driver-kind compatibility
 
@@ -133,7 +132,7 @@ None of these block the audit. All of them block a release claim. They go into i
 
 ## 8. Protocol compatibility rules
 
-1. Do not change protocol 3 messages. Additions go into protocol 4 and are negotiated in `hello`.
+1. Do not change protocol 3 messages. Any protocol 4 additions require explicit compatibility negotiation; no such negotiation exists today.
 2. Keep `engine/protocol/messages.json` and `write-guard-cases.json` the single source of truth. Wherever they are
    used, verify them by SHA-256 against the engine copy.
 3. The Rust client must pass the same round-trip and rejected-request fixtures as the Kotlin `EngineContractTest`.

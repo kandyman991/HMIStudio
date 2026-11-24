@@ -237,3 +237,10 @@ REUSE-02 preparation is authorized by the owner's request, but implementation re
 `HMIFORGE_INVENTORY.md`, `COMPATIBILITY_MATRIX.md`, `RUST_ENGINE_INTEGRATION.md`, `PROJECT_MODEL_COMPATIBILITY.md`,
 `COMPOSE_RUNTIME_INTEGRATION.md`, `LEGACY_PROJECT_MIGRATION.md`, `DEPLOYMENT_AND_PUBLISHING.md`,
 `LICENSING_AND_PROVENANCE.md`, `REUSE_VALIDATION_PLAN.md`, `REUSE_MILESTONE_PLAN.md`, and this file.
+
+
+## Follow-up review and reconciliation — 2026-11-24
+
+Reviewed the pinned legacy tree via GitHub: 371 tracked blobs, nine Gradle modules plus Rust engine, all per-module Kotlin/Rust main/test file counts match the inventory, and six workflow files. Inspected the engine manifest, guard, process entry point, legacy project model, component catalog, package loader, package admission and deployment request/server source. Confirmed the destination project-model tree is unchanged between the audit fork and observed main `58d83ca540463d9507c1cd76555d0bac5bb6378b`. Corrected working documents to distinguish exact version handshake, normal shutdown versus failure supervision, unverified package signatures versus trusted admission, sensitive imported fields, and generated-runtime export evaluation. Historical owner decisions remain as recorded above. Shared roadmap/decision/handoff records reconciled without replacing concurrent changes. Prior exact-head CI on `268a12dcc8ac9476616abc25f6b3566a2709b678`: Desktop CI 45432107611 and handoff snapshot 45432107921 succeeded; new head requires fresh CI.
+
+Limits: source inventory file counts are independently verified; physical line totals, test counts/results, full dependency graph/advisories, individual authorship and exhaustive field-by-field/runtime behavior remain inherited or unverified. No full local clone, tests, secret scan or hardware execution was performed in this review. The audit is a planning baseline, not proof of production readiness or transfer clearance. Further source/rights checks are mandatory before REUSE-02A import and each component's later acceptance. No private source or secrets transferred. Do not mark final merge gate passed until fresh CI and remaining review are verified.

@@ -149,13 +149,32 @@ fn feeds(dt: &DataType, ty: &PropertyType) -> bool {
     }
 }
 
-/// Shape check of a property value (references such as theme tokens and
+/// Shape and numeric bounds check of a property value (references such as theme tokens and
 /// text keys are validated by RUST-03A at design time, not here).
 fn value_fits(v: &Json, ty: &PropertyType) -> bool {
     match ty {
         PropertyType::Bool {} => v.is_boolean(),
-        PropertyType::Number { .. } => v.is_number(),
-        PropertyType::Integer { .. } => v.is_i64() || v.is_u64(),
+        PropertyType::Number { min, max } => {
+            if let Some(i) = v
+                .as_i64()
+                .map(i128::from)
+                .or_else(|| v.as_u64().map(i128::from))
+            {
+                min.is_none_or(|m| m.is_finite() && i >= m.ceil() as i128)
+                    && max.is_none_or(|m| m.is_finite() && i <= m.floor() as i128)
+            } else {
+                v.as_f64().is_some_and(|x| {
+                    x.is_finite() && min.is_none_or(|m| x >= m) && max.is_none_or(|m| x <= m)
+                })
+            }
+        }
+        PropertyType::Integer { min, max } => v
+            .as_i64()
+            .map(i128::from)
+            .or_else(|| v.as_u64().map(i128::from))
+            .is_some_and(|i| {
+                min.is_none_or(|m| i >= i128::from(m)) && max.is_none_or(|m| i <= i128::from(m))
+            }),
         PropertyType::String {} => v.is_string(),
         PropertyType::Enum { options } => {
             v.as_str().is_some_and(|s| options.iter().any(|o| o == s))
@@ -459,12 +478,11 @@ fn numeric_json(x: f64, ty: &PropertyType) -> Result<Json, BindingError> {
     }
 }
 
-/// Numeric-aware equality of a source value with a map key.
+/// Exact typed equality of a source value with a map key.
 fn map_matches(v: &TagValue, key: &TagValue) -> bool {
-    match (v.as_f64(), key.as_f64()) {
-        (Some(a), Some(b)) => a == b,
-        _ => v == key,
-    }
+    // Map keys are parsed to the exact source type, so typed equality
+    // distinguishes adjacent wide integers instead of comparing rounded f64s.
+    v == key
 }
 
 impl CompiledBinding {
@@ -498,6 +516,11 @@ impl CompiledBinding {
                 },
             },
             Some(ValueTransform::Linear { factor, offset }) => {
+                if v.as_i128().is_some_and(|i| i.abs() > 9_007_199_254_740_991) {
+                    return Err(incompatible(
+                        "wide integer cannot safely enter a linear transform",
+                    ));
+                }
                 let x = v.as_f64().ok_or_else(|| incompatible("expected number"))?;
                 numeric_json(x * factor + offset, &self.property_type)
             }
@@ -590,12 +613,27 @@ impl CompiledBinding {
                 if *factor == 0.0 {
                     return Err(not_invertible("linear factor 0"));
                 }
+                if input
+                    .as_i64()
+                    .map(i128::from)
+                    .or_else(|| input.as_u64().map(i128::from))
+                    .is_some_and(|i| i.abs() > 9_007_199_254_740_991)
+                {
+                    return Err(incompatible(
+                        "wide integer cannot safely enter a linear inverse",
+                    ));
+                }
                 let x = input
                     .as_f64()
                     .ok_or_else(|| incompatible("expected number"))?;
                 let mut y = (x - offset) / factor;
                 if self.source_type.is_integer() {
                     y = y.round();
+                    if y.abs() > 9_007_199_254_740_991.0 {
+                        return Err(incompatible(
+                            "linear inverse exceeds safe integer precision",
+                        ));
+                    }
                 }
                 TagValue::Float64(y)
             }

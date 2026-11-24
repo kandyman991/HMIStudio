@@ -276,3 +276,57 @@ fn engine_is_send_and_sync() {
     check::<SimPlc>();
     check::<SimulatorHub>();
 }
+
+#[test]
+fn regression_internal_write_waiting_at_shutdown_is_refused() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Barrier;
+
+    struct PausingClock {
+        armed: AtomicBool,
+        entered: Barrier,
+        release: Barrier,
+    }
+    impl Clock for PausingClock {
+        fn now(&self) -> Timestamp {
+            if self.armed.swap(false, Ordering::SeqCst) {
+                self.entered.wait();
+                self.release.wait();
+            }
+            START
+        }
+    }
+    within(10, || {
+        let clock = Arc::new(PausingClock {
+            armed: AtomicBool::new(false),
+            entered: Barrier::new(2),
+            release: Barrier::new(2),
+        });
+        let hub = SimulatorHub::new(clock.clone());
+        let (engine, _) = TagEngine::new(
+            &project(),
+            &simulator_registry(&hub),
+            clock.clone(),
+            EngineConfig {
+                scan_mode: ScanMode::Manual,
+                ..EngineConfig::default()
+            },
+        );
+        let engine = Arc::new(engine);
+        clock.armed.store(true, Ordering::SeqCst);
+        let writer = engine.clone();
+        let handle =
+            std::thread::spawn(move || writer.write(&tid("int-bool"), TagValue::Bool(true)));
+        clock.entered.wait();
+        engine.shutdown();
+        clock.release.wait();
+        assert!(matches!(handle.join().unwrap(), Err(TagError::ShutDown)));
+    });
+}
+
+#[test]
+fn regression_cancel_token_huge_duration_does_not_overflow() {
+    let token = CancelToken::new();
+    token.cancel();
+    assert!(token.wait(Duration::MAX));
+}

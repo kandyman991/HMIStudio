@@ -403,6 +403,9 @@ fn generator(address: &str) -> Option<Result<Gen, String>> {
 
 impl SimulatedDriver {
     fn latency_and_faults(&self, ctx: &OpContext) -> Result<(), DriverError> {
+        if ctx.cancel.is_cancelled() {
+            return Err(DriverError::new(K::Cancelled, "cancelled"));
+        }
         let (latency, injected) = {
             let mut s = self.plc.lock();
             (s.latency, s.fail_next.pop_front())

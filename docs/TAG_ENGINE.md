@@ -182,3 +182,7 @@ conflicting edits.
    project parameters.
 4. **Alarms and recipes:** subscribe to the engine. Alarm conditions use the same
    member paths and types. Recipe downloads use `write_many`.
+
+### Review follow-up (PR #7)
+
+The reconciled implementation compares integer ranges and map keys exactly, refuses unsafe wide-integer linear transforms/inverses, checks operator property bounds, closes shutdown admission races, and preflights default value allocation against a conservative 100,000 expanded-node limit. See TAG_ENGINE_VALIDATION.md for evidence and remaining limits. This is a simulation-only foundation; no UI or physical-driver integration until subscriber back-pressure and bridge supervision are implemented.

@@ -15,6 +15,8 @@ use serde_json::Value as Json;
 /// Maximum struct/array nesting depth processed (guards cyclic or absurd
 /// type definitions; RUST-03A rejects cyclic structs at validation).
 pub const MAX_TYPE_DEPTH: usize = 32;
+/// Maximum number of expanded value nodes in a default value.
+pub const MAX_DEFAULT_VALUE_NODES: usize = 100_000;
 
 /// A runtime value.
 #[derive(Clone, Debug, PartialEq)]
@@ -304,6 +306,9 @@ pub enum ValueError {
     /// Type definitions nested too deeply (or cyclic).
     #[error("type nesting exceeds {MAX_TYPE_DEPTH} levels")]
     TooDeep,
+    /// Expanded default value would exceed the runtime allocation limit.
+    #[error("default value exceeds {MAX_DEFAULT_VALUE_NODES} nodes")]
+    TooLarge,
 }
 
 fn mismatch(dt: &DataType, found: impl Into<String>) -> ValueError {
@@ -361,7 +366,36 @@ impl TypeContext {
 
     /// Zero / empty / false value of a type.
     pub fn default_value(&self, dt: &DataType) -> Result<TagValue, ValueError> {
+        self.default_size(dt, 0)?;
         self.default_at(dt, 0)
+    }
+
+    fn default_size(&self, dt: &DataType, depth: usize) -> Result<usize, ValueError> {
+        if depth > MAX_TYPE_DEPTH {
+            return Err(ValueError::TooDeep);
+        }
+        let add = |a: usize, b: usize| {
+            a.checked_add(b)
+                .filter(|n| *n <= MAX_DEFAULT_VALUE_NODES)
+                .ok_or(ValueError::TooLarge)
+        };
+        match dt {
+            DataType::Array { element, length } => {
+                let size = self.default_size(element, depth + 1)?;
+                let size = size
+                    .checked_mul(*length as usize)
+                    .ok_or(ValueError::TooLarge)?;
+                add(1, size)
+            }
+            DataType::Struct(id) => {
+                let mut size = 1;
+                for m in &self.struct_type(id)?.members {
+                    size = add(size, self.default_size(&m.data_type, depth + 1)?)?;
+                }
+                Ok(size)
+            }
+            _ => Ok(1),
+        }
     }
 
     fn default_at(&self, dt: &DataType, depth: usize) -> Result<TagValue, ValueError> {

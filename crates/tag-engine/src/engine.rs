@@ -356,7 +356,16 @@ fn reason_for(kind: DriverErrorKind) -> QualityReason {
 fn out_of_range(range: Option<&ValueRange>, v: &TagValue) -> Option<(f64, f64, f64)> {
     let r = range?;
     let x = v.as_f64()?;
-    (x < r.min || x > r.max).then_some((x, r.min, r.max))
+    // Compare integral values against ceil(min)/floor(max) without rounding
+    // the tag to f64. All tag integers fit in i128; saturating float casts
+    // are harmless for bounds beyond the entire tag integer domain.
+    let outside = if let Some(i) = v.as_i128() {
+        i < r.min.ceil() as i128 || i > r.max.floor() as i128
+    } else {
+        x < r.min || x > r.max
+    };
+    (outside || !r.min.is_finite() || !r.max.is_finite() || r.min > r.max)
+        .then_some((x, r.min, r.max))
 }
 
 impl TagEngine {
@@ -808,9 +817,15 @@ impl TagEngine {
         }
         if !internal.is_empty() {
             let items: Vec<WriteItem> = internal.iter().map(|(_, w)| w.clone()).collect();
-            self.inner.apply_written(&items, &vec![true; items.len()]);
+            let applied = self
+                .inner
+                .apply_written(&items, &vec![true; items.len()], true);
             for (i, _) in internal {
-                results[i] = Some(Ok(()));
+                results[i] = Some(if applied {
+                    Ok(())
+                } else {
+                    Err(TagError::ShutDown)
+                });
             }
         }
         for (ci, items) in per_conn {
@@ -860,6 +875,7 @@ impl TagEngine {
         // Values read lock, then subscriber lock: no update can interleave.
         let values = read(&self.inner.values);
         let mut subs = lock(&self.inner.subs);
+        self.inner.ensure_running()?;
         for t in &self.inner.order {
             let readable = self
                 .inner
@@ -1094,6 +1110,9 @@ impl Inner {
 
     /// Connects if needed. Returns whether the connection is usable.
     fn ensure_connected(&self, c: &ConnRt, d: &mut DriverSlot, force: bool) -> bool {
+        if self.ensure_running().is_err() {
+            return false;
+        }
         let Some(drv) = d.driver.as_mut() else {
             return false;
         };
@@ -1179,6 +1198,10 @@ impl Inner {
         let ctx = self.ctx(c);
         let mut offset = 0;
         for chunk in items.chunks(max) {
+            if self.ensure_running().is_err() || d.driver.is_none() {
+                errs[offset..].fill(Some(TagError::ShutDown));
+                break;
+            }
             let Some(drv) = d.driver.as_mut() else { break };
             let res = drv.read(chunk, &ctx);
             let range_ids = offset..offset + chunk.len();
@@ -1210,6 +1233,12 @@ impl Inner {
                         });
                     }
                     if e.kind == DriverErrorKind::Cancelled {
+                        for k in offset..ids.len() {
+                            errs[k] = Some(TagError::Driver {
+                                tag: ids[k].to_string(),
+                                error: e.clone(),
+                            });
+                        }
                         return errs;
                     }
                 }
@@ -1276,6 +1305,9 @@ impl Inner {
             return vec![Some(TagError::ShutDown); ids.len()];
         };
         let mut d = lock(&c.driver);
+        if self.ensure_running().is_err() {
+            return vec![Some(TagError::ShutDown); ids.len()];
+        }
         if !self.ensure_connected(c, &mut d, false) {
             return ids
                 .iter()
@@ -1344,9 +1376,12 @@ impl Inner {
 
     /// Updates cached values after accepted writes (atomic member update
     /// under the store lock).
-    fn apply_written(&self, items: &[WriteItem], ok: &[bool]) {
+    fn apply_written(&self, items: &[WriteItem], ok: &[bool], require_running: bool) -> bool {
         let now = self.clock.now();
         let mut values = write(&self.values);
+        if require_running && self.ensure_running().is_err() {
+            return false;
+        }
         let mut events = Vec::new();
         for (it, ok) in items.iter().zip(ok) {
             if !*ok {
@@ -1373,7 +1408,7 @@ impl Inner {
             }
         }
         if events.is_empty() {
-            return;
+            return true;
         }
         let mut subs = lock(&self.subs);
         subs.retain(|_, s| {
@@ -1395,6 +1430,7 @@ impl Inner {
             }
             true
         });
+        true
     }
 
     fn write_to_device(&self, ci: usize, items: Vec<WriteItem>) -> Vec<Result<(), TagError>> {
@@ -1402,6 +1438,9 @@ impl Inner {
             return items.iter().map(|_| Err(TagError::ShutDown)).collect();
         };
         let mut d = lock(&c.driver);
+        if self.ensure_running().is_err() {
+            return vec![Err(TagError::ShutDown); items.len()];
+        }
         if !self.ensure_connected(c, &mut d, false) {
             return items
                 .iter()
@@ -1434,7 +1473,18 @@ impl Inner {
         let ctx = self.ctx(c);
         let mut done = 0;
         for chunk in sendable.chunks(max) {
-            let Some(drv) = d.driver.as_mut() else { break };
+            if self.ensure_running().is_err() {
+                for &s in &slots[done..] {
+                    results[s] = Err(TagError::ShutDown);
+                }
+                break;
+            }
+            let Some(drv) = d.driver.as_mut() else {
+                for &s in &slots[done..] {
+                    results[s] = Err(TagError::ShutDown);
+                }
+                break;
+            };
             let res = drv.write(chunk, &ctx);
             let chunk_slots = &slots[done..done + chunk.len()];
             done += chunk.len();
@@ -1468,7 +1518,7 @@ impl Inner {
                 }
                 Ok(r) => {
                     let ok: Vec<bool> = r.iter().map(Result::is_ok).collect();
-                    self.apply_written(chunk, &ok);
+                    self.apply_written(chunk, &ok, false);
                     for ((it, res), &s) in chunk.iter().zip(r).zip(chunk_slots) {
                         if let Err(error) = res {
                             results[s] = Err(TagError::Driver {

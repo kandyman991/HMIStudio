@@ -20,9 +20,11 @@ RUST-00/01 merged as 7a07d7e (PR #1); manual acceptance deferred to RUST-02. RUS
 ## CI-02 — Change-aware CI (merged; follow-up validation pending)
 Merged PR #14 (`39eba35`); full CI and independent review passed. Documentation-only routing passed on PR #9 (zero artifacts). Remaining evidence: independent manual dispatch. Acceptance criteria: regression tests for change classification, exact-head full CI for workflow changes, independent review, verify required check contexts and manual installer path, demonstrate documentation-only routing with no installer uploads. Keep handoff and applicable dependency checks mandatory. See CI_RUNNER_POLICY.md; no milestone or release acceptance implied.
 
-## Reuse track (REUSE-01/02A merged; REUSE-02B in progress)
+## Reuse track (REUSE-01/02A/02B merged; REUSE-02C pending)
 See reuse/REUSE_MILESTONE_PLAN.md and reuse/AUDIT_SUMMARY.md. REUSE-01 merged as `238fd18` (PR #9), audit-only; REUSE-02A verifies pinned source, rights, disclosure and dependencies before import. Later bridge, model, runtime and deployment decisions remain open. Preserve both runtime delivery modes, generated Kotlin/Compose evaluation, simulation freedom, and independent production acceptance.
 
 REUSE-02A: see reuse/REUSE_02A_PREFLIGHT.md for verified inputs, limited screening and outstanding transfer gates.
 
 REUSE-02B source-only import follows merged #15 and private #57; see crates/hmi-engine/PROVENANCE.md. Exact-head Windows/Linux test-server, notice inventory, advisory gate and independent review required before merge; no bridge or production/release acceptance.
+
+RUST-06A PR #7 reconciled against merged REUSE-02B (`78f3a64`), reviewed with six new regression tests (50 total); exact-head Desktop CI, handoff and dedicated strict audit still required. REUSE-02C starts only after tag foundation merge and applicable O-5/bridge decisions; bounded delivery, supervision, numeric safety and simulation acceptance before actual PLC work.

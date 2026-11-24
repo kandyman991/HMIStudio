@@ -298,3 +298,52 @@ fn timestamps_follow_the_clock() {
     assert_eq!(s.timestamp, START.plus_millis(250));
     assert!(s.sequence > 0);
 }
+
+#[test]
+fn regression_wide_integer_range_is_not_rounded() {
+    let mut v = project_json();
+    v["tags"].as_array_mut().unwrap().push(json!({
+        "id":"wide", "name":"Wide", "dataType":"uint64", "access":"readWrite",
+        "range":{"min":0,"max":9007199254740992_u64}
+    }));
+    let r = rig_with(&project_from(v), ScanMode::Manual);
+    let t = tid("wide");
+    r.engine
+        .write(&t, TagValue::UInt64(9007199254740992))
+        .unwrap();
+    assert!(matches!(
+        r.engine.write(&t, TagValue::UInt64(9007199254740993)),
+        Err(TagError::OutOfRange { .. })
+    ));
+    assert_eq!(
+        r.engine.read(&t).unwrap().value,
+        TagValue::UInt64(9007199254740992)
+    );
+}
+
+#[test]
+fn regression_default_values_bound_expanded_array_size() {
+    let r = rig();
+    let types = r.engine.types();
+    let huge = DataType::Array {
+        element: Box::new(DataType::Bool),
+        length: u32::MAX,
+    };
+    assert_eq!(types.default_value(&huge), Err(ValueError::TooLarge));
+    let nested = DataType::Array {
+        element: Box::new(DataType::Array {
+            element: Box::new(DataType::Bool),
+            length: 1000,
+        }),
+        length: 1000,
+    };
+    assert_eq!(types.default_value(&nested), Err(ValueError::TooLarge));
+    let small = DataType::Array {
+        element: Box::new(DataType::Bool),
+        length: 2,
+    };
+    assert_eq!(
+        types.default_value(&small).unwrap(),
+        TagValue::Array(vec![TagValue::Bool(false); 2])
+    );
+}

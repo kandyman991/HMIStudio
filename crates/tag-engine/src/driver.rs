@@ -152,15 +152,17 @@ impl CancelToken {
     /// waiting).
     pub fn wait(&self, d: Duration) -> bool {
         let (m, cv) = &*self.0;
-        let deadline = Instant::now() + d;
+        let start = Instant::now();
         let mut cancelled = m.lock().unwrap_or_else(|e| e.into_inner());
         while !*cancelled {
-            let now = Instant::now();
-            if now >= deadline {
+            let remaining = d.saturating_sub(start.elapsed());
+            if remaining.is_zero() {
                 return false;
             }
+            // Bound each platform wait; huge durations must not overflow an Instant
+            // or a platform absolute timeout.
             cancelled = cv
-                .wait_timeout(cancelled, deadline - now)
+                .wait_timeout(cancelled, remaining.min(Duration::from_secs(3600)))
                 .unwrap_or_else(|e| e.into_inner())
                 .0;
         }

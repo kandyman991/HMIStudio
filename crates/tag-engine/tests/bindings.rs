@@ -441,3 +441,57 @@ fn regression_integer_sources_stay_integers() {
     assert!(v.is_u64() || v.is_i64(), "{v}");
     assert_eq!(v, json!(u32::MAX));
 }
+
+#[test]
+fn regression_exact_wide_map_and_safe_linear_inverse() {
+    let mut v = project_json();
+    v["tags"].as_array_mut().unwrap().push(json!({
+        "id":"wide", "name":"Wide", "dataType":"uint64", "access":"readWrite",
+        "initialValue":9007199254740993_u64
+    }));
+    let p = project_from(v);
+    let r = rig_with(&p, ScanMode::Manual);
+    let map = compile_on(&r, &p, "text", json!({
+        "property":"text", "source":{"tag":"wide"}, "transform":{"type":"map",
+        "entries":[{"when":9007199254740992_u64,"value":"wrong"},{"when":9007199254740993_u64,"value":"right"}]}
+    })).unwrap();
+    assert_eq!(map.read(&r.engine).unwrap().value, json!("right"));
+    let linear = compile_on(
+        &r,
+        &p,
+        "numericInput",
+        json!({
+            "property":"value", "mode":"readWrite", "source":{"tag":"wide"},
+            "transform":{"type":"linear","factor":1}
+        }),
+    )
+    .unwrap();
+    assert!(linear.read(&r.engine).is_err());
+    assert!(linear
+        .write(&json!(9007199254740993_u64), &r.engine)
+        .is_err());
+    assert_eq!(
+        r.engine.read(&tid("wide")).unwrap().value,
+        TagValue::UInt64(9007199254740993)
+    );
+}
+
+#[test]
+fn regression_bounded_property_input_is_rejected() {
+    use hmi_project_model::model::PropertyType;
+    let r = rig();
+    let b = binding(json!({"property":"value","mode":"write","source":{"tag":"int-real"}}));
+    let c = compile(
+        &b,
+        &PropertyType::Number {
+            min: Some(10.0),
+            max: Some(20.0),
+        },
+        &BindingScope::default(),
+        &r.engine,
+    )
+    .unwrap();
+    assert!(c.write(&json!(21), &r.engine).is_err());
+    assert!(c.write(&json!(9), &r.engine).is_err());
+    c.write(&json!(15), &r.engine).unwrap();
+}

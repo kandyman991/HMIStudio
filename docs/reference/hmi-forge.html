@@ -1,0 +1,1591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#151b25">
+<title>HMI Forge Studio · North Basin WTP</title>
+<style>
+:root{color-scheme:dark;--shell:#151a23;--panel:#191f2a;--raised:#202836;--field:#121823;--edge:#2b3545;--ink:#e8edf5;--muted:#a1afc2;--dim:#7e90a8;--mint:#62e2c3;--blue:#79abfd;--amber:#f2bb61;--red:#ff8489;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--ui:Inter,'Segoe UI',system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--shell);color:var(--ink);font:14px/1.4 var(--ui);height:100dvh;overflow:hidden}button,input,select{font:inherit}button{border:0;color:inherit;background:none;cursor:pointer}button:disabled{opacity:.35;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--mint);outline-offset:2px}button:hover:not(:disabled){background:#293545}input,select{background:var(--field);color:var(--ink);border:1px solid var(--edge);border-radius:5px;padding:6px 8px;min-width:0}input[type=checkbox]{accent-color:var(--mint)}small{font-size:12px}svg.ico{width:17px;height:17px;flex:none;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}.muted{color:var(--muted)}.mono{font-family:var(--mono)}.accent{color:var(--mint)}.amber{color:var(--amber)}.red{color:var(--red)}.spacer{flex:1}.divider{width:1px;height:20px;background:var(--edge);margin:0 4px;flex:none}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #375062;background:#223044;padding:3px 7px;border-radius:4px;font:11px/1.25 var(--mono);letter-spacing:.035em;white-space:nowrap}.chip.good{color:var(--mint);border-color:#2b504f;background:#17342f}.chip.warn{color:var(--amber);background:#392d24;border-color:#59442c}.chip.bad{color:var(--red);background:#402932;border-color:#613b4a}.iconbtn,.tool,.tab,.textbtn,.action{display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;border-radius:5px;min-height:30px;padding:5px 8px}.iconbtn{width:30px;padding:0;color:var(--muted)}.iconbtn.on,.tool.on,.textbtn.on{color:var(--mint);background:#203b3d}.action{border:1px solid var(--edge);background:var(--raised);font-weight:600;padding:6px 11px}.action.primary{background:var(--mint);border-color:var(--mint);color:#102521}.action.primary:hover:not(:disabled){background:#a0f1dc}.textbtn{color:var(--muted)}
+#studio{height:100%;display:grid;grid-template-rows:58px 34px 46px minmax(0,1fr) 203px 29px}#studio.output-closed{grid-template-rows:58px 34px 46px minmax(0,1fr) 0 29px}.top,.menubar,.toolbar,.statusbar{display:flex;align-items:center;min-width:0}.top{background:#171d28;border-bottom:1px solid var(--edge);padding:0 15px;gap:13px}.brand{display:flex;align-items:center;gap:10px;flex:none}.brand-mark{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:#1f4947;color:var(--mint);border:1px solid #3c776e}.brand-mark .ico{width:21px;height:21px}.brand-name{font-size:17px;font-weight:750;letter-spacing:-.035em}.brand-name span{color:var(--mint)}.brand-sub{font:10px var(--mono);letter-spacing:.13em;color:var(--dim);margin-top:1px}.project-head{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0}.project-head .ico{color:var(--dim)}.top-actions{display:flex;align-items:center;gap:8px;flex:none}.top-actions .action{min-height:33px}.top .build-chip{margin-right:4px;color:#adc5e1}.menubar{padding:0 12px;gap:2px;background:#151b25;border-bottom:1px solid var(--edge);position:relative;z-index:20}.menubar>.textbtn{min-height:27px;padding:3px 10px;color:#c7d1df;font-size:13px}.menubar>.on{background:#2a3646;color:var(--ink)}.menu{position:absolute;top:100%;min-width:220px;padding:5px;background:#222b39;border:1px solid #3d4b60;box-shadow:0 12px 30px #080c16b0;border-radius:6px;z-index:30}.menu[hidden]{display:none}.menuitem{position:relative}.menuitem>button{display:flex;align-items:center;gap:15px;width:100%;padding:7px 9px;text-align:left;border-radius:4px;color:var(--ink)}.menuitem>button .shortcut{margin-left:auto;font:11px var(--mono);color:var(--muted)}.menuitem>.menu{left:calc(100% - 2px);top:-5px}.menu hr{margin:4px;border:0;border-top:1px solid #3d4b60}.menubar .keyboard-hint{font-size:12px;display:flex;gap:6px;align-items:center;padding-right:4px;color:var(--dim)}kbd{font:11px var(--mono);border:1px solid #3d4b60;border-bottom-width:2px;border-radius:4px;padding:2px 5px;background:#202a39;color:#b6c3d7}.toolbar{gap:4px;padding:0 13px;background:#1c2430;border-bottom:1px solid var(--edge);overflow:auto;scrollbar-width:thin}.toolbar .tool{color:#c2cdde}.toolbar .tool.on{color:var(--mint)}.toolbar .zoom{font:12px var(--mono);min-width:45px}.toolbar .group{display:flex;align-items:center;gap:2px;flex:none}.toolbar .optional{color:var(--muted);font-size:12px;padding-right:4px}
+.workbench{display:grid;grid-template-columns:49px minmax(198px,238px) minmax(0,1fr) minmax(232px,274px);min-height:0;position:relative}.workbench.left-closed{grid-template-columns:49px 0 minmax(0,1fr) minmax(232px,274px)}.workbench.right-closed{grid-template-columns:49px minmax(198px,238px) minmax(0,1fr) 0}.workbench.left-closed.right-closed{grid-template-columns:49px 0 minmax(0,1fr) 0}.rail{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 0 7px;background:#141a24;border-right:1px solid var(--edge);z-index:12}.rail button{width:38px;height:37px;border-radius:5px;color:var(--dim);position:relative}.rail button .ico{width:19px;height:19px}.rail button.on{background:#203338;color:var(--mint)}.rail button.on::before{content:'';width:2px;height:19px;background:var(--mint);position:absolute;left:-5px;top:9px;border-radius:2px}.dock{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--panel);overflow:hidden}.dock.left{border-right:1px solid var(--edge)}.dock.right{border-left:1px solid var(--edge)}.left-closed .left,.right-closed .right{visibility:hidden}.dock-title{height:38px;flex:none;display:flex;gap:8px;align-items:center;padding:0 11px;border-bottom:1px solid var(--edge);font-size:13px;font-weight:650}.dock-title .iconbtn{width:25px;min-height:25px}.dock-title .dock-icon{color:var(--dim)}.dock-body{overflow:auto;min-height:0;flex:1;scrollbar-width:thin}.dock-group{padding:9px 8px}.dock-group+.dock-group{border-top:1px solid var(--edge)}.group-title{font:11px var(--mono);letter-spacing:.10em;color:var(--dim);display:flex;align-items:center;gap:6px;padding:1px 5px 5px;min-height:24px}.group-title .iconbtn{width:22px;min-height:21px}.group-title .ico{width:13px;height:13px}.tree-row{width:100%;display:flex;align-items:center;text-align:left;gap:8px;padding:5px 8px;min-height:29px;border-radius:4px;color:#b6c4d7;font-size:13px}.tree-row .ico{width:15px;height:15px;color:#7d95b4}.tree-row.active{color:#c8f3e9;background:#233a3f}.tree-row.active .ico{color:var(--mint)}.tree-row .mini{font:10px var(--mono);color:var(--dim);margin-left:auto;white-space:nowrap}.tree-row.indent{padding-left:22px}.tree-row .chevron{width:12px}.tree-row.locked{opacity:.65}.number-count{padding:1px 4px;border-radius:3px;background:#2a3547;color:#a6b7cb;font:10px var(--mono)}.layerline{display:flex;align-items:center;gap:3px}.layerline>.tree-row{min-width:0;padding-top:3px;padding-bottom:3px}.layerline>.iconbtn{width:22px;min-height:25px}.layerline>.iconbtn .ico{width:13px;height:13px}.palette{display:grid;grid-template-columns:1fr 1fr;gap:6px}.palette button{min-height:57px;padding:6px 3px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;background:#222b3a;border:1px solid #2c384a;border-radius:5px;color:#c0cde0;font-size:12px}.palette button .ico{color:var(--blue);width:19px;height:19px}.palette button:hover{border-color:#638cac;background:#283b4c}.palette-filter{width:100%;margin-bottom:8px;font-size:13px}
+.editor{display:grid;grid-template-rows:38px minmax(0,1fr) 32px;min-width:0;min-height:0;background:#111722}.tabs{display:flex;align-items:stretch;min-width:0;background:#171e2a;border-bottom:1px solid var(--edge);overflow:auto;scrollbar-width:thin}.tab-shell{position:relative;display:flex;flex:none;border-right:1px solid var(--edge);color:#a6b5c8}.tab-shell.active{color:var(--ink);background:#202a39}.tab-shell.active::before{position:absolute;content:'';left:0;right:0;top:0;height:2px;background:var(--mint);pointer-events:none}.tab-shell .tab{border-radius:0;padding:0 8px 0 12px;font-size:13px}.tab-shell .tab .ico{width:14px;color:var(--dim)}.tab-shell.active .tab .ico{color:var(--mint)}.tab-shell .close-tab{align-self:center;width:23px;min-height:23px;margin-right:4px}.close-tab .ico{width:12px}.tab-add{margin:3px;flex:none}.editor-head{margin:6px 8px 6px auto;color:var(--dim);align-self:center;font:11px var(--mono);white-space:nowrap}.viewport{position:relative;min-height:0;overflow:hidden;display:grid;grid-template-rows:20px minmax(0,1fr);grid-template-columns:21px minmax(0,1fr)}.ruler-corner,.ruler-x,.ruler-y{background:#1a2230;color:#8093ab;font:10px var(--mono);overflow:hidden}.ruler-corner{border-right:1px solid var(--edge);border-bottom:1px solid var(--edge);display:grid;place-items:center}.ruler-x{grid-column:2;position:relative;border-bottom:1px solid var(--edge);background-image:repeating-linear-gradient(90deg,#37475d 0px,#37475d 1px,transparent 1px,transparent 12px);background-size:100% 4px;background-position:bottom;background-repeat:no-repeat}.ruler-y{grid-row:2;position:relative;border-right:1px solid var(--edge);background-image:repeating-linear-gradient(#37475d 0px,#37475d 1px,transparent 1px,transparent 12px);background-size:4px 100%;background-position:right;background-repeat:no-repeat}.ruler-x span,.ruler-y span{position:absolute}.ruler-x span{top:1px}.ruler-y span{left:2px;writing-mode:vertical-rl;transform:rotate(180deg)}.canvas-field{grid-row:2;grid-column:2;position:relative;overflow:hidden;background-color:#111824;background-image:radial-gradient(#354458 1px,transparent 1px);background-size:17px 17px;touch-action:none}.canvas-field.no-grid{background-image:none}.canvas-field.pan{cursor:grab}.canvas-field.panning{cursor:grabbing}.artboard-frame{position:absolute;transform-origin:top left;box-shadow:0 16px 45px #060a1290}.artboard{width:860px;height:480px;position:relative;background:#172431;border:1px solid #40546a;color:#ecf4fa;overflow:hidden;isolation:isolate;font-family:var(--ui);user-select:none}.artboard::before{position:absolute;content:'';inset:67px 0 0;background:radial-gradient(ellipse at 40% 45%,#213644,#172431 76%);z-index:-1}.canvas-caption{position:absolute;color:#91a7be;font:11px var(--mono);letter-spacing:.06em;white-space:nowrap;pointer-events:none}.canvas-foot{display:flex;align-items:center;gap:8px;padding:0 10px;border-top:1px solid var(--edge);background:#19212d;color:var(--muted);font-size:12px;min-width:0}.canvas-foot .iconbtn{width:23px;min-height:24px}.canvas-foot .mono{font-size:11px}.canvas-foot .ico{width:14px;height:14px}
+.hmi-head{height:66px;border-bottom:1px solid #375064;display:flex;align-items:center;padding:0 22px;gap:12px;background:#1b2a39}.hmi-brand{width:35px;height:35px;border-radius:7px;display:grid;place-items:center;color:var(--mint);background:#234542;border:1px solid #3a655f}.hmi-brand .ico{width:22px;height:22px}.hmi-site{font-weight:700;font-size:19px;letter-spacing:-.025em}.hmi-area{font:10px var(--mono);color:#a7b9cb;letter-spacing:.11em;margin-top:3px}.hmi-head .chip{font-size:10px}.hmi-section{position:absolute;left:23px;top:84px;color:#afc1d2;font:11px var(--mono);letter-spacing:.10em}.hmi-section:before{content:'';height:10px;width:2px;background:var(--mint);margin-right:7px;display:inline-block;vertical-align:-1px}.hmi-counter{position:absolute;right:21px;top:22px;background:#233437}.pipework{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1}.pipework path{fill:none;stroke:#3b5668;stroke-width:11;stroke-linecap:round;stroke-linejoin:round}.pipework .flow{stroke:#6bc8bc;stroke-width:2.5;stroke-dasharray:8 10;opacity:.8}.pipework .flow.idle{stroke:#546c7e;opacity:.85}.artboard.running .flow:not(.idle){animation:flow 1.1s linear infinite}@keyframes flow{to{stroke-dashoffset:-36}}.pipework .direction{fill:#7ce2d0;stroke:none}.pipe-label{position:absolute;color:#8da6b8;font:10px var(--mono);letter-spacing:.04em;pointer-events:none}.widget{position:absolute;display:flex;min-width:0;min-height:0;cursor:move;outline:1px solid transparent}.widget:hover{outline-color:#81b2f397}.widget.selected{outline:1px solid #74acff;z-index:2}.widget .selection-label{position:absolute;top:-18px;left:-1px;background:#7ab1ff;color:#111f31;font:10px var(--mono);padding:2px 5px;border-radius:2px 2px 0 0;white-space:nowrap}.handle{position:absolute;width:6px;height:6px;border:1px solid #e2eeff;background:#7eb4ff;z-index:4;pointer-events:none}.handle.tl{top:-3px;left:-3px}.handle.tr{top:-3px;right:-3px}.handle.bl{bottom:-3px;left:-3px}.handle.br{bottom:-3px;right:-3px;cursor:nwse-resize;pointer-events:auto}.widget>.equipment{flex:1;min-width:0}.equipment{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;overflow:hidden;border-radius:7px;background:#1d3040;border:1px solid #406079;color:#e2edf6}.equipment strong{font-size:13px;line-height:1.15}.equipment .asset-id{font:10px var(--mono);color:#a4b9cc}.equipment .value{font:700 25px/1.05 var(--mono);letter-spacing:-.07em}.equipment .value em{font:12px var(--mono);color:#b2c4d3;letter-spacing:0;font-style:normal}.equipment .readout{color:var(--mint)}.equipment .ico{color:#79cabf;width:31px;height:31px}.equipment.sensor{background:#203343;align-items:flex-start;padding:9px 11px;gap:5px}.equipment.sensor .asset-id{font-size:10px;letter-spacing:.03em}.equipment.sensor .value{font-size:22px}.equipment.pump{color:#e1eef3;gap:6px}.pump .pump-symbol{display:grid;place-items:center;border:2px solid #71caba;background:#234a4c;border-radius:50%;width:47px;height:47px;color:#a1f1db}.pump .pump-symbol .ico{width:26px;height:26px;color:inherit;fill:#7ad8c738}.pump.stopped .pump-symbol{color:#9eb3c6;border-color:#607d95;background:#2b4154}.pump .asset-id{font-size:11px}.valve .ico{width:38px;height:26px;color:#90dece}.equipment.tank{background:#1e3544;justify-content:flex-start;padding:10px 8px 7px;gap:4px}.tank .reservoir{height:99px;width:100%;max-width:113px;min-height:28px;flex:1;border:1px solid #7594aa;border-top:2px solid #a1bacb;border-radius:5px 5px 15px 15px;position:relative;overflow:hidden;background:#172b39;margin:3px 0 2px}.tank .liquid{position:absolute;inset:auto 0 0;background:repeating-linear-gradient(0deg,transparent 0 19px,#6ccbbf42 19px 20px),linear-gradient(#388c8a,#285c70);border-top:2px solid #85dfca;transition:height .35s}.tank .tickmarks{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 19px,#a9c2d433 19px 20px);pointer-events:none}.equipment.text{background:#24364a}.equipment.lamp{flex-direction:row;gap:9px}.equipment.action-widget{background:#297768;color:white}.equipment.trend canvas{width:90%;height:62%;min-height:35px}.equipment.trend{padding:8px;align-items:flex-start}.metric-strip{position:absolute;left:21px;right:21px;bottom:17px;display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.metric{display:grid;grid-template-columns:28px 1fr;align-items:center;gap:8px;padding:8px 9px;border:1px solid #365066;border-radius:5px;background:#1b2d3c;min-height:52px}.metric>.ico{width:20px;height:20px;color:#82b8d0}.metric .metric-name{font:10px var(--mono);color:#98b0c4;letter-spacing:.04em}.metric .metric-value{font:600 14px var(--mono);margin-top:2px}.metric .metric-value.accent{color:var(--mint)}.metric .metric-value.amber{color:var(--amber)}.previewing .widget{cursor:default}.previewing .widget:hover{outline-color:transparent}.previewing .widget[data-kind=pump],.previewing .widget[data-kind=valve],.previewing .widget[data-kind=button]{cursor:pointer}.previewing .widget[tabindex]:focus-visible{outline:2px solid var(--mint)}
+.inspector-tabs{display:flex;padding:0 6px;border-bottom:1px solid var(--edge);flex:none}.inspector-tabs button{flex:1;font-size:12px;padding:8px 3px;color:var(--muted);border-bottom:2px solid transparent}.inspector-tabs button.on{border-bottom-color:var(--mint);color:var(--mint)}.inspect-card{display:flex;align-items:center;gap:9px;padding:9px 9px;background:#232d3d;border:1px solid #324158;border-radius:5px;margin:10px}.inspect-card>.ico{width:22px;height:22px;color:var(--blue)}.inspect-name{font-size:13px;font-weight:650}.inspect-type{color:var(--dim);font-size:11px}.prop-section{border-top:1px solid var(--edge);padding:7px 10px 9px}.prop-section .group-title{padding-left:0}.prop-row{display:grid;grid-template-columns:minmax(59px,.75fr) minmax(0,1.25fr);gap:7px;align-items:center;margin:6px 0;font-size:12px;color:#b1bfd1}.prop-row input,.prop-row select{width:100%;padding:4px 6px;font-size:12px;min-height:27px}.prop-row input[type=checkbox]{width:15px;min-height:15px;margin:4px}.prop-pair{display:grid;grid-template-columns:1fr 1fr;gap:7px}.prop-pair .prop-row{grid-template-columns:auto minmax(0,1fr);gap:4px}.prop-pair input{font-family:var(--mono)}.binding-preview{display:flex;gap:7px;align-items:center;justify-content:flex-start;width:100%;padding:6px;border:1px solid #354b60;border-radius:5px;background:#1e2d3e;color:#c0d7fa;text-align:left}.binding-preview .ico{width:14px;color:var(--blue)}.binding-preview .mono{font-size:11px}.empty{padding:13px;color:var(--muted);font-size:13px}.inspector-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.inspector-actions button{font-size:12px}.binding-note{font-size:12px;color:var(--muted);margin:8px 0}
+.output{display:grid;grid-template-rows:36px 33px minmax(0,1fr);min-height:0;overflow:hidden;background:#19212c;border-top:1px solid #344257}.output-closed .output{visibility:hidden}.output-tabs,.output-tools{display:flex;align-items:center;gap:3px;padding:0 10px;border-bottom:1px solid var(--edge);min-width:0;overflow:auto;scrollbar-width:thin}.output-tabs{background:#1c2431}.output-tabs .tab{border-radius:0;height:100%;padding:0 10px;color:#a7b6ca;border-bottom:2px solid transparent;font-size:13px}.output-tabs .tab.on{color:var(--mint);border-color:var(--mint);background:#223039}.output-tabs .iconbtn{flex:none;min-height:24px;width:25px}.output-tools{gap:8px}.output-tools input{font-size:12px;padding:3px 7px;width:min(270px,45vw);height:24px}.output-tools select,.output-tools .tool{font-size:12px;padding:2px 6px;min-height:24px}.output-tools .tool .ico{width:14px}.output-tools>small{white-space:nowrap}.output-data{overflow:auto;scrollbar-width:thin}.data-table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;white-space:nowrap}.data-table thead{position:sticky;top:0;background:#222c3b;z-index:1;color:#a6bad0}.data-table th{font-weight:550}.data-table td,.data-table th{padding:4px 13px;border-bottom:1px solid #293444}.data-table tbody tr:hover{background:#222f41}.data-table td:first-child,.data-table th:first-child{padding-left:19px}.data-table .ico{width:13px;height:13px;color:var(--blue);margin-right:4px}.data-table .write-tag{min-height:22px;padding:1px 6px}.data-table .write-tag .ico{margin:0}.data-table .chip{padding:2px 6px;font-size:10px}.table-btn{padding:0;font:inherit;color:#b7d2fa;text-align:left}.table-btn:hover{text-decoration:underline}.statusbar{background:#141c28;border-top:1px solid #29394d;gap:12px;padding:0 11px;font-size:11px;color:#a2b3c9;overflow:auto;scrollbar-width:none;white-space:nowrap}.statusbar button{font-size:11px;padding:1px 3px;min-height:21px}.statusbar .ico{width:13px;height:13px}.status-segment{display:flex;align-items:center;gap:6px;flex:none}.statusbar .spacer{min-width:8px}.status-bar-label{font:10px var(--mono);letter-spacing:.02em}
+dialog{color:var(--ink);border:1px solid #435471;border-radius:11px;background:#1b2433;box-shadow:0 24px 90px #000a;padding:0;width:min(545px,calc(100% - 24px));max-height:calc(100dvh - 24px);overflow:auto}dialog::backdrop{background:#080d17b8;backdrop-filter:blur(3px)}.dialog-head,.dialog-foot{display:flex;gap:8px;align-items:center;padding:12px 16px;background:#232e3f}.dialog-head{border-bottom:1px solid #39485e}.dialog-head h2{font-size:17px;margin:0;letter-spacing:-.02em}.dialog-head .iconbtn{margin-left:auto}.dialog-foot{border-top:1px solid #39485e;justify-content:flex-end;flex-wrap:wrap}.dialog-body{padding:16px}.dialog-body>p:first-child{margin-top:0}.dialog-body>p:last-child{margin-bottom:0}.dialog-body label.field{display:flex;flex-direction:column;gap:5px;margin:10px 0;color:#bfccde}.dialog-body label.field input,.dialog-body label.field select{min-height:34px}.dialog-body fieldset{padding:8px 11px 11px;border:1px solid #3e5068;border-radius:6px;margin:0 0 12px}.dialog-body legend{font-size:12px;color:var(--muted);padding:0 5px}.choice{display:flex;gap:8px;align-items:flex-start;padding:6px 3px}.choice input{margin-top:4px;accent-color:var(--mint)}.choice small{display:block;color:var(--muted)}.stepper{display:flex;gap:8px;margin-bottom:13px}.stepper span{font:11px var(--mono);padding:5px 7px;background:#263449;color:#b0c0d7;border-radius:4px}.stepper .current{background:#21423f;color:var(--mint)}.validation-list{list-style:none;padding:0;margin:9px 0}.validation-list li{display:flex;gap:7px;padding:6px 0;border-bottom:1px solid var(--edge)}.validation-list .ico{width:15px;height:15px}.notice{background:#243549;border:1px solid #3d5571;border-radius:5px;padding:9px 10px;color:#c4d4e8;font-size:13px;margin:9px 0}.notice.error{background:#432932;border-color:#70404e;color:#ffb6ba}.command-grid{display:flex;flex-direction:column;gap:4px;max-height:330px;overflow:auto;margin-top:8px}.command-grid button{display:flex;align-items:center;text-align:left;justify-content:space-between;padding:7px 9px;border:1px solid var(--edge);border-radius:4px}.dialog-body .full{width:100%}.preview-dialog{width:min(960px,calc(100% - 24px))}.preview-host{position:relative;overflow:hidden;margin:auto;background:#111824}.preview-host .artboard{position:absolute;left:0;top:0;transform-origin:top left}.preview-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 13px;border-bottom:1px solid var(--edge)}.preview-body{padding:11px;background:#131b28}.preview-body .preview-note{font-size:12px;color:var(--muted);margin:7px 0 0;text-align:center}.toast{position:fixed;right:14px;bottom:42px;z-index:50;background:#23384a;border:1px solid #4a6885;border-radius:6px;color:#e4effb;padding:10px 12px;box-shadow:0 8px 24px #0007;max-width:min(360px,calc(100vw - 28px));font-size:13px}.toast[hidden]{display:none}
+@media(max-width:1060px){.workbench,.workbench.left-closed,.workbench.right-closed,.workbench.left-closed.right-closed{grid-template-columns:45px 0 minmax(0,1fr) 0}.dock.left,.dock.right{position:absolute;top:0;bottom:0;width:min(260px,calc(100% - 45px));z-index:10;box-shadow:0 10px 30px #080b14aa}.dock.left{left:45px}.dock.right{right:0}.workbench:not(.show-left) .left,.workbench:not(.show-right) .right{visibility:hidden}.editor{grid-column:3}.rail button.on::before{left:-3px}.toolbar .optional{display:none}}
+@media(max-width:660px){#studio{grid-template-rows:50px 34px 42px minmax(0,1fr) 174px 27px}#studio.output-closed{grid-template-rows:50px 34px 42px minmax(0,1fr) 0 27px}.top{padding:0 7px;gap:7px}.top .build-chip,.top .brand-sub,.top .project-head,.top>.divider,.keyboard-hint,.top-actions #simulateTop{display:none}.top-actions{gap:3px}.top-actions .action{padding:4px 7px;font-size:12px}.brand-name{font-size:15px}.brand-mark{width:28px;height:28px}.menubar{padding:0 3px}.menubar>.textbtn{padding:3px 5px;font-size:12px}.menubar .keyboard-hint{display:none}.toolbar{padding:0 4px}.toolbar .tool{font-size:12px;padding:3px 5px}.toolbar .divider{margin:0 2px}.editor-head{display:none}.output-tabs,.output-tools{padding-left:5px}.output-tabs .tab{padding:0 6px;font-size:12px}.output-tabs .tab .ico{width:13px}.output-tools small{display:none}.canvas-foot{gap:4px;padding:0 5px}.canvas-foot .canvas-meta{display:none}.rail .iconbtn{height:34px}.menuitem>.menu{left:8px;top:100%;z-index:31}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+[hidden]{display:none!important}
+*{scrollbar-color:#40516a #18212e}
+.dock-group{padding-top:7px;padding-bottom:7px}.tree-row{min-height:26px;padding-top:3px;padding-bottom:3px}.palette button{min-height:48px}.layerline>.iconbtn{min-height:23px}.prop-section{padding-bottom:7px}.prop-row{margin:5px 0}.data-table th,.data-table td{padding-top:3px;padding-bottom:3px}
+#studio:not(.output-closed){grid-template-rows:58px 34px 46px minmax(0,1fr) var(--output-height,203px) 29px}
+.output{position:relative}.dock-grip{position:absolute;z-index:3;top:0;left:50%;transform:translateX(-50%);width:70px;height:7px;padding:0;cursor:ns-resize;touch-action:none;border-radius:0 0 4px 4px;color:#7187a1;display:grid;place-items:center}.dock-grip::before{content:'';height:2px;width:33px;background:currentColor;border-radius:2px}.dock-grip:hover{color:var(--mint);background:#26394c}
+@media(max-width:660px){#studio:not(.output-closed){grid-template-rows:50px 34px 42px minmax(0,1fr) var(--output-height,174px) 27px}}
+@media(max-width:540px){.statusbar .status-segment[title="Planned native runtime targets"]{display:none}.tabs,.toolbar,.output-tabs{scrollbar-width:none}.data-table td:first-child,.data-table th:first-child{padding-left:8px}.data-table td,.data-table th{padding-left:8px;padding-right:8px}.preview-toolbar select{max-width:47%}}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<symbol id="i-forge" viewBox="0 0 24 24"><path d="M3 5h18v4h-5l-2 4v5l4 2H6l4-2v-5L7 9H3zM7 5V3m10 2V3"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></symbol><symbol id="i-page" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18m-11 0v12"/></symbol><symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol><symbol id="i-palette" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></symbol><symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h8m4 0h4M4 12h3m4 0h9M4 18h11m4 0h1"/><circle cx="14" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></symbol><symbol id="i-bell" viewBox="0 0 24 24"><path d="M5 17h14l-2-3v-3a5 5 0 0 0-10 0v3Zm5 3h4M12 3v3"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8z"/></symbol><symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol><symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-8 12h6l-1 8 9-12h-7z"/></symbol><symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 9 4-9 4-9-4 9-4Zm9 4v10l-9 4-9-4V7m9 4v10M7.5 5l9 4"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol><symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></symbol><symbol id="i-eye-off" viewBox="0 0 24 24"><path d="m4 4 16 16M9 6.5c1-.3 2-.5 3-.5 6 0 10 6 10 6s-1 1.5-3 3M6 8c-2.5 1.7-4 4-4 4s4 6 10 6c1.5 0 2.8-.4 4-1"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/></symbol><symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 5 3 10l5 5M3 10h11a5 5 0 0 1 0 10"/></symbol><symbol id="i-redo" viewBox="0 0 24 24"><path d="m16 5 5 5-5 5m5-5H10a5 5 0 0 0 0 10"/></symbol><symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 14 10-7 1-3 6z"/></symbol><symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V6a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-5a1.5 1.5 0 0 1 3 0v6-3a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-2c-2 0-3-1-4-2l-4-5a1.5 1.5 0 0 1 2-2z"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4zm5 0v16m6-16v16M4 9h16M4 15h16"/></symbol><symbol id="i-snap" viewBox="0 0 24 24"><path d="M5 5h4v9a3 3 0 0 0 6 0V5h4v9a7 7 0 0 1-14 0ZM5 9h4m6 0h4"/></symbol><symbol id="i-fit" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m6 0h5v-5"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="m9 15 6-6M10 7l3-3a4 4 0 0 1 6 6l-3 3m-2 4-3 3a4 4 0 0 1-6-6l3-3"/></symbol><symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></symbol><symbol id="i-water" viewBox="0 0 24 24"><path d="M12 3c3 4 7 7.6 7 11a7 7 0 1 1-14 0c0-3.4 4-7 7-11Z"/><path d="M9 16a3 3 0 0 0 3 2"/></symbol><symbol id="i-pump" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol><symbol id="i-tank" viewBox="0 0 24 24"><path d="M5 4h14v12a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4Zm0 8c4-3 10 3 14 0"/></symbol><symbol id="i-valve" viewBox="0 0 24 24"><path d="M3 7v10l18-10v10ZM12 12V4m-4 0h8"/></symbol><symbol id="i-gauge" viewBox="0 0 24 24"><path d="M5 18a9 9 0 1 1 14 0H5Z"/><path d="m12 14 4-5M8 10l1 1m3-4v2"/></symbol><symbol id="i-trend" viewBox="0 0 24 24"><path d="M4 4v16h16M7 15l4-5 4 3 5-7"/></symbol><symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13m-4 0h8"/></symbol><symbol id="i-button" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="4"/><path d="M8 12h8"/></symbol><symbol id="i-lamp" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol><symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3 2 20h20ZM12 9v5m0 3h.01"/></symbol><symbol id="i-device" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8m-4-4v4"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="m5 15 10-10 4 4-10 10H5Zm8-8 4 4"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 1 1 5 2c-1.5 1-2 1.5-2 3m0 3h.01"/></symbol><symbol id="i-dock" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 4v16"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</svg>
+<main id="studio" aria-label="HMI Forge Studio">
+  <header class="top">
+    <div class="brand"><div class="brand-mark" data-icon="forge"></div><div><div class="brand-name">HMI <span>Forge</span></div><div class="brand-sub">STUDIO</div></div></div>
+    <span class="divider"></span><div class="project-head truncate" title="Current project"><span data-icon="folder"></span><span id="projectTitle" class="truncate">North Basin WTP</span><span id="dirtyDot" class="dot amber" hidden></span></div>
+    <div class="spacer"></div><span class="chip build-chip" title="Prototype of the Compose Multiplatform editor">BROWSER PROTOTYPE</span>
+    <div class="top-actions"><button class="action" data-action="preview"><span data-icon="play"></span> Preview</button><button id="simulateTop" class="action" data-action="simulate"></button><button class="action primary" data-action="publish"><span data-icon="box"></span> Publish</button></div>
+  </header>
+  <nav class="menubar" id="menubar" aria-label="Application menus"><div class="spacer"></div><button class="textbtn keyboard-hint" data-action="commands"><span data-icon="search"></span> Find action <kbd>Ctrl K</kbd></button></nav>
+  <div class="toolbar" id="toolbar" aria-label="Editor toolbar">
+    <div class="group"><button class="iconbtn" data-action="save" title="Save locally (Ctrl+S)" aria-label="Save locally" data-icon="save"></button><button id="undoBtn" class="iconbtn" data-action="undo" title="Undo (Ctrl+Z)" aria-label="Undo" data-icon="undo"></button><button id="redoBtn" class="iconbtn" data-action="redo" title="Redo (Ctrl+Y)" aria-label="Redo" data-icon="redo"></button></div><span class="divider"></span>
+    <div class="group"><button id="selectTool" class="tool on" data-action="select-tool" title="Select (V)"><span data-icon="cursor"></span> Select</button><button id="panTool" class="tool" data-action="pan-tool" title="Pan (H)"><span data-icon="hand"></span> Pan</button><button id="insertBtn" class="tool" data-action="insert-menu" aria-haspopup="menu"><span data-icon="plus"></span> Insert <span data-icon="down"></span></button></div><span class="divider"></span>
+    <div class="group"><button id="gridBtn" class="iconbtn on" data-action="grid" title="Toggle canvas grid" aria-label="Toggle grid" data-icon="grid"></button><button id="snapBtn" class="iconbtn on" data-action="snap" title="Snap to 8 px grid" aria-label="Toggle snapping" data-icon="snap"></button></div><span class="divider"></span>
+    <div class="group"><button class="iconbtn" data-action="zoom-out" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button><button id="zoomReadout" class="tool zoom" data-action="fit" title="Fit to workspace">100%</button><button class="iconbtn" data-action="zoom-in" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button><button class="iconbtn" data-action="fit" title="Fit to workspace" aria-label="Fit to workspace" data-icon="fit"></button></div>
+    <div class="spacer"></div><span class="optional">Workspace</span><div class="group"><button class="iconbtn" data-action="toggle-left" title="Toggle project dock" aria-label="Toggle project dock" data-icon="layers"></button><button class="iconbtn" data-action="toggle-output" title="Toggle engineering dock" aria-label="Toggle engineering dock" data-icon="terminal"></button><button class="iconbtn" data-action="toggle-right" title="Toggle inspector dock" aria-label="Toggle inspector dock" data-icon="dock"></button></div>
+  </div>
+  <div id="workbench" class="workbench">
+    <aside id="rail" class="rail" aria-label="Workspace tools"></aside>
+    <aside class="dock left" aria-label="Project dock"><div class="dock-title" id="leftTitle"></div><div class="dock-body" id="leftBody"></div></aside>
+    <section id="editor" class="editor" aria-label="Canvas editor">
+      <div class="tabs" id="editorTabs" aria-label="Open pages"></div>
+      <div class="viewport"><div class="ruler-corner" aria-hidden="true">+</div><div id="rulerX" class="ruler-x" aria-hidden="true"></div><div id="rulerY" class="ruler-y" aria-hidden="true"></div><div id="canvasField" class="canvas-field"><span id="canvasCaption" class="canvas-caption"></span><div id="artboardFrame" class="artboard-frame"><div id="artboard" class="artboard" aria-label="HMI screen"></div></div></div></div>
+      <div class="canvas-foot"><span data-icon="page" class="accent"></span><span id="canvasPage" class="truncate"></span><span class="divider"></span><span id="selectionStatus" class="truncate muted"></span><span class="spacer"></span><span class="mono canvas-meta">860 × 480</span><button class="iconbtn" data-action="fit" aria-label="Fit canvas" title="Fit canvas" data-icon="fit"></button></div>
+    </section>
+    <aside class="dock right" aria-label="Inspector dock"><div class="dock-title"><span class="dock-icon" data-icon="sliders"></span> Inspector <span class="spacer"></span><button class="iconbtn" data-action="toggle-right" title="Hide inspector" aria-label="Hide inspector" data-icon="close"></button></div><div class="inspector-tabs" id="inspectorTabs"></div><div id="inspectorBody" class="dock-body"></div></aside>
+  </div>
+  <section id="output" class="output" aria-label="Engineering dock"><div id="outputGrip" class="dock-grip" role="separator" tabindex="0" aria-orientation="horizontal" aria-controls="outputData" aria-label="Resize engineering dock" title="Drag or use Up and Down to resize"></div><div id="outputTabs" class="output-tabs"></div><div id="outputTools" class="output-tools"></div><div id="outputData" class="output-data"></div></section>
+  <footer class="statusbar"><button class="textbtn status-segment" data-action="simulate" id="simStatus"></button><span class="status-segment" title="Simulated PLC exchange"><span data-icon="bolt"></span> PLC-01 virtual</span><span class="status-segment status-bar-label" id="saveStatus"></span><div class="spacer"></div><span class="status-segment" title="Planned native runtime targets"><span data-icon="device"></span> Windows · Linux · Android</span><button class="textbtn" data-action="about" title="About the prototype"><span data-icon="help"></span> About</button></footer>
+</main>
+<dialog id="modal" aria-labelledby="dialogTitle"></dialog><dialog id="preview" class="preview-dialog" aria-labelledby="previewTitle"></dialog>
+<div id="toast" class="toast" role="status" hidden></div><input type="file" id="importFile" accept=".json,application/json" hidden>
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+const icon = name => `<svg class="ico" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+  '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+})[char]);
+const button = (action, glyph, label, className = 'iconbtn') =>
+  `<button class="${className}" data-action="${action}" title="${escape(label)}" aria-label="${escape(label)}">${glyph ? icon(glyph) : ''}${className.startsWith('iconbtn') ? '' : escape(label)}</button>`;
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const stamp = () => new Date().toLocaleTimeString([], {hour12:false});
+const storageKey = 'hmi-forge-studio-v1';
+const width = 860;
+const height = 480;
+const alarmBoardMarkup = new WeakMap();
+const kinds = {
+  pump:['Pump','pump',108,102,'P101_RUN'],
+  tank:['Tank','tank',136,158,'TK101_LEVEL'],
+  valve:['Valve','valve',92,89,'XV101_OPEN'],
+  sensor:['Numeric gauge','gauge',126,66,'FT101_FLOW'],
+  trend:['Trend chart','trend',290,144,'FT101_FLOW'],
+  lamp:['Status lamp','lamp',134,51,'P101_RUN'],
+  text:['Text label','text',126,44,''],
+  button:['Command button','button',144,46,'P101_RUN']
+};
+const targets = ['Windows','Linux','Android'];
+const makeWidget = (id, kind, name, label, x, y, w, h, tag, locked = false) =>
+  ({id,kind,name,label,x,y,w,h,tag,locked,visible:true});
+const tag = (id, address, type, unit, initial, writable, description) =>
+  ({id,address,type,unit,initial,writable,description});
+const sample = {
+  schema:'hmi-forge.prototype/1',
+  name:'North Basin WTP',
+  pages:[
+    {id:'overview',name:'Process Overview',layout:'process',widgets:[
+      makeWidget('tank101','tank','Intake Tank','Intake Tank',36,159,132,164,'TK101_LEVEL'),
+      makeWidget('pump101','pump','Intake Pump','Intake Pump',223,186,109,105,'P101_RUN'),
+      makeWidget('valve101','valve','Inlet Valve','Inlet Valve',412,193,84,91,'XV101_OPEN'),
+      makeWidget('tank201','tank','Clearwell','Clearwell',571,159,130,164,'TK201_LEVEL'),
+      makeWidget('flow101','sensor','Flow Meter','Intake Flow',219,106,114,56,'FT101_FLOW'),
+      makeWidget('press101','sensor','Pressure Sensor','Line Pressure',395,106,115,56,'PT101_PRESS'),
+      makeWidget('flow201','sensor','Outlet Meter','Outlet Flow',714,202,122,65,'FT201_FLOW')
+    ]},
+    {id:'pump',name:'Pump Station',layout:'pump',widgets:[
+      makeWidget('pumpPg01','pump','Intake Pump','Intake Pump',49,122,158,160,'P101_RUN'),
+      makeWidget('pumpPg02','pump','Standby Pump','Standby Pump',238,122,158,160,'P102_RUN'),
+      makeWidget('pumpTrend','trend','Discharge Trend','Discharge flow',433,122,362,160,'FT201_FLOW'),
+      makeWidget('pumpCmd','button','Pump Start / Stop','Toggle intake pump',49,310,185,50,'P101_RUN'),
+      makeWidget('pumpLamp','lamp','Pump Feedback','Intake pump feedback',245,310,175,50,'P101_RUN'),
+      makeWidget('pumpPress','sensor','Line Pressure','Line Pressure',433,300,160,70,'PT101_PRESS')
+    ]},
+    {id:'trends',name:'Trends',layout:'trends',widgets:[
+      makeWidget('trendFT','trend','Intake Trend','Intake flow · m³/h',42,116,373,168,'FT101_FLOW'),
+      makeWidget('trendTK','trend','Tank Trend','Intake level · %',445,116,373,168,'TK101_LEVEL'),
+      makeWidget('trendPT','trend','Pressure Trend','Line pressure · bar',42,300,373,144,'PT101_PRESS'),
+      makeWidget('trendCW','trend','Clearwell Trend','Clearwell level · %',445,300,373,144,'TK201_LEVEL')
+    ]},
+    {id:'alarm-summary',name:'Alarm Summary',layout:'alarms',widgets:[]}
+  ],
+  tags:[
+    tag('TK101_LEVEL','DB10.DBD0','REAL','%',72.4,true,'Intake tank level'),
+    tag('P101_RUN','DB10.DBX4.0','BOOL','',true,true,'Intake pump run command'),
+    tag('FT101_FLOW','DB10.DBD8','REAL','m³/h',128.6,true,'Intake flow transmitter'),
+    tag('PT101_PRESS','DB10.DBD12','REAL','bar',3.2,true,'Discharge line pressure'),
+    tag('XV101_OPEN','DB10.DBX16.0','BOOL','',true,true,'Inlet valve open command'),
+    tag('TK201_LEVEL','DB10.DBD20','REAL','%',43.8,true,'Clearwell tank level'),
+    tag('FT201_FLOW','DB10.DBD24','REAL','m³/h',116.4,false,'Outlet flow transmitter'),
+    tag('P102_RUN','DB10.DBX28.0','BOOL','',false,true,'Standby pump run command')
+  ],
+  alarms:[
+    {id:'ALM-201',tag:'TK201_LEVEL',comparison:'below',limit:45,priority:'Warning',message:'Clearwell level low'},
+    {id:'ALM-101',tag:'PT101_PRESS',comparison:'above',limit:4.5,priority:'Critical',message:'Discharge pressure high'},
+    {id:'ALM-102',tag:'TK101_LEVEL',comparison:'below',limit:20,priority:'Critical',message:'Intake tank level critically low'}
+  ]
+};
+
+function loadSaved() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey));
+    return isProject(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function isProject(project) {
+  const validId = id => typeof id === 'string' && /^[\w-]+$/.test(id) && !Object.hasOwn(Object.prototype,id);
+  const unique = records => new Set(records.map(record => record.id)).size === records.length;
+  const strings = (...items) => items.every(value => typeof value === 'string');
+  return project?.schema === sample.schema && typeof project.name === 'string' &&
+    Array.isArray(project.pages) && project.pages.length > 0 && project.pages.every(page =>
+      validId(page?.id) && strings(page.name,page.layout) && Array.isArray(page.widgets) &&
+      page.widgets.every(widget => validId(widget?.id) && Object.hasOwn(kinds,widget.kind) &&
+        strings(widget.name,widget.label,widget.tag) && [widget.x,widget.y,widget.w,widget.h].every(Number.isFinite) &&
+        widget.x >= 0 && widget.y >= 0 && widget.w >= 16 && widget.h >= 16 &&
+        widget.x + widget.w <= width && widget.y + widget.h <= height &&
+        typeof widget.visible === 'boolean' && typeof widget.locked === 'boolean') && unique(page.widgets)) &&
+    unique(project.pages) && Array.isArray(project.tags) && project.tags.every(item =>
+      validId(item?.id) && strings(item.address,item.unit,item.description) &&
+      typeof item.writable === 'boolean' &&
+      (item.type === 'BOOL' ? typeof item.initial === 'boolean' : item.type === 'REAL' && Number.isFinite(item.initial))) &&
+    unique(project.tags) && Array.isArray(project.alarms) && project.alarms.every(item =>
+      validId(item?.id) && strings(item.tag,item.message) && ['Critical','Warning'].includes(item.priority) &&
+      ['below','above'].includes(item.comparison) && Number.isFinite(item.limit) &&
+      project.tags.some(record => record.id === item.tag && record.type === 'REAL')) && unique(project.alarms);
+}
+
+const savedProject = loadSaved();
+const initialProject = savedProject || structuredClone(sample);
+const state = {
+  project:initialProject, pageId:initialProject.pages[0].id,
+  openTabs:initialProject.pages.slice(0,3).map(page => page.id),
+  selection:initialProject.pages[0].widgets.find(widget => widget.id === 'pump101')?.id ?? null,
+  left:'project', leftOpen:true, rightOpen:true, mobileLeft:false, mobileRight:false,
+  inspector:'properties', output:'tags', outputOpen:true, treeOpen:true,
+  filter:'', paletteFilter:'', alarmFilter:'active', searchScope:'All items',
+  grid:true, snap:true, tool:'select', zoom:null, panX:0, panY:0,
+  running:false, tick:0, values:new Map(), history:new Map(), overrides:new Set(),
+  activeAlarms:new Map(), log:[], undo:[], redo:[], clipboard:null,
+  saved:JSON.stringify(initialProject), saveLabel:savedProject ? 'Restored locally' : 'Demo project',
+  previewPage:null, previewTarget:'Windows', publish:null, menu:null
+};
+const project = () => state.project;
+const page = () => project().pages.find(item => item.id === state.pageId) || project().pages[0];
+const selected = () => page().widgets.find(item => item.id === state.selection);
+const getTag = id => project().tags.find(item => item.id === id);
+const tagValue = id => state.values.get(id);
+const mobile = () => matchMedia('(max-width:1060px)').matches;
+const isDirty = () => JSON.stringify(project()) !== state.saved;
+const uid = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
+const formatNumber = value => Number.isFinite(value) ? value.toFixed(1) : '—';
+const displayValue = (record, value) => record?.type === 'BOOL' ? (value ? 'true' : 'false') : formatNumber(value);
+const iconName = widget => kinds[widget.kind][1];
+const naturalSize = (widget, key) => Math.round(widget[key]);
+const setHtml = (id, html) => { $(id).innerHTML = html; };
+const slug = name => name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'hmi-project';
+
+function addLog(message, level = 'Info') {
+  state.log.unshift({time:stamp(),message,level});
+  state.log.length = Math.min(state.log.length,100);
+}
+
+function resetRuntime() {
+  state.tick = 0;
+  state.overrides.clear();
+  state.values = new Map(project().tags.map(item => [item.id,item.initial]));
+  state.history.clear();
+  state.activeAlarms.clear();
+  project().tags.filter(item => item.type === 'REAL').forEach(item => {
+    const seed = Array.from({length:24}, (_,i) => item.initial * (1 + Math.sin(i * .68) * .04 + (i - 23) * .0018));
+    seed[seed.length - 1] = item.initial;
+    state.history.set(item.id,seed);
+  });
+  updateAlarms(false);
+}
+
+function updateAlarms(logChanges = true) {
+  for (const alarm of project().alarms) {
+    const val = tagValue(alarm.tag);
+    const active = alarm.comparison === 'below' ? val < alarm.limit : val > alarm.limit;
+    if (active && !state.activeAlarms.has(alarm.id)) {
+      state.activeAlarms.set(alarm.id,{time:stamp(),ack:false});
+      if (logChanges) addLog(`${alarm.id} · ${alarm.message}`,alarm.priority);
+    } else if (!active && state.activeAlarms.delete(alarm.id) && logChanges) {
+      addLog(`${alarm.id} returned to normal`);
+    }
+  }
+}
+
+function pushHistory() {
+  state.undo.push({project:structuredClone(project()),pageId:state.pageId,selection:state.selection});
+  state.undo.length = Math.min(state.undo.length,50);
+  state.redo = [];
+}
+
+function transact(change) {
+  pushHistory();
+  change();
+  renderAll();
+}
+
+function restoreHistory(from, to) {
+  if (!state[from].length) return;
+  state[to].push({project:structuredClone(project()),pageId:state.pageId,selection:state.selection});
+  Object.assign(state,state[from].pop());
+  state.openTabs = state.openTabs.filter(id => project().pages.some(item => item.id === id));
+  if (!state.openTabs.includes(page().id)) state.openTabs.push(page().id);
+  renderAll();
+}
+
+function setPage(id, keepSelection = false) {
+  if (!project().pages.some(item => item.id === id)) return;
+  if (!state.openTabs.includes(id)) state.openTabs.push(id);
+  if (state.pageId !== id && !keepSelection) state.selection = null;
+  state.pageId = id;
+  state.panX = state.panY = 0;
+  state.mobileLeft = false;
+  renderAll();
+}
+
+function selectWidget(id) {
+  state.selection = id;
+  renderLeft();
+  renderInspector();
+  paintSelection();
+  renderChrome();
+}
+
+function paintSelection() {
+  for (const node of $('artboard').querySelectorAll('.widget')) {
+    const widget = page().widgets.find(item => item.id === node.dataset.widget);
+    const active = state.selection === node.dataset.widget;
+    const present = node.classList.contains('selected');
+    node.classList.toggle('selected',active);
+    if (active && !present) node.insertAdjacentHTML('beforeend', selectionMarkup(widget));
+    if (!active && present) node.querySelectorAll('.selection-label,.handle').forEach(handle => handle.remove());
+  }
+}
+
+function selectionMarkup(widget) {
+  return `<span class="selection-label">${escape(widget.name)}${widget.locked ? ' · Locked' : ''}</span>${widget.locked ? '' : '<i class="handle tl"></i><i class="handle tr"></i><i class="handle bl"></i><i class="handle br" data-resize></i>'}`;
+}
+
+function processDesign() {
+  const piping = [
+    ['M139 237H602','P101_RUN'],
+    ['M655 237H816','XV101_OPEN'],
+    ['M51 237H9','P101_RUN'],
+    ['M281 160V228','P101_RUN'],
+    ['M453 160V227','P101_RUN'],
+    ['M530 238V336H730','P102_RUN']
+  ];
+  return `<svg class="pipework" viewBox="0 0 860 480" aria-hidden="true">
+    ${piping.map(([d,tag]) => `<path d="${d}"/><path class="flow" data-flow="${tag}" d="${d}"/>`).join('')}
+    <path class="direction" d="m196 232 8 5-8 5zm164 0 8 5-8 5zm170 0 8 5-8 5z"/>
+  </svg>
+  <span class="pipe-label" style="left:37px;top:143px">01 / INTAKE</span>
+  <span class="pipe-label" style="left:574px;top:143px">02 / CLEARWELL</span>
+  <span class="pipe-label" style="left:619px;top:350px">STANDBY LOOP</span>
+  <div class="metric-strip">
+    ${metric('water','INTAKE FLOW','FT101_FLOW')}
+    ${metric('gauge','LINE PRESSURE','PT101_PRESS')}
+    ${metric('bolt','PUMP STATUS','P101_RUN')}
+    ${metric('bell','ACTIVE ALARMS','alarms')}
+  </div>`;
+}
+
+function metric(glyph, name, key) {
+  return `<div class="metric">${icon(glyph)}<div><div class="metric-name">${name}</div><div class="metric-value" data-metric="${key}"></div></div></div>`;
+}
+
+function widgetContent(widget) {
+  const tagName = widget.tag || 'Unbound';
+  const title = `<strong>${escape(widget.label)}</strong>`;
+  const label = `<span class="asset-id">${escape(tagName)}</span>`;
+  const live = `<span class="value readout" data-live="value"></span>`;
+  switch (widget.kind) {
+    case 'tank': return `<div class="equipment tank">${title}<div class="reservoir"><div class="liquid" data-live="level"></div><div class="tickmarks"></div></div>${live}${label}</div>`;
+    case 'pump': return `<div class="equipment pump"><span class="pump-symbol">${icon('pump')}</span>${title}<span class="asset-id" data-live="run"></span></div>`;
+    case 'valve': return `<div class="equipment valve">${icon('valve')}${title}<span class="asset-id" data-live="run"></span></div>`;
+    case 'sensor': return `<div class="equipment sensor"><span class="asset-id">${escape(widget.label)}</span>${live}</div>`;
+    case 'trend': return `<div class="equipment trend">${title}<canvas width="440" height="135" aria-label="Simulated history"></canvas></div>`;
+    case 'lamp': return `<div class="equipment lamp"><span class="dot" data-live="lamp"></span>${title}</div>`;
+    case 'button': return `<div class="equipment action-widget">${title}<span class="asset-id" data-live="run"></span></div>`;
+    default: return `<div class="equipment text">${title}</div>`;
+  }
+}
+
+function drawBoard(board, activePage, isPreview = false) {
+  const sectionNames = {process:'PROCESS FLOW',pump:'PUMP EQUIPMENT',trends:'HISTORICAL TRENDS',alarms:'ALARM ANNUNCIATOR'};
+  board.classList.toggle('previewing',isPreview);
+  board.innerHTML = `<div class="hmi-head"><div class="hmi-brand">${icon('water')}</div><div><div class="hmi-site">${escape(project().name)}</div><div class="hmi-area">${escape(activePage.name.toUpperCase())} · AREA 01</div></div><span class="spacer"></span><span class="chip good" data-hmi-mode></span><span class="chip"><span data-hmi-time></span></span></div>
+    <div class="hmi-section">${Object.hasOwn(sectionNames,activePage.layout) ? sectionNames[activePage.layout] : 'OPERATOR SCREEN'}</div>
+    ${activePage.layout === 'process' ? processDesign() : ''}
+    ${activePage.layout === 'alarms' ? '<div class="runtime-alarms" style="position:absolute;inset:113px 24px 24px;overflow:auto" data-board-alarms></div>' : ''}
+    ${activePage.widgets.filter(widget => widget.visible).map(widget => {
+      const active = !isPreview && widget.id === state.selection;
+      const interactive = isPreview && ['pump','valve','button'].includes(widget.kind);
+      return `<div class="widget${active ? ' selected' : ''}" data-widget="${widget.id}" data-kind="${widget.kind}" style="left:${widget.x}px;top:${widget.y}px;width:${widget.w}px;height:${widget.h}px" ${interactive ? `tabindex="0" role="button" aria-label="${escape(widget.label)}"` : ''}>${widgetContent(widget)}${active ? selectionMarkup(widget) : ''}</div>`;
+    }).join('')}`;
+  refreshBoard(board,activePage,isPreview);
+}
+
+function refreshBoard(board, activePage, isPreview = false) {
+  board.classList.toggle('running',state.running);
+  const mode = board.querySelector('[data-hmi-mode]');
+  if (!mode) return;
+  mode.innerHTML = `<span class="dot"></span> ${state.running ? 'SIM ACTIVE' : isPreview ? 'PREVIEW' : 'AUTO MODE'}`;
+  board.querySelector('[data-hmi-time]').textContent = stamp();
+  for (const node of board.querySelectorAll('[data-flow]')) {
+    node.classList.toggle('idle',!tagValue(node.dataset.flow));
+  }
+  for (const node of board.querySelectorAll('[data-metric]')) {
+    const key = node.dataset.metric;
+    const value = tagValue(key);
+    if (key === 'alarms') {
+      node.textContent = `${state.activeAlarms.size} ACTIVE`;
+      node.className = `metric-value ${state.activeAlarms.size ? 'amber' : 'accent'}`;
+    } else if (key === 'P101_RUN') {
+      node.textContent = value == null ? '—' : value ? 'RUNNING' : 'STOPPED';
+      node.className = `metric-value ${value ? 'accent' : ''}`;
+    } else {
+      node.textContent = `${formatNumber(value)} ${getTag(key)?.unit || ''}`;
+    }
+  }
+  for (const node of board.querySelectorAll('.widget')) {
+    const widget = activePage.widgets.find(item => item.id === node.dataset.widget);
+    if (!widget) continue;
+    const record = getTag(widget.tag);
+    const value = tagValue(widget.tag);
+    node.querySelector('.pump')?.classList.toggle('stopped',!value);
+    for (const live of node.querySelectorAll('[data-live]')) {
+      switch (live.dataset.live) {
+        case 'level': live.style.height = `${clamp(Number(value) || 0,0,100)}%`; break;
+        case 'value': live.innerHTML = `${escape(displayValue(record,value))} <em>${escape(record?.unit || '')}</em>`; break;
+        case 'lamp': live.className = `dot ${value ? 'accent' : 'muted'}`; break;
+        case 'run':
+          live.textContent = record ? widget.kind === 'valve' ? (value ? 'OPEN' : 'CLOSED') : (value ? 'RUNNING' : 'STOPPED') : 'UNBOUND';
+          live.style.color = value ? 'var(--mint)' : '';
+          break;
+      }
+    }
+    const chart = node.querySelector('canvas');
+    if (chart) drawTrend(chart,state.history.get(widget.tag) || []);
+  }
+  const alarms = board.querySelector('[data-board-alarms]');
+  if (alarms) {
+    const markup = alarmTable(isPreview,'active');
+    if (alarmBoardMarkup.get(alarms) !== markup) {
+      alarms.innerHTML = markup;
+      alarmBoardMarkup.set(alarms,markup);
+    }
+  }
+}
+
+function drawTrend(canvas, points) {
+  const context = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  context.clearRect(0,0,w,h);
+  context.strokeStyle = '#436073';
+  context.lineWidth = 1;
+  context.beginPath();
+  for (let i = 1; i < 5; i++) {
+    const y = Math.round(i*h/5)+.5;
+    context.moveTo(0,y);
+    context.lineTo(w,y);
+  }
+  context.stroke();
+  if (points.length < 2) return;
+  const min = Math.min(...points), max = Math.max(...points);
+  const range = Math.max(max-min,Math.abs(max)*.03,1);
+  context.beginPath();
+  points.forEach((value,index) => {
+    const x = 4 + index*(w-8)/(points.length-1);
+    const y = h*.84 - (value-min)/range*h*.67;
+    if (index === 0) context.moveTo(x,y); else context.lineTo(x,y);
+  });
+  context.strokeStyle = '#65e2c2';
+  context.lineWidth = 2.5;
+  context.stroke();
+}
+
+function renderCanvas() {
+  drawBoard($('artboard'),page());
+  fitCanvas();
+}
+
+let canvasScale = 1;
+function fitCanvas() {
+  const field = $('canvasField');
+  const w = field.clientWidth, h = field.clientHeight;
+  const margin = w < 500 || h < 330 ? 27 : 50;
+  canvasScale = state.zoom ?? clamp(Math.min((w-margin)/width,(h-margin)/height),.12,1.25);
+  const left = Math.round((w-width*canvasScale)/2 + state.panX);
+  const top = Math.round((h-height*canvasScale)/2 + state.panY);
+  Object.assign($('artboardFrame').style,{left:`${left}px`,top:`${top}px`,transform:`scale(${canvasScale})`});
+  const caption = $('canvasCaption');
+  caption.textContent = `${page().id.toUpperCase()}  /  860 × 480`;
+  Object.assign(caption.style,{left:`${Math.max(5,left)}px`,top:`${Math.max(2,top-18)}px`});
+  $('zoomReadout').textContent = `${Math.round(canvasScale*100)}%`;
+  const ticks = (offset, side, max) => Array.from({length:Math.floor(max/100)+1},(_,i) => {
+    const start = offset + i*100*canvasScale;
+    return start >= 0 ? `<span style="${side}:${start+2}px">${i*100}</span>` : '';
+  }).join('');
+  setHtml('rulerX',ticks(left,'left',width));
+  setHtml('rulerY',ticks(top,'top',height));
+}
+
+function renderChrome() {
+  $('projectTitle').textContent = project().name;
+  $('dirtyDot').hidden = !isDirty();
+  $('saveStatus').textContent = isDirty() ? 'Unsaved changes' : state.saveLabel;
+  $('undoBtn').disabled = !state.undo.length;
+  $('redoBtn').disabled = !state.redo.length;
+  $('selectTool').classList.toggle('on',state.tool === 'select');
+  $('panTool').classList.toggle('on',state.tool === 'pan');
+  $('gridBtn').classList.toggle('on',state.grid);
+  $('snapBtn').classList.toggle('on',state.snap);
+  $('gridBtn').setAttribute('aria-pressed',state.grid);
+  $('snapBtn').setAttribute('aria-pressed',state.snap);
+  $('canvasField').classList.toggle('no-grid',!state.grid);
+  $('canvasField').classList.toggle('pan',state.tool === 'pan');
+  $('canvasPage').textContent = page().name;
+  $('selectionStatus').textContent = selected() ? `${selected().name} selected` : 'No selection';
+  renderSimulationStatus();
+}
+
+function renderSimulationStatus() {
+  setHtml('simulateTop',`${icon(state.running ? 'stop' : 'bolt')} ${state.running ? 'Stop simulation' : 'Simulate'}`);
+  setHtml('simStatus',`<span class="dot ${state.running ? 'accent' : 'muted'}"></span> ${state.running ? 'Simulation running' : 'Simulation idle'}`);
+  $('simulateTop').classList.toggle('on',state.running);
+  $('simulateTop').setAttribute('aria-pressed',state.running);
+}
+
+const leftViews = {project:['layers','Project Explorer'],palette:['palette','Component Palette']};
+const outputViews = {tags:['tag','Tag Monitor'],search:['search','Engineering Search'],alarms:['bell','Alarms'],log:['terminal','Event Log']};
+
+function renderRail() {
+  const entries = [
+    ['show-project','layers','Project explorer',state.left === 'project' && (mobile() ? state.mobileLeft : state.leftOpen)],
+    ['show-palette','palette','Component palette',state.left === 'palette' && (mobile() ? state.mobileLeft : state.leftOpen)],
+    ['toggle-right','sliders','Inspector',mobile() ? state.mobileRight : state.rightOpen],
+    ['out-tags','tag','Tag monitor',state.outputOpen && state.output === 'tags'],
+    ['out-search','search','Engineering search',state.outputOpen && state.output === 'search'],
+    ['out-alarms','bell','Alarms',state.outputOpen && state.output === 'alarms']
+  ];
+  setHtml('rail',entries.map(([action,glyph,label,active]) => button(action,glyph,label,active ? 'iconbtn on' : 'iconbtn')).join('') +
+    '<span class="spacer"></span>' + button('about','help','About HMI Forge'));
+}
+
+function renderDocks() {
+  const bench = $('workbench');
+  bench.classList.toggle('left-closed',!state.leftOpen && !mobile());
+  bench.classList.toggle('right-closed',!state.rightOpen && !mobile());
+  bench.classList.toggle('show-left',state.mobileLeft);
+  bench.classList.toggle('show-right',state.mobileRight);
+  $('studio').classList.toggle('output-closed',!state.outputOpen);
+  renderRail();
+  fitCanvas();
+}
+
+function groupTitle(title, end = '') {
+  return `<div class="group-title">${title}<span class="spacer"></span>${end}</div>`;
+}
+
+function paletteItems() {
+  const match = state.paletteFilter.trim().toLowerCase();
+  return Object.entries(kinds).filter(([,entry]) => entry[0].toLowerCase().includes(match))
+    .map(([kind,[label,glyph]]) => `<button data-action="add-${kind}" title="Insert ${label}">${icon(glyph)}${label}</button>`).join('');
+}
+
+function renderLeft() {
+  const [glyph,title] = leftViews[state.left];
+  setHtml('leftTitle',`<span class="dock-icon">${icon(glyph)}</span> ${title}<span class="spacer"></span>${button('toggle-left','close','Hide project dock')}`);
+  const palette = `<section class="dock-group">${groupTitle('COMPONENTS',state.left === 'project' ? button('show-palette','palette','Open component palette') : '')}
+    ${state.left === 'palette' ? `<input class="palette-filter" id="paletteFilter" data-field="palette-filter" placeholder="Filter components…" aria-label="Filter components" value="${escape(state.paletteFilter)}">` : ''}
+    <div class="palette" id="paletteGrid">${paletteItems() || '<span class="muted">No matches</span>'}</div></section>`;
+  if (state.left === 'palette') {
+    setHtml('leftBody',palette);
+    return;
+  }
+  const rows = project().pages.map(item => `<button class="tree-row indent${item.id === state.pageId ? ' active' : ''}" data-action="page:${item.id}">${icon('page')}<span class="truncate">${escape(item.name)}</span></button>`).join('');
+  const layers = [...page().widgets].reverse().map(widget => `<div class="layerline"><button class="tree-row${state.selection === widget.id ? ' active' : ''}${widget.locked ? ' locked' : ''}" data-action="widget:${widget.id}">${icon(iconName(widget))}<span class="truncate">${escape(widget.name)}</span>${widget.locked ? icon('lock') : ''}</button>${button(`visibility:${widget.id}`,widget.visible ? 'eye' : 'eye-off',`${widget.visible ? 'Hide' : 'Show'} ${widget.name}`)}</div>`).join('');
+  setHtml('leftBody',`<section class="dock-group">${groupTitle('PAGES',button('new-page','plus','New page'))}
+    <button class="tree-row" data-action="tree" aria-expanded="${state.treeOpen}">${icon(state.treeOpen ? 'down' : 'chevron')}${icon('folder')}<span class="truncate">${escape(project().name)}</span><span class="mini">${project().pages.length}</span></button>${state.treeOpen ? rows : ''}</section>
+    <section class="dock-group">${groupTitle('LAYERS',`<span class="number-count">${page().widgets.length}</span>`)}${layers || '<div class="empty">No editable components</div>'}</section>${palette}`);
+}
+
+function renderTabs() {
+  setHtml('editorTabs',state.openTabs.map(id => {
+    const item = project().pages.find(entry => entry.id === id);
+    if (!item) return '';
+    return `<div class="tab-shell${id === state.pageId ? ' active' : ''}"><button class="tab" data-action="page:${id}" aria-current="${id === state.pageId}">${icon('page')} ${escape(item.name)}</button>${button(`close-page:${id}`,'close',`Close ${item.name} tab`,'iconbtn close-tab')}</div>`;
+  }).join('') + button('new-page','plus','New page','iconbtn tab-add') +
+    '<span class="editor-head">SCREEN EDITOR</span>');
+}
+
+function inputRow(label,key,value,kind = 'text',attributes = '') {
+  return `<label class="prop-row"><span>${label}</span><input type="${kind}" data-field="${key}" value="${escape(value)}" ${attributes}></label>`;
+}
+function checkboxRow(label,key,checked) {
+  return `<label class="prop-row"><span>${label}</span><input type="checkbox" data-field="${key}" ${checked ? 'checked' : ''}></label>`;
+}
+function requiredType(kind) {
+  if (['pump','valve','lamp','button'].includes(kind)) return 'BOOL';
+  if (['tank','sensor','trend'].includes(kind)) return 'REAL';
+  return null;
+}
+function bindingIssue(widget) {
+  const type = requiredType(widget.kind);
+  const record = getTag(widget.tag);
+  if (!type) return '';
+  if (!record) return widget.tag ? `Tag ${widget.tag} is missing.` : `Select a ${type} tag.`;
+  if (record.type !== type) return `This component requires a ${type} tag.`;
+  if (widget.kind === 'button' && !record.writable) return 'This command requires a writable tag.';
+  return '';
+}
+
+function renderInspector() {
+  const tabs = {properties:'Properties',bindings:'Bindings',events:'Events'};
+  setHtml('inspectorTabs',Object.entries(tabs).map(([key,name]) =>
+    `<button class="${key === state.inspector ? 'on' : ''}" data-action="inspect-${key}" aria-pressed="${key === state.inspector}">${name}</button>`).join(''));
+  const widget = selected();
+  if (!widget) {
+    setHtml('inspectorBody',`<div class="inspect-card">${icon('page')}<div class="truncate"><div class="inspect-name truncate">${escape(page().name)}</div><div class="inspect-type">Screen · 860 × 480 px</div></div></div>
+      <div class="prop-section">${groupTitle('SCREEN')}${inputRow('Name','page-name',page().name,'text','maxlength="45"')}</div>
+      <p class="empty">Select a component on the canvas or in Layers to edit it.</p>`);
+    return;
+  }
+  const card = `<div class="inspect-card">${icon(iconName(widget))}<div class="truncate"><div class="inspect-name truncate">${escape(widget.name)}</div><div class="inspect-type">${kinds[widget.kind][0]} · ${escape(widget.id)}</div></div></div>`;
+  let content;
+  if (state.inspector === 'bindings') {
+    const type = requiredType(widget.kind);
+    const issue = bindingIssue(widget);
+    const record = getTag(widget.tag);
+    const choices = project().tags.filter(item => !type || type === item.type);
+    const orphan = widget.tag && !choices.some(item => item.id === widget.tag);
+    content = `<div class="prop-section">${groupTitle('PLC TAG BINDING')}<label class="field binding-note" for="bindingSelect">Value source</label>
+      <select id="bindingSelect" data-field="widget-tag" style="width:100%"><option value="">Unbound</option>
+      ${orphan ? `<option value="${escape(widget.tag)}" selected>${escape(widget.tag)} (unavailable)</option>` : ''}
+      ${choices.map(item => `<option value="${item.id}" ${item.id === widget.tag ? 'selected' : ''}>${item.id} · ${item.type}</option>`).join('')}</select>
+      ${issue ? `<p class="binding-note amber">${escape(issue)}</p>` : ''}
+      ${record ? `<div class="prop-row"><span>Address</span><span class="mono">${escape(record.address)}</span></div>
+      <div class="prop-row"><span>Live value</span><span class="mono accent" id="bindingLive"></span></div>
+      <div class="prop-row"><span>Access</span><span>${record.writable ? 'Read / write' : 'Read-only'}</span></div>
+      <div class="inspector-actions">${button('find-binding','search','Find references','action')}</div>` : ''}</div>`;
+  } else if (state.inspector === 'events') {
+    const command = ['pump','valve','button'].includes(widget.kind);
+    content = `<div class="prop-section">${groupTitle('RUNTIME EVENTS')}
+      <div class="prop-row"><span>Activation</span><span>${command ? 'Toggle bound BOOL' : 'Display only'}</span></div>
+      <div class="prop-row"><span>Execution</span><span>Local simulator</span></div>
+      <div class="inspector-actions">${button('preview','play','Open preview','action')}</div></div>`;
+  } else {
+    const locked = widget.locked ? 'disabled' : '';
+    content = `<div class="prop-section">${groupTitle('IDENTITY')}
+      ${inputRow('Name','widget-name',widget.name,'text','maxlength="45"')}${inputRow('Label','widget-label',widget.label,'text','maxlength="55"')}</div>
+      <div class="prop-section">${groupTitle('TRANSFORM')}
+      <div class="prop-pair">${inputRow('X','widget-x',naturalSize(widget,'x'),'number',`min="0" max="${width-widget.w}" ${locked}`)}${inputRow('Y','widget-y',naturalSize(widget,'y'),'number',`min="0" max="${height-widget.h}" ${locked}`)}</div>
+      <div class="prop-pair">${inputRow('W','widget-w',naturalSize(widget,'w'),'number',`min="16" max="${width-widget.x}" ${locked}`)}${inputRow('H','widget-h',naturalSize(widget,'h'),'number',`min="16" max="${height-widget.y}" ${locked}`)}</div></div>
+      <div class="prop-section">${groupTitle('DATA')}
+      <button class="binding-preview" data-action="inspect-bindings">${icon('link')}<span class="mono truncate">${escape(widget.tag || 'Set binding')}</span><span class="spacer"></span>${icon('chevron')}</button></div>
+      <div class="prop-section">${groupTitle('LAYER')}${checkboxRow('Visible','widget-visible',widget.visible)}${checkboxRow('Locked','widget-locked',widget.locked)}</div>`;
+  }
+  setHtml('inspectorBody',card + content);
+  updateBindingValue();
+}
+
+function updateBindingValue() {
+  const live = $('bindingLive');
+  if (!live) return;
+  const item = getTag(selected()?.tag);
+  if (item) live.textContent = `${displayValue(item,tagValue(item.id))} ${item.unit}`.trim();
+}
+
+function table(headers, rows, empty = 'No matching items.') {
+  return `<table class="data-table"><thead><tr>${headers.map(label => `<th scope="col">${label}</th>`).join('')}</tr></thead>
+    <tbody>${rows.length ? rows.join('') : `<tr><td colspan="${headers.length}" class="muted">${escape(empty)}</td></tr>`}</tbody></table>`;
+}
+
+function alarmTable(inPreview = false, filter = state.alarmFilter) {
+  const rows = project().alarms.filter(item => filter === 'all' || state.activeAlarms.has(item.id)).map(item => {
+    const active = state.activeAlarms.get(item.id);
+    const status = active ? (active.ack ? 'Acknowledged' : 'Active') : 'Normal';
+    const unit = getTag(item.tag)?.unit || '';
+    return `<tr><td class="mono">${item.id}</td><td><span class="chip ${item.priority === 'Critical' ? 'bad' : 'warn'}">${item.priority}</span></td><td>${escape(item.message)}</td><td class="mono">${escape(item.tag)} ${item.comparison === 'below' ? '&lt;' : '&gt;'} ${item.limit} ${escape(unit)}</td><td>${status}</td><td class="mono">${active?.time || '—'}</td><td>${active && !active.ack ? button(`ack:${item.id}`,'check','Acknowledge','tool write-tag') : '—'}</td></tr>`;
+  });
+  return table(['Alarm','Priority','Message','Condition','State','Raised','Action'],rows,inPreview ? 'No active alarms.' : 'No alarms in this view.');
+}
+
+function renderOutput() {
+  setHtml('outputTabs',Object.entries(outputViews).map(([key,[glyph,label]]) =>
+    `<button class="tab${state.output === key ? ' on' : ''}" data-action="out-${key}" aria-pressed="${state.output === key}">${icon(glyph)} ${label}${key === 'alarms' ? ' <span class="number-count" id="alarmCount"></span>' : ''}</button>`).join('') +
+    '<span class="spacer"></span>' + button('toggle-output','minus','Collapse engineering dock'));
+  const filter = (name, placeholder, value = state.filter) =>
+    `<input id="outputFilter" data-field="output-filter" type="search" placeholder="${placeholder}" aria-label="${name}" value="${escape(value)}">`;
+  const options = (choices,active) => choices.map(([key,name]) => `<option value="${key}" ${key === active ? 'selected' : ''}>${name}</option>`).join('');
+  const scope = '<span class="spacer"></span>';
+  let tools;
+  switch (state.output) {
+    case 'tags':
+      tools = `${icon('search')}${filter('Filter PLC tags','Filter tags or addresses…')}${scope}<small class="muted"><span class="mono">PLC-01</span> · Virtual S7</small>${button('reset-simulation','undo','Reset values','tool')}`;
+      break;
+    case 'search':
+      tools = `${icon('search')}${filter('Search the project','Search names, addresses, or bindings…')}<select data-field="search-scope" aria-label="Search scope">${options(['All items','Pages','Components','Tags','Alarms'].map(value => [value,value]),state.searchScope)}</select>${scope}<small id="resultsCount" class="muted"></small>`;
+      break;
+    case 'alarms':
+      tools = `${icon('bell')}<select data-field="alarm-filter" aria-label="Filter alarms">${options([['active','Active alarms'],['all','All alarm rules']],state.alarmFilter)}</select>${scope}${button('alarm-test','bolt','Inject test alarm','tool')}`;
+      break;
+    default:
+      tools = `${icon('terminal')}<small class="muted">Local engineering activity</small>${scope}${button('clear-log','close','Clear log','tool')}`;
+  }
+  setHtml('outputTools',tools);
+  renderOutputData();
+}
+
+function searchItems() {
+  const items = [];
+  for (const p of project().pages) {
+    items.push(['Pages',p.name,'Screen',p.id,`page:${p.id}`]);
+    for (const widget of p.widgets) {
+      items.push(['Components',widget.name,p.name,widget.tag,`reference:${p.id}:${widget.id}`]);
+    }
+  }
+  for (const item of project().tags) items.push(['Tags',item.id,item.description,item.address,`tag-ref:${item.id}`]);
+  for (const item of project().alarms) items.push(['Alarms',item.id,item.message,item.tag,`alarm-ref:${item.id}`]);
+  const query = state.filter.trim().toLowerCase();
+  return items.filter(([type,...fields]) => (state.searchScope === 'All items' || state.searchScope === type) &&
+    query.split(/\s+/).every(word => fields.slice(0,3).join(' ').toLowerCase().includes(word)));
+}
+
+function renderOutputData() {
+  $('alarmCount').textContent = state.activeAlarms.size;
+  if (state.output === 'tags') {
+    const query = state.filter.trim().toLowerCase();
+    const rows = project().tags.filter(item => `${item.id} ${item.address} ${item.description}`.toLowerCase().includes(query)).map(item => {
+      const forced = state.overrides.has(item.id);
+      const value = tagValue(item.id);
+      return `<tr><td>${icon('tag')} <button class="table-btn mono" data-action="search-tag:${item.id}">${item.id}</button></td><td class="mono">${escape(item.address)}</td><td class="mono muted">${item.type}</td><td class="mono ${value === false ? 'muted' : 'accent'}" data-tag-value="${item.id}">${displayValue(item,value)} ${escape(item.unit)}</td><td><span class="chip ${forced ? 'warn' : 'good'}">${forced ? 'Forced' : 'Simulated'}</span></td><td>${escape(item.description)}</td><td>${item.writable ? button(`write:${item.id}`,'edit',`Write ${item.id}`,'iconbtn write-tag') : '<span class="muted">Read-only</span>'}</td></tr>`;
+    });
+    setHtml('outputData',table(['Tag','PLC address','Type','Value','Quality','Description','Write'],rows));
+  } else if (state.output === 'search') {
+    const result = searchItems();
+    $('resultsCount').textContent = `${result.length} ${result.length === 1 ? 'result' : 'results'}`;
+    setHtml('outputData',table(['Kind','Match','Location / description','Reference'],result.map(([type,name,location,ref,action]) =>
+      `<tr><td>${escape(type)}</td><td><button class="table-btn" data-action="${action}">${escape(name)}</button></td><td>${escape(location)}</td><td class="mono muted">${escape(ref || '—')}</td></tr>`)));
+  } else if (state.output === 'alarms') {
+    setHtml('outputData',alarmTable());
+  } else {
+    setHtml('outputData',table(['Time','Level','Message'],state.log.map(item =>
+      `<tr><td class="mono">${item.time}</td><td><span class="chip ${item.level === 'Critical' ? 'bad' : item.level === 'Warning' ? 'warn' : ''}">${item.level}</span></td><td>${escape(item.message)}</td></tr>`),'The event log is empty.'));
+  }
+}
+
+function renderAll() {
+  renderDocks();
+  renderChrome();
+  renderTabs();
+  renderLeft();
+  renderInspector();
+  renderCanvas();
+  renderOutput();
+}
+
+let toastTimer;
+function toast(message) {
+  $('toast').textContent = message;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').hidden = true; },3600);
+}
+
+function showModal(title, body, actions = '', kind = '') {
+  const modal = $('modal');
+  modal.dataset.kind = kind;
+  modal.innerHTML = `<div class="dialog-head"><h2 id="dialogTitle">${title}</h2>${button('close-modal','close','Close dialog')}</div><div class="dialog-body">${body}</div>
+    <div class="dialog-foot">${actions || button('close-modal',null,'Close','action')}</div>`;
+  if (!modal.open) modal.showModal();
+  modal.querySelector('[autofocus]')?.focus();
+}
+
+const cancelButton = () => button('close-modal',null,'Cancel','action');
+const primary = (action,glyph,label) => button(action,glyph,label,'action primary');
+
+function openNewPage() {
+  showModal('New screen',`<form id="pageForm"><label class="field">Screen name<input id="newPageName" maxlength="45" required autofocus placeholder="e.g. Filter Gallery"></label>
+    <label class="field">Template<select id="pageTemplate"><option value="blank">Blank screen</option><option value="trends">Trends layout</option><option value="alarms">Alarm annunciator</option></select></label></form>`,
+    cancelButton() + primary('create-page','plus','Create screen'),'new-page');
+}
+
+function createPage() {
+  if (!$('pageForm').reportValidity()) return;
+  const name = $('newPageName').value.trim();
+  if (!name) return toast('Enter a screen name.');
+  const layout = $('pageTemplate').value;
+  const id = uid('screen');
+  const template = sample.pages.find(item => item.layout === layout);
+  const widgets = layout === 'trends' ? structuredClone(template.widgets).map(widget => ({...widget,id:uid(widget.kind)})) : [];
+  transact(() => {
+    project().pages.push({id,name,layout,widgets});
+    state.pageId = id;
+    state.openTabs.push(id);
+    state.selection = null;
+    state.panX = state.panY = 0;
+    state.mobileLeft = false;
+  });
+  $('modal').close();
+  toast(`Created ${name}.`);
+}
+
+function changeProject(replacement, label) {
+  state.project = replacement;
+  state.pageId = replacement.pages[0].id;
+  state.openTabs = replacement.pages.slice(0,3).map(item => item.id);
+  state.selection = replacement.pages[0].widgets.find(widget => widget.id === 'pump101')?.id || null;
+  state.undo = [];
+  state.redo = [];
+  state.running = false;
+  state.log = [];
+  state.filter = '';
+  state.saved = JSON.stringify(replacement);
+  state.saveLabel = label;
+  state.panX = state.panY = 0;
+  state.zoom = null;
+  resetRuntime();
+  addLog(`Opened ${replacement.name} in the browser prototype.`);
+  renderAll();
+}
+
+function requestProjectChange(action) {
+  if (!isDirty()) {
+    if (action === 'open-file') $('importFile').click();
+    else changeProject(structuredClone(sample),'Demo project');
+    return;
+  }
+  showModal('Replace current project?', '<p>The current project has unsaved edits. Save it locally or export a copy before replacing it.</p>',
+    cancelButton() + button('save', 'save', 'Save locally', 'action') + primary(`confirm-${action}`,null,'Continue'));
+}
+
+function save() {
+  try {
+    localStorage.setItem(storageKey,JSON.stringify(project()));
+    state.saved = JSON.stringify(project());
+    state.saveLabel = 'Saved locally';
+    addLog('Project saved in this browser.');
+    renderChrome();
+    if (state.output === 'log') renderOutputData();
+    toast('Saved in this browser.');
+  } catch {
+    toast('Browser storage is unavailable. Use File → Export project JSON.');
+  }
+}
+
+function downloadJson(filename, object) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(object,null,2)+'\n'],{type:'application/json'}));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url),1500);
+}
+
+function insertWidget(kind) {
+  const [label,,w,h,defaultTag] = kinds[kind];
+  const offset = (page().widgets.length % 6) * 16;
+  const bound = getTag(defaultTag) || project().tags.find(item => item.type === requiredType(kind));
+  const widget = makeWidget(uid(kind),kind,label,label,240+offset,160+offset,w,h,bound?.id || '');
+  transact(() => {
+    page().widgets.push(widget);
+    state.selection = widget.id;
+    state.mobileLeft = false;
+    state.inspector = 'properties';
+  });
+  toast(`Inserted ${label}.`);
+}
+
+function removeWidget() {
+  const widget = selected();
+  if (!widget) return toast('Select a component first.');
+  if (widget.locked) return toast('Unlock the layer before deleting it.');
+  transact(() => {
+    page().widgets = page().widgets.filter(item => item.id !== widget.id);
+    state.selection = null;
+  });
+  toast(`Deleted ${widget.name}.`);
+}
+
+function pasteWidget(source = state.clipboard) {
+  if (!source) return toast('Copy a component first.');
+  const copy = {...source,id:uid(source.kind),name:`${source.name} copy`,locked:false,
+    x:clamp(source.x+16,0,width-source.w),y:clamp(source.y+16,0,height-source.h)};
+  transact(() => {
+    page().widgets.push(copy);
+    state.selection = copy.id;
+  });
+}
+
+function setWidgetField(field, input) {
+  const widget = selected();
+  if (!widget) return;
+  if (field === 'visible' || field === 'locked') {
+    transact(() => { widget[field] = input.checked; });
+    return;
+  }
+  const limits = {x:[0,width-widget.w],y:[0,height-widget.h],w:[16,width-widget.x],h:[16,height-widget.y]};
+  if (limits[field]) {
+    if (widget.locked || !Number.isFinite(input.valueAsNumber)) {
+      input.value = widget[field];
+      return;
+    }
+    const next = clamp(Math.round(input.valueAsNumber),...limits[field]);
+    if (next !== widget[field]) transact(() => { widget[field] = next; });
+    else input.value = next;
+    return;
+  }
+  const text = input.value.trim();
+  if (field === 'name' && !text) {
+    input.value = widget.name;
+    return;
+  }
+  if (widget[field] !== text) transact(() => { widget[field] = text; });
+}
+
+function setOutput(view, filter = '') {
+  state.outputOpen = true;
+  if (state.output !== view || filter) state.filter = filter;
+  state.output = view;
+  renderDocks();
+  renderOutput();
+}
+
+function openInspector(tab) {
+  state.inspector = tab;
+  state.rightOpen = true;
+  state.mobileRight = true;
+  state.mobileLeft = false;
+  renderDocks();
+  renderInspector();
+}
+
+function recordPoint(id, value) {
+  if (!Number.isFinite(value)) return;
+  const history = state.history.get(id) || [];
+  history.push(value);
+  if (history.length > 48) history.shift();
+  state.history.set(id,history);
+}
+
+function writeTag(id,value) {
+  const record = getTag(id);
+  if (!record?.writable) return toast('This tag is read-only or unavailable.');
+  state.values.set(id,value);
+  state.overrides.add(id);
+  recordPoint(id,value);
+  addLog(`Forced ${id} to ${value} locally.`);
+  updateAlarms();
+  refreshRuntime(true);
+}
+
+function openTagWriter(id) {
+  const item = getTag(id);
+  if (!item?.writable) return;
+  const value = tagValue(id);
+  const field = item.type === 'BOOL'
+    ? `<select id="writeValue" autofocus><option value="true" ${value ? 'selected' : ''}>True</option><option value="false" ${!value ? 'selected' : ''}>False</option></select>`
+    : `<input id="writeValue" type="number" step="any" value="${value}" required autofocus>`;
+  showModal('Write simulated tag',`<p class="mono">${item.id} · ${escape(item.address)}</p><form id="writeForm"><label class="field">Value ${item.unit ? `(${escape(item.unit)})` : ''}${field}</label></form>
+    <p class="notice">A forced value overrides the simulation until you reset the values.</p>`,
+    cancelButton() + primary(`apply-tag:${id}`,'edit','Force value'),'write');
+}
+
+function applyWrite(id) {
+  if (!$('writeForm').reportValidity()) return;
+  const input = $('writeValue');
+  const item = getTag(id);
+  const value = item.type === 'BOOL' ? input.value === 'true' : input.valueAsNumber;
+  if (item.type === 'REAL' && !Number.isFinite(value)) return;
+  $('modal').close();
+  writeTag(id,value);
+  toast(`${id} set to ${value}.`);
+}
+
+function simulationStep() {
+  if (!state.running) return;
+  const t = ++state.tick;
+  const pump = state.values.has('P101_RUN') ? tagValue('P101_RUN') : true;
+  const valve = state.values.has('XV101_OPEN') ? tagValue('XV101_OPEN') : true;
+  const movement = new Map([
+    ['TK101_LEVEL',72.4 + Math.sin(t/13)*7],
+    ['FT101_FLOW',(pump && valve ? 128.6 : 0) + (pump && valve ? Math.sin(t/3)*11 : 0)],
+    ['PT101_PRESS',pump ? 3.2 + Math.cos(t/4)*.24 : .4],
+    ['TK201_LEVEL',43.8 + Math.sin(t/15)*6],
+    ['FT201_FLOW',pump && valve ? 116.4 + Math.sin(t/3.4)*9 : 0]
+  ]);
+  const alarmCount = state.activeAlarms.size;
+  for (const item of project().tags) {
+    if (item.type !== 'REAL') continue;
+    if (!state.overrides.has(item.id)) state.values.set(item.id,movement.get(item.id) ?? item.initial);
+    recordPoint(item.id,tagValue(item.id));
+  }
+  updateAlarms();
+  refreshRuntime(alarmCount !== state.activeAlarms.size);
+}
+
+function refreshRuntime(full = false) {
+  refreshBoard($('artboard'),page());
+  updateBindingValue();
+  if (full && state.output !== 'search') renderOutputData();
+  else if (state.output === 'tags') {
+    for (const cell of $('outputData').querySelectorAll('[data-tag-value]')) {
+      const record = getTag(cell.dataset.tagValue);
+      const value = tagValue(record.id);
+      cell.textContent = `${displayValue(record,value)} ${record.unit}`;
+      cell.classList.toggle('muted',value === false);
+      cell.classList.toggle('accent',value !== false);
+    }
+  }
+  if ($('preview').open) {
+    const activePage = project().pages.find(item => item.id === state.previewPage);
+    if (activePage) refreshBoard($('previewBoard'),activePage,true);
+    $('previewSim').innerHTML = `${icon(state.running ? 'stop' : 'bolt')} ${state.running ? 'Stop simulation' : 'Start simulation'}`;
+  }
+}
+
+function flipSimulation() {
+  state.running = !state.running;
+  addLog(state.running ? 'Virtual PLC simulation started.' : 'Virtual PLC simulation paused.');
+  renderSimulationStatus();
+  if (state.running) simulationStep();
+  refreshRuntime(true);
+}
+
+function profile(target) {
+  return {Windows:{format:'MSI',viewport:860},Linux:{format:'AppImage',viewport:800},Android:{format:'APK',viewport:620}}[target];
+}
+
+function previewSize() {
+  if (!$('preview').open) return;
+  const host = $('previewHost');
+  const max = Math.min(profile(state.previewTarget).viewport, $('preview').clientWidth-24, Math.max(160,(innerHeight-200)*width/height));
+  const scale = Math.min(max/width,1);
+  Object.assign(host.style,{width:`${width*scale}px`,height:`${height*scale}px`});
+  $('previewBoard').style.transform = `scale(${scale})`;
+}
+
+function renderPreview() {
+  const activePage = project().pages.find(item => item.id === state.previewPage) || page();
+  drawBoard($('previewBoard'),activePage,true);
+  $('previewSim').innerHTML = `${icon(state.running ? 'stop' : 'bolt')} ${state.running ? 'Stop simulation' : 'Start simulation'}`;
+  previewSize();
+}
+
+function openPreview() {
+  state.previewPage = page().id;
+  const dialog = $('preview');
+  dialog.innerHTML = `<div class="dialog-head"><h2 id="previewTitle">Runtime preview</h2><span class="chip">BROWSER</span>${button('close-preview','close','Close runtime preview')}</div>
+    <div class="preview-toolbar"><select data-field="preview-page" aria-label="Runtime screen">${project().pages.map(item => `<option value="${item.id}" ${item.id === state.previewPage ? 'selected' : ''}>${escape(item.name)}</option>`).join('')}</select>
+    <select data-field="preview-target" aria-label="Runtime target">${targets.map(target => `<option ${target === state.previewTarget ? 'selected' : ''}>${target}</option>`).join('')}</select>
+    <span class="spacer"></span><button class="action" id="previewSim" data-action="simulate"></button></div>
+    <div class="preview-body"><div id="previewHost" class="preview-host"><div id="previewBoard" class="artboard previewing"></div></div>
+    <p class="preview-note">Target profiles change the preview size. Pump, valve, and command controls write to the virtual PLC.</p></div>`;
+  dialog.showModal();
+  renderPreview();
+}
+
+function activatePreviewWidget(node) {
+  const p = project().pages.find(item => item.id === state.previewPage);
+  const widget = p?.widgets.find(item => item.id === node.dataset.widget);
+  if (!widget || !['pump','valve','button'].includes(widget.kind)) return;
+  const record = getTag(widget.tag);
+  if (record?.type === 'BOOL' && record.writable) writeTag(record.id,!tagValue(record.id));
+  else toast('Bind this control to a writable BOOL tag.');
+}
+
+function validation() {
+  const issues = project().pages.flatMap(item => item.widgets.flatMap(widget => {
+    const issue = bindingIssue(widget);
+    return issue ? [{page:item.name,widget:widget.name,issue}] : [];
+  }));
+  return issues;
+}
+
+function openPublish() {
+  state.publish = {stage:1,mode:'project',targets:new Set(['Windows']),name:slug(project().name)};
+  renderPublish();
+}
+
+function renderPublish() {
+  const draft = state.publish;
+  const steps = `<div class="stepper">${['Configure','Validate','Download'].map((name,index) =>
+    `<span class="${draft.stage === index+1 ? 'current' : ''}">${index+1} ${name}</span>`).join('')}</div>`;
+  let body, actions;
+  if (draft.stage === 1) {
+    const choice = (mode,title,description) => `<label class="choice"><input type="radio" name="publish-mode" data-field="publish-mode" value="${mode}" ${draft.mode === mode ? 'checked' : ''}><span><strong>${title}</strong><small>${description}</small></span></label>`;
+    body = `<fieldset><legend>Publishing mode</legend>
+      ${choice('project','Project-only bundle','Download the project and a runtime-target manifest as JSON.')}
+      ${choice('installer','Standalone installer','Create a native build specification for the selected targets.')}</fieldset>
+      <fieldset><legend>Runtime targets</legend>${targets.map(target => `<label class="choice"><input type="checkbox" data-field="publish-target" value="${target}" ${draft.targets.has(target) ? 'checked' : ''}> ${target} <small class="mono muted">${draft.mode === 'installer' ? profile(target).format : ''}</small></label>`).join('')}</fieldset>
+      <label class="field">Artifact name<input id="artifactName" data-field="publish-name" value="${escape(draft.name)}" maxlength="70"></label>
+      <div class="notice" id="publishError" hidden></div>`;
+    actions = cancelButton() + primary('publish-next','check','Validate project');
+  } else if (draft.stage === 2) {
+    const issues = validation();
+    body = `<ul class="validation-list"><li><span class="accent">${icon('check')}</span> ${project().pages.length} screens · ${project().tags.length} PLC tags</li>
+      <li><span class="accent">${icon('check')}</span> Runtime targets · ${[...draft.targets].join(', ')}</li>
+      ${issues.length ? issues.map(item => `<li><span class="red">${icon('warning')}</span><span>${escape(item.page)} / ${escape(item.widget)} · ${escape(item.issue)}</span></li>`).join('')
+      : `<li><span class="accent">${icon('check')}</span> Component bindings validated</li>`}</ul>
+      <div class="notice${issues.length ? ' error' : ''}">${issues.length ? 'Fix the listed bindings in the Inspector before exporting.' : draft.mode === 'installer'
+        ? 'Native packaging is represented by a JSON build specification. Compiling or signing an installer requires the native build pipeline.'
+        : 'The bundle uses the virtual PLC profile. The prototype can reopen this JSON bundle.'}</div>`;
+    actions = button('publish-back',null,'Back','action') +
+      (issues.length ? button('close-modal',null,'Return to editor','action') : primary('publish-download','download',draft.mode === 'installer' ? 'Download build spec' : 'Download project bundle'));
+  } else {
+    body = `<p><strong>Download started</strong></p><p class="mono">${escape(draft.filename)}</p>
+      <p class="muted">${draft.mode === 'installer' ? 'Build specification for the selected native targets.' : 'Project data and target manifest. Open the bundle using File → Open project JSON.'}</p>`;
+    actions = button('publish',null,'New export','action') + primary('close-modal','check','Done');
+  }
+  showModal('Publish project',steps+body,actions,'publish');
+}
+
+function publishNext() {
+  const draft = state.publish;
+  if (!draft.targets.size || !draft.name.trim()) {
+    const error = $('publishError');
+    error.hidden = false;
+    error.classList.add('error');
+    error.textContent = !draft.targets.size ? 'Select at least one runtime target.' : 'Enter an artifact name.';
+    return;
+  }
+  draft.stage = 2;
+  renderPublish();
+}
+
+function publishDownload() {
+  const draft = state.publish;
+  if (validation().length) return renderPublish();
+  const installer = draft.mode === 'installer';
+  const manifest = {
+    schema:'hmi-forge.publish-prototype/1',
+    name:draft.name.trim(),
+    kind:installer ? 'native-installer-build-spec' : 'project-only-bundle',
+    editor:'Compose Multiplatform design prototype',
+    connection:'virtual-plc',
+    targets:[...draft.targets].map(target => ({platform:target,...(installer ? {packageFormat:profile(target).format} : {})})),
+    project:project()
+  };
+  if (installer) manifest.buildStatus = 'specification-only';
+  draft.filename = `${slug(draft.name)}.${installer ? 'installer-spec' : 'hmi-project'}.json`;
+  downloadJson(draft.filename,manifest);
+  addLog(`Exported ${draft.filename}.`);
+  if (state.output === 'log') renderOutputData();
+  draft.stage = 3;
+  renderPublish();
+}
+
+const insertItems = [
+  ['Process equipment',[['Pump','add-pump'],['Tank','add-tank'],['Valve','add-valve']]],
+  ['Indicators',[['Numeric gauge','add-sensor'],['Status lamp','add-lamp'],['Trend chart','add-trend']]],
+  ['Controls',[['Text label','add-text'],['Command button','add-button']]]
+];
+const menus = {
+  File:[['New screen','new-page'],['Open project JSON…','open-file'],['Save locally','save','Ctrl+S'],null,
+    ['Export project JSON','export-json'],['Publish…','publish'],null,['Load demo project','reset-project']],
+  Edit:[['Undo','undo','Ctrl+Z'],['Redo','redo','Ctrl+Y'],null,['Copy component','copy','Ctrl+C'],['Paste component','paste','Ctrl+V'],['Duplicate component','duplicate','Ctrl+D'],['Delete component','delete','Del']],
+  View:[['Docks',[['Project Explorer','toggle-left'],['Inspector','toggle-right'],['Engineering Dock','toggle-output'],['Restore defaults','restore-docks']]],['Canvas',[['Fit to workspace','fit'],['Zoom in','zoom-in'],['Zoom out','zoom-out'],['Toggle grid','grid'],['Toggle snapping','snap']]],['Command palette','commands','Ctrl+K']],
+  Insert:insertItems,
+  Engineering:[['Tag Monitor','out-tags'],['Engineering Search','out-search','Ctrl+F'],['Inspector Bindings','inspect-bindings'],['Alarm Monitor','out-alarms'],['Event Log','out-log'],null,['Validate bindings','validate']],
+  Runtime:[['Preview screen','preview','F5'],['Toggle PLC simulation','simulate','F6'],['Reset simulated values','reset-simulation'],['Inject test alarm','alarm-test'],null,['Publish…','publish']],
+  Help:[['Quick start','quick-start'],['About HMI Forge','about']]
+};
+
+function menuContents(items) {
+  return items.map(item => {
+    if (!item) return '<hr role="separator">';
+    const [label,command,key] = item;
+    if (Array.isArray(command)) {
+      return `<div class="menuitem"><button role="menuitem" tabindex="-1" data-submenu aria-haspopup="menu" aria-expanded="false">${label}<span class="spacer"></span>${icon('chevron')}</button><div class="menu" role="menu" hidden>${menuContents(command)}</div></div>`;
+    }
+    return `<div class="menuitem"><button role="menuitem" tabindex="-1" data-action="${command}">${label}${key ? `<span class="shortcut">${key}</span>` : ''}</button></div>`;
+  }).join('');
+}
+
+function setupMenus() {
+  $('menubar').insertAdjacentHTML('afterbegin',Object.keys(menus).map(name =>
+    `<button class="textbtn" data-menu="${name}" aria-haspopup="menu" aria-expanded="false">${name}</button>`).join(''));
+  $('menubar').insertAdjacentHTML('beforeend','<div id="menuPanel" class="menu" role="menu" hidden></div>');
+}
+
+function menuButtons(menu) {
+  return [...menu.querySelectorAll(':scope > .menuitem > button')];
+}
+
+function closeMenu(returnFocus = false) {
+  if (!state.menu) return;
+  const trigger = state.menu.trigger;
+  trigger.setAttribute('aria-expanded','false');
+  trigger.classList.remove('on');
+  $('menuPanel').hidden = true;
+  state.menu = null;
+  if (returnFocus) trigger.focus();
+}
+
+function showMenu(name,trigger,keyboard = false) {
+  if (state.menu?.trigger === trigger) return closeMenu(true);
+  closeMenu();
+  const panel = $('menuPanel');
+  panel.innerHTML = menuContents(menus[name]);
+  panel.hidden = false;
+  panel.setAttribute('aria-label',`${name} menu`);
+  const anchor = trigger.getBoundingClientRect();
+  const base = $('menubar').getBoundingClientRect();
+  panel.style.left = `${Math.max(3,Math.min(anchor.left,innerWidth-panel.offsetWidth-4)-base.left)}px`;
+  panel.style.top = `${anchor.bottom-base.top+3}px`;
+  trigger.setAttribute('aria-expanded','true');
+  trigger.classList.add('on');
+  state.menu = {trigger,name};
+  if (keyboard) menuButtons(panel)[0]?.focus();
+}
+
+function openSubmenu(trigger,focus = false,toggle = false) {
+  const group = trigger.parentElement;
+  const menu = group.parentElement;
+  const sub = trigger.nextElementSibling;
+  if (toggle && !sub.hidden) {
+    sub.hidden = true;
+    trigger.setAttribute('aria-expanded','false');
+    return;
+  }
+  for (const other of menuButtons(menu)) {
+    if (!other.hasAttribute('data-submenu')) continue;
+    other.setAttribute('aria-expanded',other === trigger);
+    other.nextElementSibling.hidden = other !== trigger;
+  }
+  if (innerWidth > 660) {
+    sub.style.left = '';
+    sub.style.right = '';
+    if (sub.getBoundingClientRect().right > innerWidth - 4) {
+      sub.style.left = 'auto';
+      sub.style.right = 'calc(100% - 2px)';
+    }
+  }
+  if (focus) menuButtons(sub)[0]?.focus();
+}
+
+const commands = [...new Map(Object.values(menus).flatMap(items => {
+  const flatten = entries => entries.flatMap(item => !item ? [] : Array.isArray(item[1]) ? flatten(item[1]) : [item]);
+  return flatten(items);
+}).map(item => [item[1],item])).values()];
+
+function commandResults(query = '') {
+  const search = query.toLowerCase().trim();
+  return commands.filter(([label]) => label.toLowerCase().includes(search)).map(([label,action,key]) =>
+    `<button data-command="${action}"><span>${label}</span>${key ? `<kbd>${key}</kbd>` : ''}</button>`).join('') || '<span class="muted">No matching actions.</span>';
+}
+
+function showCommands() {
+  showModal('Find action',`<input id="commandInput" class="full" data-field="command-search" type="search" aria-label="Find action" placeholder="Type an action name…" autofocus>
+    <div class="command-grid" id="commandResults">${commandResults()}</div>`,'','commands');
+}
+
+function showAbout(quick = false) {
+  if (quick) {
+    showModal('Quick start','<ol class="validation-list"><li>1. Select a component in Process Overview and drag it or edit its transform in the Inspector.</li><li>2. Open Bindings and choose a typed PLC tag. Use Engineering Search to jump to references.</li><li>3. Run the simulation, open Preview, and toggle the intake pump. Inspect the downstream tag changes.</li><li>4. Write 5 bar to PT101_PRESS in Tag Monitor. Open Alarms and acknowledge the resulting critical alarm.</li><li>5. Use Publish to validate and download a project bundle or native installer build specification.</li></ol>');
+    return;
+  }
+  showModal('About HMI Forge Studio','<p>Interactive HTML design prototype for a Compose Multiplatform HMI editor.</p><div class="notice"><strong>Implemented here</strong><br>Screen editing, project search, local save and import, simulated PLC tags and alarms, browser preview, and JSON exports.</div><div class="notice"><strong>Native integration mocked</strong><br>The project uses a virtual S7 PLC. Windows, Linux, and Android use browser preview profiles and export metadata. Native runtimes, hardware drivers, and installer builds require separate integrations.</div>');
+}
+
+function runAction(action) {
+  const [command,arg,extra] = action.split(':');
+  switch (command) {
+    case 'save': return save();
+    case 'open-file': case 'reset-project': return requestProjectChange(command);
+    case 'confirm-open-file': $('modal').close(); return $('importFile').click();
+    case 'confirm-reset-project': $('modal').close(); return changeProject(structuredClone(sample),'Demo project');
+    case 'export-json': downloadJson(`${slug(project().name)}.hmi.json`,project()); return toast('Project JSON download started.');
+    case 'new-page': return openNewPage();
+    case 'create-page': return createPage();
+    case 'undo': return restoreHistory('undo','redo');
+    case 'redo': return restoreHistory('redo','undo');
+    case 'page': return setPage(arg);
+    case 'close-page': {
+      if (state.openTabs.length === 1) return toast('Keep one screen open.');
+      const index = state.openTabs.indexOf(arg);
+      state.openTabs.splice(index,1);
+      return arg === state.pageId ? setPage(state.openTabs[Math.max(0,index-1)]) : renderTabs();
+    }
+    case 'tree': state.treeOpen = !state.treeOpen; return renderLeft();
+    case 'widget': return selectWidget(arg);
+    case 'reference':
+      state.selection = extra; setPage(arg,true); return openInspector('bindings');
+    case 'visibility': {
+      const widget = page().widgets.find(item => item.id === arg);
+      if (widget) transact(() => { widget.visible = !widget.visible; });
+      return;
+    }
+    case 'copy':
+      if (!selected()) return toast('Select a component first.');
+      state.clipboard = structuredClone(selected());
+      return toast(`Copied ${selected().name}.`);
+    case 'paste': return pasteWidget();
+    case 'duplicate':
+      if (!selected()) return toast('Select a component first.');
+      return pasteWidget(selected());
+    case 'delete': return removeWidget();
+    case 'show-project': case 'show-palette':
+      state.left = command.slice(5);
+      state.leftOpen = true;
+      state.mobileLeft = true;
+      state.mobileRight = false;
+      state.paletteFilter = '';
+      renderDocks();
+      return renderLeft();
+    case 'toggle-left':
+      if (mobile()) { state.mobileLeft = !state.mobileLeft; state.mobileRight = false; }
+      else state.leftOpen = !state.leftOpen;
+      return renderDocks();
+    case 'toggle-right':
+      if (mobile()) { state.mobileRight = !state.mobileRight; state.mobileLeft = false; }
+      else state.rightOpen = !state.rightOpen;
+      return renderDocks();
+    case 'toggle-output': state.outputOpen = !state.outputOpen; return renderDocks();
+    case 'restore-docks':
+      state.leftOpen = state.rightOpen = state.outputOpen = true;
+      state.mobileLeft = state.mobileRight = false;
+      $('studio').style.removeProperty('--output-height');
+      return renderDocks();
+    case 'grid': state.grid = !state.grid; return renderChrome();
+    case 'snap': state.snap = !state.snap; return renderChrome();
+    case 'select-tool': case 'pan-tool': state.tool = command.split('-')[0]; return renderChrome();
+    case 'zoom-in': case 'zoom-out':
+      state.zoom = clamp(Math.round((canvasScale+(command === 'zoom-in' ? .1 : -.1))*100)/100,.10,2);
+      return fitCanvas();
+    case 'fit': state.zoom = null; state.panX = state.panY = 0; return fitCanvas();
+    case 'inspect-properties': case 'inspect-bindings': case 'inspect-events': return openInspector(command.slice(8));
+    case 'out-tags': case 'out-search': case 'out-alarms': case 'out-log': return setOutput(command.slice(4));
+    case 'search-tag': state.searchScope = 'All items'; return setOutput('search',arg);
+    case 'tag-ref': return setOutput('tags',arg);
+    case 'alarm-ref': state.alarmFilter = 'all'; return setOutput('alarms');
+    case 'find-binding':
+      state.searchScope = 'All items';
+      return setOutput('search',selected()?.tag);
+    case 'simulate': return flipSimulation();
+    case 'reset-simulation': resetRuntime(); addLog('Virtual PLC values reset.'); refreshRuntime(true); return toast('Simulated values reset.');
+    case 'write': return openTagWriter(arg);
+    case 'apply-tag': return applyWrite(arg);
+    case 'clear-log': state.log = []; return renderOutputData();
+    case 'alarm-test': {
+      const critical = project().alarms.find(item => item.priority === 'Critical' && getTag(item.tag)?.writable);
+      if (!critical) return toast('This project has no writable critical alarm tag.');
+      const delta = critical.comparison === 'above' ? .6 : -.6;
+      writeTag(critical.tag,Math.round((critical.limit+delta)*10)/10);
+      state.alarmFilter = 'active';
+      setOutput('alarms');
+      return toast(`Injected ${critical.id}.`);
+    }
+    case 'ack': {
+      const active = state.activeAlarms.get(arg);
+      if (!active || active.ack) return;
+      active.ack = true;
+      addLog(`${arg} acknowledged.`);
+      refreshRuntime(true);
+      return toast(`${arg} acknowledged.`);
+    }
+    case 'preview': return openPreview();
+    case 'close-preview': return $('preview').close();
+    case 'publish': return openPublish();
+    case 'publish-back': state.publish.stage = 1; return renderPublish();
+    case 'publish-next': return publishNext();
+    case 'publish-download': return publishDownload();
+    case 'commands': return showCommands();
+    case 'about': return showAbout();
+    case 'quick-start': return showAbout(true);
+    case 'close-modal': return $('modal').close();
+    case 'validate': {
+      const issues = validation();
+      return showModal('Binding validation',issues.length
+        ? `<ul class="validation-list">${issues.map(item => `<li class="amber">${escape(item.page)} / ${escape(item.widget)} · ${escape(item.issue)}</li>`).join('')}</ul>`
+        : '<p class="accent">All component bindings passed validation.</p>');
+    }
+    default:
+      if (command.startsWith('add-') && Object.hasOwn(kinds,command.slice(4))) return insertWidget(command.slice(4));
+  }
+}
+
+document.addEventListener('click',event => {
+  const trigger = event.target.closest('button');
+  if (!trigger) {
+    closeMenu();
+    const widget = event.target.closest('#previewBoard .widget');
+    if (widget) activatePreviewWidget(widget);
+    return;
+  }
+  if (trigger.dataset.menu) return showMenu(trigger.dataset.menu,trigger,event.detail === 0);
+  if (trigger.dataset.action === 'insert-menu') return showMenu('Insert',trigger,event.detail === 0);
+  if (trigger.hasAttribute('data-submenu')) return openSubmenu(trigger,event.detail === 0,true);
+  if (trigger.dataset.command) {
+    $('modal').close();
+    return runAction(trigger.dataset.command);
+  }
+  if (trigger.dataset.action) {
+    closeMenu();
+    return runAction(trigger.dataset.action);
+  }
+});
+
+function handleMenuKey(event) {
+  const control = event.target.closest('[role=menuitem]');
+  if (!control) return;
+  const menu = control.closest('[role=menu]');
+  const controls = menuButtons(menu);
+  const index = controls.indexOf(control);
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    controls[(index+(event.key === 'ArrowDown' ? 1 : controls.length-1))%controls.length].focus();
+  } else if (event.key === 'ArrowRight' && control.hasAttribute('data-submenu')) {
+    event.preventDefault();
+    openSubmenu(control,true);
+  } else if (event.key === 'ArrowLeft' && menu.id !== 'menuPanel') {
+    event.preventDefault();
+    menu.hidden = true;
+    menu.previousElementSibling.setAttribute('aria-expanded','false');
+    menu.previousElementSibling.focus();
+  }
+}
+
+document.addEventListener('input',event => {
+  const {field} = event.target.dataset;
+  switch (field) {
+    case 'palette-filter':
+      state.paletteFilter = event.target.value;
+      return setHtml('paletteGrid',paletteItems() || '<span class="muted">No matches</span>');
+    case 'output-filter':
+      state.filter = event.target.value;
+      return renderOutputData();
+    case 'command-search': return setHtml('commandResults',commandResults(event.target.value));
+    case 'publish-name': state.publish.name = event.target.value; break;
+  }
+});
+
+document.addEventListener('change',event => {
+  const element = event.target;
+  const {field} = element.dataset;
+  if (!field) return;
+  if (field.startsWith('widget-')) return setWidgetField(field.slice(7),element);
+  switch (field) {
+    case 'page-name': {
+      const name = element.value.trim();
+      if (name && name !== page().name) transact(() => { page().name = name; });
+      else element.value = page().name;
+      break;
+    }
+    case 'alarm-filter':
+      state.alarmFilter = element.value; return renderOutputData();
+    case 'search-scope':
+      state.searchScope = element.value; return renderOutputData();
+    case 'preview-page':
+      state.previewPage = element.value; return renderPreview();
+    case 'preview-target':
+      state.previewTarget = element.value; return previewSize();
+    case 'publish-mode':
+      state.publish.mode = element.value;
+      renderPublish();
+      $('modal').querySelector('input[data-field=publish-mode]:checked')?.focus();
+      break;
+    case 'publish-target':
+      if (element.checked) state.publish.targets.add(element.value);
+      else state.publish.targets.delete(element.value);
+      break;
+  }
+});
+
+$('importFile').addEventListener('change',async event => {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const replacement = data?.schema === 'hmi-forge.publish-prototype/1' ? data.project : data;
+    if (!isProject(replacement)) throw Error('Invalid project');
+    changeProject(replacement,'Opened from file');
+    toast(`Opened ${replacement.name}.`);
+  } catch {
+    toast('This file is not a valid HMI Forge prototype project.');
+  }
+});
+
+document.addEventListener('submit',event => {
+  event.preventDefault();
+  if (event.target.id === 'pageForm') createPage();
+  if (event.target.id === 'writeForm') $('modal').querySelector('[data-action^=apply-tag]')?.click();
+});
+
+const shortcuts = {
+  s:'save',k:'commands',f:'out-search',z:'undo',y:'redo',c:'copy',v:'paste',d:'duplicate'
+};
+document.addEventListener('keydown',event => {
+  const key = event.key;
+  if (state.menu && key === 'Escape') {
+    event.preventDefault(); return closeMenu(true);
+  }
+  if (state.menu && key === 'Tab') closeMenu();
+  if (event.target.closest('#previewBoard .widget') && ['Enter',' '].includes(key)) {
+    event.preventDefault();
+    return activatePreviewWidget(event.target.closest('.widget'));
+  }
+  if ($('modal').open || $('preview').open) {
+    if (event.target.id === 'commandInput' && key === 'Enter') $('commandResults').querySelector('button')?.click();
+    return;
+  }
+  const editing = event.target.matches('input,textarea,select,[contenteditable=true]');
+  if (editing) {
+    if (key === 'Enter' && event.target.closest('#inspectorBody')) event.target.blur();
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && Object.hasOwn(shortcuts,key.toLowerCase())) {
+    const action = event.shiftKey && key.toLowerCase() === 'z' ? 'redo' : shortcuts[key.toLowerCase()];
+    event.preventDefault();
+    runAction(action);
+    if (action === 'out-search') $('outputFilter')?.focus();
+    return;
+  }
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const direct = {F5:'preview',F6:'simulate',Delete:'delete',v:'select-tool',h:'pan-tool'};
+  if (Object.hasOwn(direct,key)) {
+    event.preventDefault();
+    runAction(direct[key]);
+  }
+});
+
+const field = $('canvasField');
+let drag;
+field.addEventListener('pointerdown',event => {
+  if (event.button !== 0 || event.target.closest('button')) return;
+  closeMenu();
+  const node = event.target.closest('.widget');
+  if (state.tool === 'pan') {
+    drag = {id:event.pointerId,startX:event.clientX,startY:event.clientY,panX:state.panX,panY:state.panY};
+    field.classList.add('panning');
+  } else if (node) {
+    const widget = page().widgets.find(item => item.id === node.dataset.widget);
+    const resizing = event.target.hasAttribute('data-resize');
+    selectWidget(widget.id);
+    if (widget.locked) return;
+    drag = {id:event.pointerId,startX:event.clientX,startY:event.clientY,widget,node,resizing,x:widget.x,y:widget.y,w:widget.w,h:widget.h,moved:false};
+  } else {
+    selectWidget(null);
+    return;
+  }
+  field.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+field.addEventListener('pointermove',event => {
+  if (!drag || drag.id !== event.pointerId) return;
+  const dx = event.clientX-drag.startX, dy = event.clientY-drag.startY;
+  if (!drag.widget) {
+    state.panX = drag.panX + dx;
+    state.panY = drag.panY + dy;
+    fitCanvas();
+    return;
+  }
+  if (!drag.moved && Math.hypot(dx,dy) < 3) return;
+  const adjust = number => state.snap ? Math.round(number/8)*8 : Math.round(number);
+  const widget = drag.widget;
+  if (!drag.moved) {
+    pushHistory();
+    drag.moved = true;
+  }
+  if (drag.resizing) {
+    widget.w = clamp(adjust(drag.w+dx/canvasScale),16,width-widget.x);
+    widget.h = clamp(adjust(drag.h+dy/canvasScale),16,height-widget.y);
+    drag.node.style.width = `${widget.w}px`;
+    drag.node.style.height = `${widget.h}px`;
+  } else {
+    widget.x = clamp(adjust(drag.x+dx/canvasScale),0,width-widget.w);
+    widget.y = clamp(adjust(drag.y+dy/canvasScale),0,height-widget.h);
+    drag.node.style.left = `${widget.x}px`;
+    drag.node.style.top = `${widget.y}px`;
+  }
+});
+function endDrag(event) {
+  if (!drag || drag.id !== event.pointerId) return;
+  field.classList.remove('panning');
+  if (drag.moved) { renderInspector(); renderChrome(); }
+  drag = null;
+}
+field.addEventListener('pointerup',endDrag);
+field.addEventListener('pointercancel',endDrag);
+
+const grip = $('outputGrip');
+function resizeOutput(size) {
+  const minimum = 105;
+  const maximum = Math.max(minimum,Math.min(420,innerHeight-360));
+  const height = clamp(size,minimum,maximum);
+  $('studio').style.setProperty('--output-height',`${height}px`);
+  grip.setAttribute('aria-valuemin',minimum);
+  grip.setAttribute('aria-valuemax',maximum);
+  grip.setAttribute('aria-valuenow',Math.round(height));
+}
+let dockDrag;
+grip.addEventListener('pointerdown',event => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  grip.focus();
+  dockDrag = {id:event.pointerId,y:event.clientY,height:$('output').offsetHeight};
+  grip.setPointerCapture(event.pointerId);
+});
+document.addEventListener('pointermove',event => {
+  if (dockDrag?.id === event.pointerId) resizeOutput(dockDrag.height+dockDrag.y-event.clientY);
+});
+function endDockResize(event) {
+  if (dockDrag?.id === event.pointerId) dockDrag = null;
+}
+document.addEventListener('pointerup',endDockResize);
+document.addEventListener('pointercancel',endDockResize);
+grip.addEventListener('keydown',event => {
+  if (!['ArrowUp','ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  resizeOutput($('output').offsetHeight + (event.key === 'ArrowUp' ? 20 : -20));
+});
+
+function mount() {
+  document.querySelectorAll('[data-icon]').forEach(node => { node.innerHTML = icon(node.dataset.icon); });
+  setupMenus();
+  $('menuPanel').addEventListener('keydown',handleMenuKey);
+  resetRuntime();
+  addLog('Virtual PLC profile initialized.');
+  addLog('HMI Forge browser prototype ready.');
+  renderAll();
+  new ResizeObserver(fitCanvas).observe(field);
+  new ResizeObserver(() => {
+    if (!state.outputOpen) return;
+    grip.setAttribute('aria-valuemin','105');
+    grip.setAttribute('aria-valuemax',Math.max(105,Math.min(420,innerHeight-360)));
+    grip.setAttribute('aria-valuenow',$('output').offsetHeight);
+  }).observe($('output'));
+  matchMedia('(max-width:1060px)').addEventListener('change',renderDocks);
+  window.addEventListener('resize',previewSize);
+  setInterval(simulationStep,850);
+}
+mount();
+</script>
+</body>
+</html>

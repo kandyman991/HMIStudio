@@ -1,0 +1,55 @@
+name: Tag engine CI
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/tag-engine/**'
+      - 'crates/project-model/**'
+      - '.github/workflows/tag-engine.yml'
+  pull_request:
+    paths:
+      - 'crates/tag-engine/**'
+      - 'crates/project-model/**'
+      - '.github/workflows/tag-engine.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tag-engine-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    working-directory: crates/tag-engine
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - name: rustdoc
+        shell: bash
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version 0.23.0
+      - name: Audit locked dependencies (RustSec)
+        run: cargo audit --deny warnings

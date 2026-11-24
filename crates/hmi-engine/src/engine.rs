@@ -160,15 +160,24 @@ pub async fn run_with_drivers(
             engine.send(Message::Ok { id });
             break;
         }
-        if let Some(request) = inbox.deferred.pop_front() {
-            engine.handle(request, &mut inbox).await;
+        // An elapsed pulse deadline wins at every dispatch boundary, including while
+        // deferred requests remain ready. A driver operation already in progress is not
+        // preempted: its cancellation/timeout semantics are driver-specific.
+        if engine
+            .next_pulse_due()
+            .is_some_and(|due| due <= Instant::now())
+        {
+            engine.release_due_pulses().await;
             continue;
         }
+        let has_deferred = !inbox.deferred.is_empty();
+        // Keep request FIFO order but let driver events and ticks make progress under
+        // request traffic. The explicit deadline check above does not rely on select fairness.
         let next = tokio::select! {
-            biased;
             _ = engine.out.closed() => Next::End,
             _ = engine.events_tx.failure() => Next::End,
-            request = inbox.rx.recv() => match request {
+            request = async { inbox.deferred.pop_front().expect("deferred request") }, if has_deferred => Next::Request(request),
+            request = inbox.rx.recv(), if !has_deferred => match request {
                 Some(request) => Next::Request(request),
                 None => Next::End,
             },

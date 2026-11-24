@@ -1,10 +1,10 @@
 # REUSE-02C.1 — Bridge supervision: bounded commands, session invalidation, uncertain writes
 
-Status: **local candidate, uncommitted**, on branch `feat/reuse-02c1-bridge-supervision`.
-Base: `5fa32afa14d2b5d765e6563bef9a840c4adf2b2a` (main after PR #7). Nothing is committed,
-pushed or reviewed, and hosted CI has not run on any of it. Simulated drivers only. No PLC,
-network device or production acceptance is claimed. The protocol stays at version 3 and the
-Kotlin client is unchanged.
+Status: **PR #17 candidate; corrective review in progress**.
+Base: `5fa32afa14d2b5d765e6563bef9a840c4adf2b2a` (main after PR #7).
+Original pushed head: `a7277f4e9f1ffb05a2c8e1824e481eec1269c47b`.
+Simulated drivers only. No PLC, network device or production acceptance is claimed.
+The protocol stays at version 3 and the Kotlin client is unchanged.
 
 ## 1. Scope
 
@@ -148,14 +148,21 @@ fault. Production launches installed binaries and does not write executables at 
 - **F-8 Bridge not wired.** The `tag-engine` supervisor still has no request correlation, typed
   event dispatch, bounded subscription delivery or resync, and is not used by Studio. Those
   remain REUSE-02C scope.
-- **F-9 Evidence scope.** Local Linux evidence only. Windows, hosted CI and independent review
-  have not run. No physical PLC, network device or packaged sidecar was used.
+- **F-9 Evidence scope.** The author results above are local Linux evidence only.
+  Corrected-head hosted CI and final independent review remain required. No physical PLC, network device or packaged sidecar was used.
 
-## 6. Next exact action
+## 6. Corrective review and next exact action
 
-1. Owner or reviewer: inspect the working tree.
-2. Commit it on `feat/reuse-02c1-bridge-supervision` when authorized.
-3. Run exact-head hosted Windows and Linux CI with the dedicated audit, then independent review.
-4. Decide F-1 and F-2 before any physical-machinery write.
-5. Continue REUSE-02C with bounded and coalesced subscription delivery with resync, request
-   correlation, and typed events in the supervisor.
+- Original review found a starvation regression: deferred requests bypassed the pulse
+  timer, and biased selection favored ready requests/events. Check elapsed deadlines
+  before every dispatch and restore fair selection among ordinary work while retaining
+  request FIFO. This is a dispatch-boundary guarantee, not a hard real-time or
+  in-flight driver cancellation guarantee.
+- Regression: simulated slow browse crossing a pulse deadline with ready deferred
+  benign browse traffic; release must precede deferred replies.
+- Independent Linux preflight in a fresh checkout: locked offline hmi-engine test-server 54/54, default 36/36, tag-engine 61/61, engine strict Clippy with test-server and fmt passed. The new regression failed as expected with the original scheduler restored and passed after correction. No dependency/lockfile changes.
+- Verify corrected-head hosted Windows/Linux CI and dedicated advisory gates; complete
+  independent review before merge. Decide F-1/F-2 before physical machinery writes.
+- Next: REUSE-02C.2 request correlation, typed event dispatch, bounded subscriptions
+  and resynchronization. Keep the supervisor disconnected from real write-capable
+  Studio sessions until graceful shutdown and unknown-outcome handling are defined.

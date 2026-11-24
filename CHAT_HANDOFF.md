@@ -104,8 +104,8 @@ Append or supersede entries when milestone state changes. Include date, source S
 - PR #7 reconciled from `de9e207a43b9c8ab322b1d3db33fd0832febe596` with that main, clean ordinary merge. Independent review fixes exact range/map integer comparison, safe linear transform limits, bounded operator input, shutdown/cancel admission and result handling, default allocation limit and extreme duration cancellation. See docs/TAG_ENGINE_VALIDATION.md; 50 local Rust tests, fmt/Clippy/rustdoc, 15 CI regressions passed; strict local RustSec audit zero vulnerabilities/warnings, 20 archive checksums/licenses verified. Dedicated CI exact-head checkout and cache align with CI-02; strict independent audit retained. No changed tag lockfile, UI, model, physical drivers or engine bridge.
 - Next exact action: verify reconciled PR #7 exact head, fresh Required CI, handoff and dedicated audit/checks, independent final review and merge. No manual installer acceptance. REUSE-02C bridge preflight thereafter: bounded/coalesced subscriptions/resync, process supervision, framing, exact numeric limits or safe refusal, no stale command replay; preserve simulator and production boundary.
 
-## REUSE-02C.1 bridge supervision — local candidate, uncommitted — 2026-11-24
-- Branch `feat/reuse-02c1-bridge-supervision` at base `5fa32afa14d2b5d765e6563bef9a840c4adf2b2a` (main after PR #7). Working tree only: nothing committed or pushed, no hosted CI, no review. Earlier uncommitted bounded-transport, event-sink, framing, supervisor and O-5 changes are preserved.
+## REUSE-02C.1 bridge supervision — PR #17 candidate — 2026-11-24
+- Branch `feat/reuse-02c1-bridge-supervision` at base `5fa32afa14d2b5d765e6563bef9a840c4adf2b2a` (main after PR #7). Original candidate pushed at a7277f4e9f1ffb05a2c8e1824e481eec1269c47b; author results below are historical. Earlier uncommitted bounded-transport, event-sink, framing, supervisor and O-5 changes are preserved.
 - Added:
   - bounded S7 command queue (8) with not-transmitted overflow and a coalesced demand wake;
   - stop by flag rather than queue, with a bounded join;
@@ -122,4 +122,8 @@ Append or supersede entries when milestone state changes. Include date, source S
   - 13 new deterministic tests; 7 of 8 re-introduced defects caught.
   
   The intermittent tag-engine `bridge_supervisor` failure (an `ETXTBSY` fixture race) was fixed: 0 failures in 200 parallel runs, against 41 in 100 before. Simulated drivers only.
-- Open findings F-1 to F-9: arming across reconnection, unconfirmed release after an unknown start, release bounds of non-S7 drivers, no explicit protocol-3 uncertain code, bridge still not wired. Next: authorize commit; run exact-head hosted CI and independent review; owner decisions on F-1 and F-2 before any physical write; then bounded subscription delivery, resync and request correlation.
+- Open findings F-1 to F-9: arming across reconnection, unconfirmed release after an unknown start, release bounds of non-S7 drivers, no explicit protocol-3 uncertain code, bridge still not wired. Next: verify corrected-head hosted CI and complete independent review; owner decisions on F-1 and F-2 before any physical write; then bounded subscription delivery, resync and request correlation.
+
+- Independent corrective review: found starvation of due pulses under deferred/ready traffic; added explicit dispatch-boundary deadline priority, fair ordinary-work selection preserving request FIFO, and a simulated deferred-browse regression. Corrected-head CI and final review required. No real PLC or installer acceptance. REUSE-02C.2 follows merge.
+
+- Independent corrective Linux preflight: 54 engine test-server, 36 default and 61 tag-engine tests passed, engine strict test-server Clippy and fmt passed; original-scheduler mutation failed the added regression as expected. No lockfile change. Hosted gate still required.

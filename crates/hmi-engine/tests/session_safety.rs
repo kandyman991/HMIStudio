@@ -81,7 +81,10 @@ impl Driver for Scripted {
         }
     }
     async fn set_demand(&mut self, _: Option<&std::collections::BTreeSet<String>>) {}
-    async fn browse(&mut self, _: Option<&str>) -> Result<Vec<BrowseNode>, DriverError> {
+    async fn browse(&mut self, node: Option<&str>) -> Result<Vec<BrowseNode>, DriverError> {
+        if node == Some("slow") {
+            tokio::time::sleep(Duration::from_millis(350)).await;
+        }
         Ok(Vec::new())
     }
     async fn stop(&mut self) {
@@ -451,4 +454,57 @@ async fn arming_is_never_restored_automatically() {
         1,
         "only the armed write reached the driver"
     );
+}
+
+#[tokio::test]
+async fn due_pulse_release_precedes_deferred_browse_traffic() {
+    let mut s = Session::start().await;
+    s.arm().await;
+    let pulse = s.send(|id| Request::Pulse {
+        id,
+        variable_id: "line.reset".into(),
+        actor: "op".into(),
+    });
+    assert!(s.result(pulse).await.0);
+    // The first browse spans the 200 ms pulse deadline. The remaining requests
+    // are already ready and are deferred by supervise while that browse runs.
+    let first = s.send(|id| Request::Browse {
+        id,
+        source_id: "sim".into(),
+        node_id: Some("slow".into()),
+    });
+    let second = s.send(|id| Request::Browse {
+        id,
+        source_id: "sim".into(),
+        node_id: None,
+    });
+    for _ in 0..16 {
+        s.send(|id| Request::Browse {
+            id,
+            source_id: "sim".into(),
+            node_id: None,
+        });
+    }
+    let next = s
+        .expect("release or deferred reply", |m| {
+            matches!(m, Message::PulseReleased { .. })
+                || matches!(m, Message::BrowseResult { id, .. } if *id >= second)
+        })
+        .await;
+    assert!(
+        matches!(next, Message::PulseReleased { released: true, .. }),
+        "pulse release must precede ready deferred requests; first browse id {first}"
+    );
+    assert_eq!(
+        s.writes(),
+        vec![
+            ("line.reset".into(), Value::Bool(true)),
+            ("line.reset".into(), Value::Bool(false)),
+        ]
+    );
+    s.expect(
+        "second browse reply",
+        |m| matches!(m, Message::BrowseResult { id, .. } if *id == second),
+    )
+    .await;
 }

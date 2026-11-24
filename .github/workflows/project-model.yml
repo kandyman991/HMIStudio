@@ -1,14 +1,5 @@
 name: Project model CI
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'crates/project-model/**'
-      - '.github/workflows/project-model.yml'
-  pull_request:
-    paths:
-      - 'crates/project-model/**'
-      - '.github/workflows/project-model.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +24,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: crates/project-model
+          save-if: 'false'
+          cache-bin: 'false'
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked

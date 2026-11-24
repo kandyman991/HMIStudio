@@ -16,3 +16,6 @@ ROADMAP.md is the summary. This plan defines engineering merge gates and milesto
 | RUST-09 advanced engineering | Stable core | Optional AI, vector/3D features; separate scoped validation |
 
 RUST-00/01 merged as 7a07d7e (PR #1); manual acceptance deferred to RUST-02. RUST-03A merged as 0ccf044 (PR #2). RUST-03B merged as 101c8f3 (PR #3), exact-head core/desktop/handoff CI passed. RUST-02A/B merged (PRs #5 and #6); RUST-02C merged (PR #8, 4ca18a59); manual desktop acceptance remains open in #10. RUST-04A draft preparation is limited to nested flow insertion and sibling ordering; no dependency acceptance or visual parity claimed. See NATIVE_PERSISTENCE.md. See WORKSPACE_IMPLEMENTATION.md for slices and outstanding acceptance. Issue #4 remains open. No filesystem containment, runtime or production acceptance claimed.
+
+## CI-02 — Change-aware CI (candidate)
+Acceptance: regression tests for change classification, exact-head full CI for workflow changes, independent review, verify required check contexts and manual installer path, demonstrate documentation-only routing with no installer uploads. Keep handoff and applicable dependency checks mandatory. See CI_RUNNER_POLICY.md; no milestone or release acceptance implied.

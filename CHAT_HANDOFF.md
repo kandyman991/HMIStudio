@@ -58,3 +58,7 @@ Complete issue #10 before marking RUST-02 accepted; review and test RUST-04A dra
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.
+
+## CI-02 candidate — 2026-11-24
+- Started from verified main `58d83ca540463d9507c1cd76555d0bac5bb6378b`. Owner requested change-aware CI ahead of REUSE-02A; existing PRs #7/#9/#12/#13 left intact. PR #9 exact head `34ae0c6e73b54ac30b11e3b6f72f4306922ea9af` desktop run 45438220109 and handoff 45438220116 now passed; remaining independent audit scope is not waived.
+- CI-02 introduces routing tests, stable Required CI, conditional hosted jobs, manual installer dispatch, three-day artifact retention and pinned Rust cache. CI workflow changes deliberately force full validation on this PR. No local native or workflow execution claimed. Branch protection API returned 403; verify required contexts before transition. Existing #7 tag-engine audit must be preserved when reconciled. Next: independently review and verify CI-02 exact-head CI and branch-protection transition, then merge before REUSE-02A. No private source transferred.

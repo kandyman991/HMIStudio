@@ -22,3 +22,6 @@
 - Independent review and applicable security/license checks required before engineering merge.
 - Manual install/launch/close on both OSs, command interaction and visual acceptance are deferred to RUST-02, not claimed passed. Routine PRs do not require manual owner acceptance; see D-008.
 - No production capabilities or private code transfer.
+
+## CI-02 — Change-aware CI
+Candidate: applicable tests, stable merge gate, pinned Rust dependency/compilation cache and on-demand Windows/Linux installers with three-day retention. Required before REUSE-02A continuation; see docs/CI_RUNNER_POLICY.md.

@@ -30,8 +30,12 @@
 - PR #2 merged as 0ccf044d2a65cc86400e053647e95520fcfe98c1; source 36943f5 passed project model CI 45405558411, desktop CI 45405558172, handoff 45405558243. 76 local model tests passed.
 - PR #3 predecessor 33db7fcdf51a5e43a4da703af75e5f3e3919f76d passed engineering core CI 45399624280 and project model CI 45399623931. Reconciled with main without conflicts. Persistence and ID retirement findings corrected; 58 core tests passed locally, no lockfile advisory findings. See docs/ENGINEERING_CORE_VALIDATION.md. Corrected-head hosted CI pending.
 - No Tauri integration, production functionality, real power-loss or Kotlin parity acceptance yet. Issue #4 remains. Manual desktop acceptance at RUST-02.
+## RUST-02A start — 2026-11-24
+- PR #3 merged as 101c8f311a5fb8110ccfe127c0f4edde39c100f0. Corrected source 897693263da6e1d3f5644944fe3bc566288a5cdf passed core CI 45408061199, desktop CI 45408060862, handoff CI 45408061233. Both platform jobs in both matrices succeeded.
+- Branch feat/rust-02a-session-workspace starts from that main. Replaces demo Engine with restricted ProjectSession bridge; tabs, layer selection, basic edits, undo/redo, diagnostics, panel visibility. Local frontend build and three isolated host tests passed. Native CI pending. No disk operations exposed. See docs/WORKSPACE_IMPLEMENTATION.md.
+- Retain issue #4 and D-008 manual acceptance. No private source migration.
 ## Next exact action
-Verify live PR #3 corrected head and final required CI, merge when green; then RUST-02 professional workspace and typed ProjectSession host integration. Carry forward trusted storage/single-writer and manual desktop acceptance boundaries.
+Review RUST-02A candidate and exact-head hosted desktop CI, then implement remaining workspace docking and trusted native persistence slices. Require RUST-02 manual Windows/Linux acceptance at milestone boundary.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

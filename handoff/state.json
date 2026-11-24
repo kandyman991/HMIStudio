@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "kind": "historical_observation",
+  "observed_date": "2026-11-24",
+  "repository": "kandyman991/HMIStudio",
+  "main_sha": "7a07d7e74cc156ed76238e89068ff320b84a5978",
+  "observed_pr": {
+    "number": 2,
+    "head": "ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd",
+    "state": "open",
+    "draft": false
+  },
+  "observed_ci": {
+    "run_id": 45385961404,
+    "source_sha": "ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd",
+    "windows": "success",
+    "linux": "success"
+  },
+  "limitations": [
+    "Historical observation predates final PR #2 fixes; verify live refs and CI.",
+    "Desktop manual acceptance deferred to RUST-02.",
+    "Foundation dependency/redistribution issues tracked in #4.",
+    "Kotlin interoperability not validated."
+  ],
+  "next_action": "Verify corrected PR #2 CI and review, merge, then integrate and review stacked PR #3.",
+  "observed_handoff_ci": {
+    "run_id": 45395978594,
+    "source_sha": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+    "conclusion": "success"
+  }
+}

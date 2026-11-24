@@ -77,8 +77,34 @@ fn is_safe_relative_path(s: &str) -> bool {
         && !s.starts_with('/')
         && !s.contains('\\')
         && !s.contains(':')
-        && s.split('/')
-            .all(|seg| !seg.is_empty() && seg != "." && seg != "..")
+        && s.split('/').all(|seg| {
+            if seg.is_empty()
+                || seg.ends_with(['.', ' '])
+                || seg
+                    .chars()
+                    .any(|c| c.is_control() || matches!(c, '<' | '>' | '"' | '|' | '?' | '*'))
+            {
+                return false;
+            }
+            // Windows device names are reserved even with an extension.
+            let stem = seg
+                .split('.')
+                .next()
+                .unwrap_or_default()
+                .trim_end()
+                .to_ascii_uppercase();
+            !matches!(
+                stem.as_str(),
+                "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+            ) && !["COM", "LPT"].iter().any(|prefix| {
+                stem.strip_prefix(prefix).is_some_and(|n| {
+                    matches!(
+                        n,
+                        "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+                    )
+                })
+            })
+        })
 }
 
 pub(super) fn finite_non_negative(v: f64) -> bool {
@@ -471,7 +497,7 @@ impl<'p> Validator<'p> {
                     C::InvalidResource,
                     at(&path, "path"),
                     format!(
-                        "resource path {:?} must be relative, use '/', and contain no '..', ':' or '\\\\'",
+                        "resource path {:?} must be a portable relative file path, use '/', and contain no '..', ':' or '\\\\'",
                         r.path
                     ),
                 );

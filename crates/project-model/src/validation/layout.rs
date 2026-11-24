@@ -980,6 +980,7 @@ impl<'p> Validator<'p> {
         member: Option<&str>,
         def: Option<&ComponentDefinition>,
         path: &str,
+        requires_read: bool,
     ) -> Option<Option<DataType>> {
         let tp = at(path, "target");
         let r = self.resolve_tag_ref(target, def, &tp, C::InvalidAction)?;
@@ -988,6 +989,13 @@ impl<'p> Validator<'p> {
                 C::InvalidAction,
                 &tp,
                 "action writes to a tag the HMI may not write",
+            );
+        }
+        if requires_read && !r.readable {
+            self.error(
+                C::InvalidAction,
+                &tp,
+                "read-modify-write action needs a readable tag",
             );
         }
         match r.data_type {
@@ -1026,14 +1034,18 @@ impl<'p> Validator<'p> {
                 member,
                 value,
             } => {
-                if let Some(Some(dt)) = self.writable_target(target, member.as_deref(), def, path) {
+                if let Some(Some(dt)) =
+                    self.writable_target(target, member.as_deref(), def, path, false)
+                {
                     if let Err(e) = self.value_matches_data_type(value, &dt) {
                         self.error(C::InvalidAction, at(path, "value"), e);
                     }
                 }
             }
             Action::ToggleTag { target, member } => {
-                if let Some(Some(dt)) = self.writable_target(target, member.as_deref(), def, path) {
+                if let Some(Some(dt)) =
+                    self.writable_target(target, member.as_deref(), def, path, true)
+                {
                     if dt != DataType::Bool {
                         self.error(
                             C::InvalidAction,
@@ -1055,7 +1067,9 @@ impl<'p> Validator<'p> {
                         "duration must be > 0",
                     );
                 }
-                if let Some(Some(dt)) = self.writable_target(target, member.as_deref(), def, path) {
+                if let Some(Some(dt)) =
+                    self.writable_target(target, member.as_deref(), def, path, false)
+                {
                     if dt != DataType::Bool {
                         self.error(
                             C::InvalidAction,
@@ -1079,12 +1093,19 @@ impl<'p> Validator<'p> {
                         "step must be finite and non-zero",
                     );
                 }
+                for (name, bound) in [("min", min), ("max", max)] {
+                    if bound.is_some_and(|value| !value.is_finite()) {
+                        self.error(C::InvalidAction, at(path, name), "clamp must be finite");
+                    }
+                }
                 if let (Some(a), Some(b)) = (min, max) {
                     if a > b {
                         self.error(C::InvalidAction, at(path, "min"), "min exceeds max");
                     }
                 }
-                if let Some(Some(dt)) = self.writable_target(target, member.as_deref(), def, path) {
+                if let Some(Some(dt)) =
+                    self.writable_target(target, member.as_deref(), def, path, true)
+                {
                     if !dt.is_numeric() {
                         self.error(
                             C::InvalidAction,
@@ -1129,6 +1150,25 @@ impl<'p> Validator<'p> {
                         format!("unknown recipe {recipe:?}"),
                     ),
                     Some(r) => {
+                        if matches!(a, Action::SaveRecipe { .. }) {
+                            for field in &r.fields {
+                                if self
+                                    .ix
+                                    .tags
+                                    .get(field.tag.as_str())
+                                    .is_some_and(|tag| !tag.access.readable())
+                                {
+                                    self.error(
+                                        C::InvalidAction,
+                                        at(path, "recipe"),
+                                        format!(
+                                            "recipe field {:?} uses a non-readable tag",
+                                            field.id
+                                        ),
+                                    );
+                                }
+                            }
+                        }
                         if let Some(s) = set {
                             if !r.sets.iter().any(|x| &x.id == s) {
                                 self.error(

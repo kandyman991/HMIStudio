@@ -1,0 +1,45 @@
+{
+  "format": "hmi-studio.project",
+  "schemaVersion": 1,
+  "id": "prj-invalid",
+  "metadata": {
+    "name": "Invalid fixture",
+    "description": "A node reuses a tag identifier."
+  },
+  "navigation": {
+    "startScreen": "scr-main"
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "locales": [
+      "en"
+    ]
+  },
+  "tags": [
+    {
+      "id": "tag-ro",
+      "name": "ReadOnly",
+      "dataType": "float32"
+    }
+  ],
+  "screens": [
+    {
+      "id": "scr-main",
+      "name": "Main",
+      "root": {
+        "id": "n-root",
+        "element": {
+          "type": "column"
+        },
+        "children": [
+          {
+            "id": "tag-ro",
+            "element": {
+              "type": "box"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

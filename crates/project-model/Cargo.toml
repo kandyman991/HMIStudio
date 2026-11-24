@@ -1,0 +1,28 @@
+[package]
+name = "hmi-project-model"
+version = "0.1.0"
+edition = "2021"
+description = "Framework-independent HMI Studio project model: semantic layout, components, industrial contracts, JSON serialization, JSON Schema and validation."
+repository = "https://github.com/kandyman991/HMIStudio"
+publish = false
+# No `license` field on purpose: the project owner has not selected a license yet.
+
+# An empty workspace table makes this crate its own workspace root so it builds
+# and locks independently of the Tauri application (src-tauri/) and of any
+# future root workspace.
+[workspace]
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.145", features = ["float_roundtrip"] }
+serde_path_to_error = "0.1.20"
+schemars = "1.2"
+thiserror = "2"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"

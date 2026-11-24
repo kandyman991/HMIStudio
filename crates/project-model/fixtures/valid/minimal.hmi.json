@@ -1,0 +1,41 @@
+{
+  "format": "hmi-studio.project",
+  "schemaVersion": 1,
+  "id": "prj-minimal",
+  "metadata": {
+    "name": "Minimal"
+  },
+  "navigation": {
+    "startScreen": "scr-main"
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "locales": [
+      "en"
+    ]
+  },
+  "screens": [
+    {
+      "id": "scr-main",
+      "name": "Main",
+      "root": {
+        "id": "n-root",
+        "element": {
+          "type": "column"
+        },
+        "children": [
+          {
+            "id": "n-hello",
+            "element": {
+              "type": "component",
+              "kind": "text"
+            },
+            "properties": {
+              "text": "Hello, HMI Studio"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

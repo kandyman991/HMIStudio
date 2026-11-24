@@ -1,0 +1,39 @@
+name: Project model CI
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/project-model/**'
+      - '.github/workflows/project-model.yml'
+  pull_request:
+    paths:
+      - 'crates/project-model/**'
+      - '.github/workflows/project-model.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: project-model-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    working-directory: crates/project-model
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - run: cargo run --locked --example validate -- fixtures/valid/minimal.hmi.json fixtures/valid/bottling-line.hmi.json

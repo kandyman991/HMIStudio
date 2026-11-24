@@ -1,0 +1,2959 @@
+{
+  "format": "hmi-studio.project",
+  "schemaVersion": 1,
+  "id": "prj-bottling-line-3",
+  "metadata": {
+    "name": "Bottling Line 3",
+    "description": "Example industrial HMI: conveyor and filler with tank, setpoints, alarms and bottle recipes. Fictional plant; addresses are illustrative.",
+    "author": "HMI Studio examples",
+    "revision": "1.0.0",
+    "keywords": [
+      "example",
+      "bottling",
+      "opc-ua"
+    ]
+  },
+  "settings": {
+    "defaultTheme": "theme-day",
+    "defaultDeviceProfile": "dev-panel-15"
+  },
+  "navigation": {
+    "startScreen": "scr-overview",
+    "items": [
+      {
+        "id": "nav-overview",
+        "label": {
+          "textKey": "nav.overview"
+        },
+        "screen": "scr-overview",
+        "icon": "res-logo"
+      },
+      {
+        "id": "nav-filler",
+        "label": {
+          "textKey": "nav.filler"
+        },
+        "screen": "scr-filler"
+      },
+      {
+        "id": "nav-alarms",
+        "label": {
+          "textKey": "nav.alarms"
+        },
+        "screen": "scr-alarms"
+      },
+      {
+        "id": "nav-recipes",
+        "label": {
+          "textKey": "nav.recipes"
+        },
+        "screen": "scr-recipes"
+      }
+    ]
+  },
+  "deviceProfiles": [
+    {
+      "id": "dev-panel-15",
+      "name": "15.6\" panel PC (Windows)",
+      "platform": "windows",
+      "widthPx": 1920,
+      "heightPx": 1080,
+      "density": 1.0,
+      "touch": true
+    },
+    {
+      "id": "dev-tablet-10",
+      "name": "10\" Android tablet",
+      "platform": "android",
+      "widthPx": 1920,
+      "heightPx": 1200,
+      "density": 2.0,
+      "touch": true
+    },
+    {
+      "id": "dev-phone",
+      "name": "Android phone",
+      "platform": "android",
+      "widthPx": 1080,
+      "heightPx": 2400,
+      "density": 2.75,
+      "orientation": "portrait",
+      "touch": true
+    },
+    {
+      "id": "dev-linux-hmi",
+      "name": "7\" Linux panel",
+      "platform": "linux",
+      "widthPx": 1024,
+      "heightPx": 600,
+      "density": 1.0,
+      "touch": true
+    }
+  ],
+  "breakpoints": [
+    {
+      "id": "bp-compact",
+      "name": "Compact",
+      "minWidth": 0.0,
+      "maxWidth": 600.0
+    },
+    {
+      "id": "bp-medium",
+      "name": "Medium",
+      "minWidth": 600.0,
+      "maxWidth": 1024.0
+    },
+    {
+      "id": "bp-expanded",
+      "name": "Expanded",
+      "minWidth": 1024.0
+    }
+  ],
+  "themes": [
+    {
+      "id": "theme-day",
+      "name": "Day",
+      "colors": {
+        "alarm": "#C62828",
+        "background": "#ECEFF1",
+        "inactive": "#B0BEC5",
+        "liquid": "#4FC3F7",
+        "ok": "#2E7D32",
+        "onPrimary": "#FFFFFF",
+        "onSurface": "#263238",
+        "primary": "#1565C0",
+        "surface": "#FFFFFF",
+        "warning": "#F9A825"
+      },
+      "typography": {
+        "body": {
+          "fontFamily": "sans-serif",
+          "size": 15.0
+        },
+        "label": {
+          "fontFamily": "sans-serif",
+          "size": 13.0,
+          "weight": 500
+        },
+        "title": {
+          "fontFamily": "sans-serif",
+          "size": 22.0,
+          "weight": 600
+        },
+        "value": {
+          "fontFamily": "monospace",
+          "font": "res-font-mono",
+          "size": 28.0,
+          "weight": 700
+        }
+      },
+      "metrics": {
+        "gap": 12.0,
+        "radiusMd": 8.0,
+        "radiusSm": 4.0
+      }
+    },
+    {
+      "id": "theme-night",
+      "name": "Night",
+      "dark": true,
+      "colors": {
+        "alarm": "#EF5350",
+        "background": "#11181D",
+        "inactive": "#455A64",
+        "liquid": "#0288D1",
+        "ok": "#66BB6A",
+        "onPrimary": "#0D1B2A",
+        "onSurface": "#ECEFF1",
+        "primary": "#64B5F6",
+        "surface": "#1E272E",
+        "warning": "#FFD54F"
+      },
+      "typography": {
+        "body": {
+          "fontFamily": "sans-serif",
+          "size": 15.0
+        },
+        "label": {
+          "fontFamily": "sans-serif",
+          "size": 13.0,
+          "weight": 500
+        },
+        "title": {
+          "fontFamily": "sans-serif",
+          "size": 22.0,
+          "weight": 600
+        },
+        "value": {
+          "fontFamily": "monospace",
+          "font": "res-font-mono",
+          "size": 28.0,
+          "weight": 700
+        }
+      },
+      "metrics": {
+        "gap": 12.0,
+        "radiusMd": 8.0,
+        "radiusSm": 4.0
+      }
+    }
+  ],
+  "styles": [
+    {
+      "id": "style-card",
+      "name": "Card",
+      "target": "container",
+      "properties": {
+        "background": {
+          "token": "surface"
+        },
+        "cornerRadius": 8,
+        "elevation": 2
+      }
+    },
+    {
+      "id": "style-value",
+      "name": "Process value",
+      "target": "numericDisplay",
+      "properties": {
+        "decimals": 1,
+        "showUnit": true,
+        "textColor": {
+          "token": "onSurface"
+        },
+        "textStyle": "value"
+      }
+    },
+    {
+      "id": "style-command",
+      "name": "Command button",
+      "target": "button",
+      "properties": {
+        "background": {
+          "token": "primary"
+        },
+        "cornerRadius": 4,
+        "textColor": {
+          "token": "onPrimary"
+        }
+      }
+    },
+    {
+      "id": "style-panel",
+      "name": "Panel padding (any node)",
+      "properties": {
+        "background": {
+          "token": "background"
+        }
+      }
+    }
+  ],
+  "resources": [
+    {
+      "id": "res-logo",
+      "kind": "vector",
+      "path": "assets/logo.svg",
+      "mediaType": "image/svg+xml"
+    },
+    {
+      "id": "res-filler",
+      "kind": "image",
+      "path": "assets/filler-mimic.png",
+      "mediaType": "image/png"
+    },
+    {
+      "id": "res-font-mono",
+      "kind": "font",
+      "path": "fonts/mono-regular.ttf",
+      "mediaType": "font/ttf"
+    }
+  ],
+  "localization": {
+    "defaultLocale": "en",
+    "locales": [
+      "en",
+      "it"
+    ],
+    "strings": {
+      "action.ackAll": {
+        "en": "Acknowledge all",
+        "it": "Conferma tutti"
+      },
+      "action.ackDrives": {
+        "en": "Acknowledge drives",
+        "it": "Conferma azionamenti"
+      },
+      "action.back": {
+        "en": "Back",
+        "it": "Indietro"
+      },
+      "action.close": {
+        "en": "Close",
+        "it": "Chiudi"
+      },
+      "action.load": {
+        "en": "Load",
+        "it": "Carica"
+      },
+      "action.save": {
+        "en": "Save current values",
+        "it": "Salva valori correnti"
+      },
+      "action.settings": {
+        "en": "Settings",
+        "it": "Impostazioni"
+      },
+      "alarm.conveyorFault": {
+        "en": "Conveyor drive fault",
+        "it": "Guasto azionamento trasportatore"
+      },
+      "alarm.estop": {
+        "en": "Emergency stop pressed",
+        "it": "Arresto di emergenza premuto"
+      },
+      "alarm.fillerFault": {
+        "en": "Filler drive fault",
+        "it": "Guasto azionamento riempitrice"
+      },
+      "alarm.pressureLow": {
+        "en": "Air pressure low",
+        "it": "Pressione aria bassa"
+      },
+      "alarm.tankHigh": {
+        "en": "Product tank level high",
+        "it": "Livello serbatoio prodotto alto"
+      },
+      "confirm.stop": {
+        "en": "Stop this motor?",
+        "it": "Arrestare questo motore?"
+      },
+      "label.autoMode": {
+        "en": "Automatic mode",
+        "it": "Modo automatico"
+      },
+      "label.bottles": {
+        "en": "Bottles",
+        "it": "Bottiglie"
+      },
+      "label.darkMode": {
+        "en": "Night theme",
+        "it": "Tema notte"
+      },
+      "label.door": {
+        "en": "Guard door open",
+        "it": "Porta di protezione aperta"
+      },
+      "label.estop": {
+        "en": "Emergency stop",
+        "it": "Arresto di emergenza"
+      },
+      "label.fillVolume": {
+        "en": "Fill volume",
+        "it": "Volume di riempimento"
+      },
+      "label.pressure": {
+        "en": "Air pressure",
+        "it": "Pressione aria"
+      },
+      "label.speed": {
+        "en": "Line speed",
+        "it": "Velocità linea"
+      },
+      "label.tank": {
+        "en": "Product tank",
+        "it": "Serbatoio prodotto"
+      },
+      "mode.auto": {
+        "en": "AUTO",
+        "it": "AUTO"
+      },
+      "mode.manual": {
+        "en": "MANUAL",
+        "it": "MANUALE"
+      },
+      "motor.fault": {
+        "en": "Fault",
+        "it": "Guasto"
+      },
+      "motor.running": {
+        "en": "Running",
+        "it": "In marcia"
+      },
+      "motor.start": {
+        "en": "Start",
+        "it": "Avvia"
+      },
+      "motor.stop": {
+        "en": "Stop",
+        "it": "Arresta"
+      },
+      "nav.alarms": {
+        "en": "Alarms",
+        "it": "Allarmi"
+      },
+      "nav.filler": {
+        "en": "Filler",
+        "it": "Riempitrice"
+      },
+      "nav.overview": {
+        "en": "Overview",
+        "it": "Panoramica"
+      },
+      "nav.recipes": {
+        "en": "Recipes",
+        "it": "Ricette"
+      },
+      "placeholder.alarmViewer": {
+        "en": "Alarm list: runtime-provided viewer (not part of RUST-03A)",
+        "it": "Elenco allarmi: visualizzatore fornito dal runtime (non incluso in RUST-03A)"
+      },
+      "recipe.bottle": {
+        "en": "Bottle format",
+        "it": "Formato bottiglia"
+      },
+      "recipe.set1000": {
+        "en": "1 L bottle",
+        "it": "Bottiglia 1 L"
+      },
+      "recipe.set500": {
+        "en": "0.5 L bottle",
+        "it": "Bottiglia 0,5 L"
+      },
+      "title.alarms": {
+        "en": "Active alarms",
+        "it": "Allarmi attivi"
+      },
+      "title.filler": {
+        "en": "Filler",
+        "it": "Riempitrice"
+      },
+      "title.overview": {
+        "en": "Line 3 overview",
+        "it": "Panoramica linea 3"
+      },
+      "title.recipes": {
+        "en": "Bottle recipes",
+        "it": "Ricette bottiglie"
+      },
+      "title.settings": {
+        "en": "Settings",
+        "it": "Impostazioni"
+      },
+      "unit.bottlesPerMinute": {
+        "en": "bottles per minute",
+        "it": "bottiglie al minuto"
+      }
+    }
+  },
+  "units": [
+    {
+      "id": "unit-bpm",
+      "symbol": "bpm",
+      "name": {
+        "textKey": "unit.bottlesPerMinute"
+      },
+      "quantity": "rate"
+    },
+    {
+      "id": "unit-ml",
+      "symbol": "mL",
+      "quantity": "volume"
+    },
+    {
+      "id": "unit-pct",
+      "symbol": "%",
+      "quantity": "ratio"
+    },
+    {
+      "id": "unit-degc",
+      "symbol": "°C",
+      "quantity": "temperature"
+    },
+    {
+      "id": "unit-bar",
+      "symbol": "bar",
+      "quantity": "pressure"
+    }
+  ],
+  "dataTypes": [
+    {
+      "id": "dt-motor",
+      "name": "Motor",
+      "members": [
+        {
+          "name": "running",
+          "dataType": "bool"
+        },
+        {
+          "name": "fault",
+          "dataType": "bool"
+        },
+        {
+          "name": "speed",
+          "dataType": "float32",
+          "description": "Actual speed in %"
+        },
+        {
+          "name": "cmdStart",
+          "dataType": "bool"
+        },
+        {
+          "name": "cmdStop",
+          "dataType": "bool"
+        },
+        {
+          "name": "faultCodes",
+          "dataType": {
+            "array": {
+              "element": "uint16",
+              "length": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "dt-tank",
+      "name": "Tank",
+      "members": [
+        {
+          "name": "level",
+          "dataType": "float32",
+          "description": "Level in %"
+        },
+        {
+          "name": "temperature",
+          "dataType": "float32"
+        },
+        {
+          "name": "inletValve",
+          "dataType": "bool"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-sim",
+      "name": "Simulator",
+      "driver": "simulator"
+    },
+    {
+      "id": "conn-plc1",
+      "name": "Line 3 PLC",
+      "driver": "opcUa",
+      "endpoint": "opc.tcp://192.0.2.20:4840",
+      "parameters": {
+        "publishingIntervalMs": 250,
+        "securityMode": "SignAndEncrypt",
+        "securityPolicy": "Basic256Sha256"
+      },
+      "credentialRef": "line3-plc-operator"
+    }
+  ],
+  "tags": [
+    {
+      "id": "tag-conveyor-motor",
+      "name": "Line3/Conveyor",
+      "dataType": {
+        "struct": "dt-motor"
+      },
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Conveyor\"",
+      "access": "readWrite"
+    },
+    {
+      "id": "tag-filler-motor",
+      "name": "Line3/Filler",
+      "dataType": {
+        "struct": "dt-motor"
+      },
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Filler\"",
+      "access": "readWrite"
+    },
+    {
+      "id": "tag-tank-1",
+      "name": "Line3/ProductTank",
+      "dataType": {
+        "struct": "dt-tank"
+      },
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Tank1\"",
+      "scanRateMs": 500
+    },
+    {
+      "id": "tag-line-speed-sp",
+      "name": "Line3/SpeedSetpoint",
+      "dataType": "float32",
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"SpeedSP\"",
+      "access": "readWrite",
+      "unit": "unit-bpm",
+      "range": {
+        "min": 0.0,
+        "max": 600.0
+      }
+    },
+    {
+      "id": "tag-line-speed-pv",
+      "name": "Line3/Speed",
+      "dataType": "float32",
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Speed\"",
+      "unit": "unit-bpm",
+      "range": {
+        "min": 0.0,
+        "max": 600.0
+      }
+    },
+    {
+      "id": "tag-fill-volume-sp",
+      "name": "Line3/FillVolumeSetpoint",
+      "dataType": "float32",
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"FillVolumeSP\"",
+      "access": "readWrite",
+      "unit": "unit-ml",
+      "range": {
+        "min": 250.0,
+        "max": 1500.0
+      }
+    },
+    {
+      "id": "tag-bottle-count",
+      "name": "Line3/BottleCount",
+      "dataType": "uint32",
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Count\""
+    },
+    {
+      "id": "tag-status-word",
+      "name": "Line3/StatusWord",
+      "dataType": "uint16",
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Status\"",
+      "description": "bit 0 = emergency stop, bit 1 = guard door open"
+    },
+    {
+      "id": "tag-auto-mode",
+      "name": "Line3/AutoMode",
+      "dataType": "bool",
+      "connection": "conn-plc1",
+      "address": "ns=3;s=\"DB_Line3\".\"Auto\"",
+      "access": "readWrite"
+    },
+    {
+      "id": "tag-air-pressure",
+      "name": "Sim/AirPressure",
+      "dataType": "float64",
+      "connection": "conn-sim",
+      "address": "sine:offset=1.5,amplitude=0.5,period=10s",
+      "unit": "unit-bar",
+      "range": {
+        "min": 0.0,
+        "max": 3.0
+      },
+      "initialValue": 1.5
+    },
+    {
+      "id": "tag-hmi-dark-mode",
+      "name": "HMI/DarkMode",
+      "dataType": "bool",
+      "access": "readWrite",
+      "initialValue": false
+    },
+    {
+      "id": "tag-hmi-area",
+      "name": "HMI/ActiveArea",
+      "dataType": "string",
+      "access": "readWrite",
+      "initialValue": "overview"
+    }
+  ],
+  "alarms": [
+    {
+      "id": "alm-tank-high",
+      "name": "Tank 1 level high",
+      "tag": "tag-tank-1",
+      "member": "level",
+      "condition": {
+        "type": "high",
+        "limit": 95.0
+      },
+      "deadband": 1.0,
+      "severity": "warning",
+      "priority": 600,
+      "message": {
+        "textKey": "alarm.tankHigh"
+      },
+      "group": "process"
+    },
+    {
+      "id": "alm-conveyor-fault",
+      "name": "Conveyor fault",
+      "tag": "tag-conveyor-motor",
+      "member": "fault",
+      "condition": {
+        "type": "isTrue"
+      },
+      "priority": 800,
+      "message": {
+        "textKey": "alarm.conveyorFault"
+      },
+      "group": "drives"
+    },
+    {
+      "id": "alm-filler-fault",
+      "name": "Filler fault",
+      "tag": "tag-filler-motor",
+      "member": "fault",
+      "condition": {
+        "type": "isTrue"
+      },
+      "priority": 800,
+      "message": {
+        "textKey": "alarm.fillerFault"
+      },
+      "group": "drives"
+    },
+    {
+      "id": "alm-estop",
+      "name": "Emergency stop",
+      "tag": "tag-status-word",
+      "condition": {
+        "type": "bitSet",
+        "index": 0
+      },
+      "severity": "critical",
+      "priority": 1000,
+      "message": {
+        "textKey": "alarm.estop"
+      },
+      "group": "safety",
+      "latched": true
+    },
+    {
+      "id": "alm-pressure-low",
+      "name": "Air pressure low",
+      "tag": "tag-air-pressure",
+      "condition": {
+        "type": "low",
+        "limit": 0.8
+      },
+      "deadband": 0.05,
+      "delayMs": 2000,
+      "severity": "warning",
+      "message": {
+        "textKey": "alarm.pressureLow"
+      },
+      "group": "process"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "rcp-bottle",
+      "name": {
+        "textKey": "recipe.bottle"
+      },
+      "fields": [
+        {
+          "id": "fld-fill-volume",
+          "name": {
+            "textKey": "label.fillVolume"
+          },
+          "tag": "tag-fill-volume-sp"
+        },
+        {
+          "id": "fld-line-speed",
+          "name": {
+            "textKey": "label.speed"
+          },
+          "tag": "tag-line-speed-sp"
+        }
+      ],
+      "sets": [
+        {
+          "id": "set-500ml",
+          "name": {
+            "textKey": "recipe.set500"
+          },
+          "values": {
+            "fld-fill-volume": 500,
+            "fld-line-speed": 420
+          }
+        },
+        {
+          "id": "set-1000ml",
+          "name": {
+            "textKey": "recipe.set1000"
+          },
+          "values": {
+            "fld-fill-volume": 1000,
+            "fld-line-speed": 300
+          }
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "cmp-motor-faceplate",
+      "name": "Motor faceplate",
+      "description": "Status, speed and start/stop commands for one motor.",
+      "category": "Drives",
+      "parameters": [
+        {
+          "name": "motor",
+          "type": {
+            "kind": "tag",
+            "dataType": {
+              "struct": "dt-motor"
+            },
+            "writable": true
+          },
+          "description": "Motor structure tag"
+        },
+        {
+          "name": "title",
+          "type": {
+            "kind": "text"
+          },
+          "default": "Motor"
+        }
+      ],
+      "root": {
+        "id": "n-mf-root",
+        "element": {
+          "type": "component",
+          "kind": "container"
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "minWidth": 220.0,
+          "maxWidth": 360.0
+        },
+        "children": [
+          {
+            "id": "n-mf-col",
+            "element": {
+              "type": "column",
+              "spacing": 8.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "padding": {
+                "top": 12.0,
+                "end": 12.0,
+                "bottom": 12.0,
+                "start": 12.0
+              }
+            },
+            "children": [
+              {
+                "id": "n-mf-header",
+                "element": {
+                  "type": "row",
+                  "alignment": "center",
+                  "spacing": 8.0
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fill"
+                  }
+                },
+                "children": [
+                  {
+                    "id": "n-mf-title",
+                    "element": {
+                      "type": "component",
+                      "kind": "text"
+                    },
+                    "layout": {
+                      "weight": 1.0
+                    },
+                    "properties": {
+                      "textStyle": "label"
+                    },
+                    "bindings": [
+                      {
+                        "property": "text",
+                        "source": {
+                          "parameter": "title"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n-mf-run",
+                    "element": {
+                      "type": "component",
+                      "kind": "indicator"
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 20.0
+                      },
+                      "height": {
+                        "mode": "fixed",
+                        "value": 20.0
+                      }
+                    },
+                    "properties": {
+                      "activeColor": {
+                        "token": "ok"
+                      },
+                      "inactiveColor": {
+                        "token": "inactive"
+                      },
+                      "tooltip": {
+                        "textKey": "motor.running"
+                      }
+                    },
+                    "bindings": [
+                      {
+                        "property": "active",
+                        "source": {
+                          "tagParameter": "motor"
+                        },
+                        "member": "running"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n-mf-fault",
+                    "element": {
+                      "type": "component",
+                      "kind": "indicator"
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 20.0
+                      },
+                      "height": {
+                        "mode": "fixed",
+                        "value": 20.0
+                      }
+                    },
+                    "properties": {
+                      "activeColor": {
+                        "token": "alarm"
+                      },
+                      "inactiveColor": {
+                        "token": "inactive"
+                      },
+                      "tooltip": {
+                        "textKey": "motor.fault"
+                      }
+                    },
+                    "bindings": [
+                      {
+                        "property": "active",
+                        "source": {
+                          "tagParameter": "motor"
+                        },
+                        "member": "fault"
+                      },
+                      {
+                        "property": "blink",
+                        "source": {
+                          "tagParameter": "motor"
+                        },
+                        "member": "fault"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-mf-speed",
+                "element": {
+                  "type": "component",
+                  "kind": "numericDisplay"
+                },
+                "style": "style-value",
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tagParameter": "motor"
+                    },
+                    "member": "speed"
+                  }
+                ]
+              },
+              {
+                "id": "n-mf-cmds",
+                "element": {
+                  "type": "row",
+                  "spacing": 8.0
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fill"
+                  }
+                },
+                "children": [
+                  {
+                    "id": "n-mf-start",
+                    "element": {
+                      "type": "component",
+                      "kind": "button"
+                    },
+                    "layout": {
+                      "height": {
+                        "mode": "fixed",
+                        "value": 48.0
+                      },
+                      "weight": 1.0
+                    },
+                    "style": "style-command",
+                    "properties": {
+                      "behavior": "momentary",
+                      "text": {
+                        "textKey": "motor.start"
+                      }
+                    },
+                    "events": [
+                      {
+                        "event": "click",
+                        "actions": [
+                          {
+                            "type": "pulseTag",
+                            "target": {
+                              "tagParameter": "motor"
+                            },
+                            "member": "cmdStart",
+                            "durationMs": 500
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n-mf-stop",
+                    "element": {
+                      "type": "component",
+                      "kind": "button"
+                    },
+                    "layout": {
+                      "height": {
+                        "mode": "fixed",
+                        "value": 48.0
+                      },
+                      "weight": 1.0
+                    },
+                    "style": "style-command",
+                    "properties": {
+                      "background": {
+                        "token": "alarm"
+                      },
+                      "text": {
+                        "textKey": "motor.stop"
+                      }
+                    },
+                    "events": [
+                      {
+                        "event": "click",
+                        "confirm": {
+                          "textKey": "confirm.stop"
+                        },
+                        "actions": [
+                          {
+                            "type": "pulseTag",
+                            "target": {
+                              "tagParameter": "motor"
+                            },
+                            "member": "cmdStop",
+                            "durationMs": 500
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "style": "style-card"
+      }
+    },
+    {
+      "id": "cmp-tank",
+      "name": "Tank",
+      "category": "Process",
+      "parameters": [
+        {
+          "name": "tank",
+          "type": {
+            "kind": "tag",
+            "dataType": {
+              "struct": "dt-tank"
+            }
+          }
+        },
+        {
+          "name": "label",
+          "type": {
+            "kind": "text"
+          },
+          "default": "Tank"
+        }
+      ],
+      "root": {
+        "id": "n-tk-root",
+        "element": {
+          "type": "column",
+          "alignment": "center",
+          "spacing": 8.0
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "padding": {
+            "top": 8.0,
+            "end": 8.0,
+            "bottom": 8.0,
+            "start": 8.0
+          }
+        },
+        "children": [
+          {
+            "id": "n-tk-label",
+            "element": {
+              "type": "component",
+              "kind": "text"
+            },
+            "properties": {
+              "textStyle": "label"
+            },
+            "bindings": [
+              {
+                "property": "text",
+                "source": {
+                  "parameter": "label"
+                }
+              }
+            ]
+          },
+          {
+            "id": "n-tk-vessel",
+            "element": {
+              "type": "box",
+              "contentAlignment": "bottomCenter"
+            },
+            "layout": {
+              "width": {
+                "mode": "fixed",
+                "value": 120.0
+              },
+              "height": {
+                "mode": "fixed",
+                "value": 180.0
+              },
+              "clip": true
+            },
+            "children": [
+              {
+                "id": "n-tk-back",
+                "element": {
+                  "type": "component",
+                  "kind": "rectangle"
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fill"
+                  },
+                  "height": {
+                    "mode": "fill"
+                  }
+                },
+                "properties": {
+                  "fill": {
+                    "token": "background"
+                  }
+                }
+              },
+              {
+                "id": "n-tk-level",
+                "element": {
+                  "type": "component",
+                  "kind": "progressBar"
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fill"
+                  },
+                  "height": {
+                    "mode": "fill"
+                  },
+                  "zIndex": 1
+                },
+                "properties": {
+                  "barColor": {
+                    "token": "liquid"
+                  },
+                  "max": 100,
+                  "min": 0,
+                  "orientation": "vertical"
+                },
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tagParameter": "tank"
+                    },
+                    "member": "level"
+                  }
+                ]
+              },
+              {
+                "id": "n-tk-inlet",
+                "element": {
+                  "type": "component",
+                  "kind": "ellipse"
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fixed",
+                    "value": 16.0
+                  },
+                  "height": {
+                    "mode": "fixed",
+                    "value": 16.0
+                  },
+                  "align": "topEnd",
+                  "zIndex": 2
+                },
+                "properties": {
+                  "strokeColor": {
+                    "token": "onSurface"
+                  },
+                  "strokeWidth": 1
+                },
+                "bindings": [
+                  {
+                    "property": "fill",
+                    "source": {
+                      "tagParameter": "tank"
+                    },
+                    "member": "inletValve",
+                    "transform": {
+                      "type": "map",
+                      "entries": [
+                        {
+                          "when": true,
+                          "value": {
+                            "token": "ok"
+                          }
+                        }
+                      ],
+                      "default": {
+                        "token": "inactive"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "properties": {
+              "borderColor": {
+                "token": "onSurface"
+              },
+              "borderWidth": 2,
+              "cornerRadius": 8
+            }
+          },
+          {
+            "id": "n-tk-temp",
+            "element": {
+              "type": "component",
+              "kind": "numericDisplay"
+            },
+            "style": "style-value",
+            "properties": {
+              "decimals": 1
+            },
+            "bindings": [
+              {
+                "property": "value",
+                "source": {
+                  "tagParameter": "tank"
+                },
+                "member": "temperature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cmp-kpi",
+      "name": "KPI tile",
+      "category": "Dashboard",
+      "parameters": [
+        {
+          "name": "label",
+          "type": {
+            "kind": "text"
+          }
+        },
+        {
+          "name": "value",
+          "type": {
+            "kind": "number"
+          },
+          "default": 0
+        },
+        {
+          "name": "decimals",
+          "type": {
+            "kind": "integer",
+            "min": 0,
+            "max": 6
+          },
+          "default": 0
+        }
+      ],
+      "root": {
+        "id": "n-kpi-root",
+        "element": {
+          "type": "component",
+          "kind": "container"
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "minHeight": 88.0
+        },
+        "children": [
+          {
+            "id": "n-kpi-col",
+            "element": {
+              "type": "column",
+              "spacing": 4.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "padding": {
+                "top": 12.0,
+                "end": 16.0,
+                "bottom": 12.0,
+                "start": 16.0
+              }
+            },
+            "children": [
+              {
+                "id": "n-kpi-label",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "properties": {
+                  "textStyle": "label"
+                },
+                "bindings": [
+                  {
+                    "property": "text",
+                    "source": {
+                      "parameter": "label"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-kpi-value",
+                "element": {
+                  "type": "component",
+                  "kind": "numericDisplay"
+                },
+                "style": "style-value",
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "parameter": "value"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "style": "style-card"
+      }
+    }
+  ],
+  "screens": [
+    {
+      "id": "scr-overview",
+      "name": "Overview",
+      "title": {
+        "textKey": "title.overview"
+      },
+      "designProfile": "dev-panel-15",
+      "events": [
+        {
+          "event": "show",
+          "actions": [
+            {
+              "type": "writeTag",
+              "target": {
+                "tag": "tag-hmi-area"
+              },
+              "value": "overview"
+            }
+          ]
+        }
+      ],
+      "root": {
+        "id": "n-ov-root",
+        "element": {
+          "type": "column",
+          "spacing": 16.0
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "height": {
+            "mode": "fill"
+          },
+          "padding": {
+            "top": 16.0,
+            "end": 16.0,
+            "bottom": 16.0,
+            "start": 16.0
+          }
+        },
+        "children": [
+          {
+            "id": "n-ov-header",
+            "element": {
+              "type": "row",
+              "alignment": "center",
+              "spacing": 12.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "height": {
+                "mode": "fixed",
+                "value": 56.0
+              }
+            },
+            "children": [
+              {
+                "id": "n-ov-logo",
+                "element": {
+                  "type": "component",
+                  "kind": "image"
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fixed",
+                    "value": 40.0
+                  },
+                  "height": {
+                    "mode": "fixed",
+                    "value": 40.0
+                  }
+                },
+                "properties": {
+                  "contentScale": "fit",
+                  "source": "res-logo"
+                }
+              },
+              {
+                "id": "n-ov-title",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "layout": {
+                  "weight": 1.0
+                },
+                "properties": {
+                  "maxLines": 1,
+                  "overflow": "ellipsis",
+                  "text": {
+                    "textKey": "title.overview"
+                  },
+                  "textStyle": "title"
+                }
+              },
+              {
+                "id": "n-ov-mode",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "properties": {
+                  "textStyle": "label"
+                },
+                "bindings": [
+                  {
+                    "property": "text",
+                    "source": {
+                      "tag": "tag-auto-mode"
+                    },
+                    "transform": {
+                      "type": "map",
+                      "entries": [
+                        {
+                          "when": true,
+                          "value": {
+                            "textKey": "mode.auto"
+                          }
+                        },
+                        {
+                          "when": false,
+                          "value": {
+                            "textKey": "mode.manual"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "responsive": [
+                  {
+                    "when": {
+                      "breakpoint": "bp-compact"
+                    },
+                    "set": {
+                      "visibility": "collapsed"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-ov-auto",
+                "element": {
+                  "type": "component",
+                  "kind": "switch"
+                },
+                "properties": {
+                  "label": {
+                    "textKey": "label.autoMode"
+                  }
+                },
+                "bindings": [
+                  {
+                    "property": "checked",
+                    "source": {
+                      "tag": "tag-auto-mode"
+                    },
+                    "mode": "readWrite"
+                  }
+                ]
+              },
+              {
+                "id": "n-ov-settings",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "action.settings"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "openPopup",
+                        "screen": "pop-settings"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n-ov-kpis",
+            "element": {
+              "type": "row",
+              "spacing": 16.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              }
+            },
+            "children": [
+              {
+                "id": "n-ov-kpi-bottles",
+                "element": {
+                  "type": "instance",
+                  "definition": "cmp-kpi",
+                  "parameters": {
+                    "label": {
+                      "textKey": "label.bottles"
+                    }
+                  }
+                },
+                "layout": {
+                  "weight": 1.0
+                },
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tag": "tag-bottle-count"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-ov-kpi-speed",
+                "element": {
+                  "type": "instance",
+                  "definition": "cmp-kpi",
+                  "parameters": {
+                    "decimals": 0,
+                    "label": {
+                      "textKey": "label.speed"
+                    }
+                  }
+                },
+                "layout": {
+                  "weight": 1.0
+                },
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tag": "tag-line-speed-pv"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-ov-kpi-pressure",
+                "element": {
+                  "type": "instance",
+                  "definition": "cmp-kpi",
+                  "parameters": {
+                    "decimals": 2,
+                    "label": {
+                      "textKey": "label.pressure"
+                    }
+                  }
+                },
+                "layout": {
+                  "weight": 1.0
+                },
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tag": "tag-air-pressure"
+                    }
+                  }
+                ]
+              }
+            ],
+            "responsive": [
+              {
+                "when": {
+                  "breakpoint": "bp-compact"
+                },
+                "set": {
+                  "spacing": 8.0,
+                  "direction": "vertical"
+                }
+              }
+            ]
+          },
+          {
+            "id": "n-ov-main",
+            "element": {
+              "type": "grid",
+              "columns": [
+                {
+                  "mode": "fraction",
+                  "weight": 2.0
+                },
+                {
+                  "mode": "fraction",
+                  "weight": 1.0
+                }
+              ],
+              "rows": [
+                {
+                  "mode": "fraction",
+                  "weight": 1.0
+                },
+                {
+                  "mode": "auto"
+                }
+              ],
+              "columnGap": 16.0,
+              "rowGap": 16.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "weight": 1.0
+            },
+            "children": [
+              {
+                "id": "n-ov-mimic",
+                "name": "Line mimic",
+                "element": {
+                  "type": "absolute"
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fill"
+                  },
+                  "height": {
+                    "mode": "fill"
+                  },
+                  "minHeight": 320.0,
+                  "gridCell": {
+                    "column": 0,
+                    "row": 0,
+                    "rowSpan": 2
+                  },
+                  "clip": true
+                },
+                "children": [
+                  {
+                    "id": "n-ov-mimic-bg",
+                    "element": {
+                      "type": "component",
+                      "kind": "image"
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fill"
+                      },
+                      "height": {
+                        "mode": "fill"
+                      },
+                      "position": {
+                        "x": 0.0,
+                        "y": 0.0
+                      }
+                    },
+                    "properties": {
+                      "contentScale": "fit",
+                      "source": "res-filler"
+                    }
+                  },
+                  {
+                    "id": "n-ov-conveyor",
+                    "element": {
+                      "type": "instance",
+                      "definition": "cmp-motor-faceplate",
+                      "parameters": {
+                        "motor": "tag-conveyor-motor",
+                        "title": "Conveyor"
+                      }
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 240.0
+                      },
+                      "position": {
+                        "x": 24.0,
+                        "y": 200.0
+                      },
+                      "zIndex": 1
+                    }
+                  },
+                  {
+                    "id": "n-ov-filler",
+                    "element": {
+                      "type": "instance",
+                      "definition": "cmp-motor-faceplate",
+                      "parameters": {
+                        "motor": "tag-filler-motor",
+                        "title": {
+                          "textKey": "nav.filler"
+                        }
+                      }
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 240.0
+                      },
+                      "position": {
+                        "x": 320.0,
+                        "y": 24.0
+                      },
+                      "zIndex": 1
+                    },
+                    "events": [
+                      {
+                        "event": "click",
+                        "actions": [
+                          {
+                            "type": "navigate",
+                            "screen": "scr-filler"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "responsive": [
+                  {
+                    "when": {
+                      "maxWidth": 600.0
+                    },
+                    "set": {
+                      "height": {
+                        "mode": "fixed",
+                        "value": 320.0
+                      },
+                      "gridCell": {
+                        "column": 0,
+                        "row": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-ov-tank",
+                "element": {
+                  "type": "instance",
+                  "definition": "cmp-tank",
+                  "parameters": {
+                    "label": {
+                      "textKey": "label.tank"
+                    },
+                    "tank": "tag-tank-1"
+                  }
+                },
+                "layout": {
+                  "gridCell": {
+                    "column": 1,
+                    "row": 0
+                  }
+                },
+                "responsive": [
+                  {
+                    "when": {
+                      "maxWidth": 600.0
+                    },
+                    "set": {
+                      "gridCell": {
+                        "column": 0,
+                        "row": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-ov-speed-card",
+                "element": {
+                  "type": "component",
+                  "kind": "container"
+                },
+                "layout": {
+                  "gridCell": {
+                    "column": 1,
+                    "row": 1
+                  }
+                },
+                "children": [
+                  {
+                    "id": "n-ov-speed-col",
+                    "element": {
+                      "type": "column",
+                      "spacing": 8.0
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fill"
+                      },
+                      "padding": {
+                        "top": 12.0,
+                        "end": 12.0,
+                        "bottom": 12.0,
+                        "start": 12.0
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "n-ov-speed-label",
+                        "element": {
+                          "type": "component",
+                          "kind": "text"
+                        },
+                        "properties": {
+                          "text": {
+                            "textKey": "label.speed"
+                          },
+                          "textStyle": "label"
+                        }
+                      },
+                      {
+                        "id": "n-ov-speed-slider",
+                        "element": {
+                          "type": "component",
+                          "kind": "slider"
+                        },
+                        "layout": {
+                          "width": {
+                            "mode": "fill"
+                          }
+                        },
+                        "properties": {
+                          "max": 600,
+                          "min": 0,
+                          "step": 10
+                        },
+                        "bindings": [
+                          {
+                            "property": "value",
+                            "source": {
+                              "tag": "tag-line-speed-sp"
+                            },
+                            "mode": "readWrite"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "n-ov-speed-row",
+                        "element": {
+                          "type": "row",
+                          "alignment": "center",
+                          "spacing": 8.0
+                        },
+                        "layout": {
+                          "width": {
+                            "mode": "fill"
+                          }
+                        },
+                        "children": [
+                          {
+                            "id": "n-ov-speed-dec",
+                            "element": {
+                              "type": "component",
+                              "kind": "button"
+                            },
+                            "layout": {
+                              "width": {
+                                "mode": "fixed",
+                                "value": 48.0
+                              },
+                              "height": {
+                                "mode": "fixed",
+                                "value": 48.0
+                              }
+                            },
+                            "properties": {
+                              "text": "-"
+                            },
+                            "events": [
+                              {
+                                "event": "click",
+                                "actions": [
+                                  {
+                                    "type": "stepTag",
+                                    "target": {
+                                      "tag": "tag-line-speed-sp"
+                                    },
+                                    "step": -10.0,
+                                    "min": 0.0,
+                                    "max": 600.0
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n-ov-speed-input",
+                            "element": {
+                              "type": "component",
+                              "kind": "numericInput"
+                            },
+                            "layout": {
+                              "weight": 1.0
+                            },
+                            "properties": {
+                              "decimals": 0,
+                              "max": 600,
+                              "min": 0,
+                              "showUnit": true
+                            },
+                            "bindings": [
+                              {
+                                "property": "value",
+                                "source": {
+                                  "tag": "tag-line-speed-sp"
+                                },
+                                "mode": "readWrite"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n-ov-speed-inc",
+                            "element": {
+                              "type": "component",
+                              "kind": "button"
+                            },
+                            "layout": {
+                              "width": {
+                                "mode": "fixed",
+                                "value": 48.0
+                              },
+                              "height": {
+                                "mode": "fixed",
+                                "value": 48.0
+                              }
+                            },
+                            "properties": {
+                              "text": "+"
+                            },
+                            "events": [
+                              {
+                                "event": "click",
+                                "actions": [
+                                  {
+                                    "type": "stepTag",
+                                    "target": {
+                                      "tag": "tag-line-speed-sp"
+                                    },
+                                    "step": 10.0,
+                                    "min": 0.0,
+                                    "max": 600.0
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "style": "style-card",
+                "responsive": [
+                  {
+                    "when": {
+                      "maxWidth": 600.0
+                    },
+                    "set": {
+                      "visibility": "collapsed"
+                    }
+                  }
+                ]
+              }
+            ],
+            "responsive": [
+              {
+                "when": {
+                  "maxWidth": 600.0
+                },
+                "set": {
+                  "columns": [
+                    {
+                      "mode": "fraction",
+                      "weight": 1.0
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "style": "style-panel"
+      }
+    },
+    {
+      "id": "scr-filler",
+      "name": "Filler",
+      "title": {
+        "textKey": "title.filler"
+      },
+      "events": [
+        {
+          "event": "show",
+          "actions": [
+            {
+              "type": "writeTag",
+              "target": {
+                "tag": "tag-hmi-area"
+              },
+              "value": "filler"
+            }
+          ]
+        }
+      ],
+      "root": {
+        "id": "n-fl-scroll",
+        "element": {
+          "type": "scroll"
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "height": {
+            "mode": "fill"
+          }
+        },
+        "children": [
+          {
+            "id": "n-fl-col",
+            "element": {
+              "type": "column",
+              "spacing": 12.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "padding": {
+                "top": 16.0,
+                "end": 16.0,
+                "bottom": 16.0,
+                "start": 16.0
+              }
+            },
+            "children": [
+              {
+                "id": "n-fl-title",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "title.filler"
+                  },
+                  "textStyle": "title"
+                }
+              },
+              {
+                "id": "n-fl-motor",
+                "element": {
+                  "type": "instance",
+                  "definition": "cmp-motor-faceplate",
+                  "parameters": {
+                    "motor": "tag-filler-motor",
+                    "title": {
+                      "textKey": "nav.filler"
+                    }
+                  }
+                }
+              },
+              {
+                "id": "n-fl-values",
+                "element": {
+                  "type": "row",
+                  "spacing": 16.0,
+                  "wrap": true
+                },
+                "layout": {
+                  "width": {
+                    "mode": "fill"
+                  }
+                },
+                "children": [
+                  {
+                    "id": "n-fl-volume",
+                    "element": {
+                      "type": "component",
+                      "kind": "numericInput"
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 200.0
+                      }
+                    },
+                    "properties": {
+                      "decimals": 0,
+                      "max": 1500,
+                      "min": 250,
+                      "showUnit": true,
+                      "step": 50
+                    },
+                    "bindings": [
+                      {
+                        "property": "value",
+                        "source": {
+                          "tag": "tag-fill-volume-sp"
+                        },
+                        "mode": "readWrite"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n-fl-pressure",
+                    "element": {
+                      "type": "component",
+                      "kind": "gauge"
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 200.0
+                      },
+                      "height": {
+                        "mode": "fixed",
+                        "value": 200.0
+                      }
+                    },
+                    "properties": {
+                      "lowLimit": 0.8,
+                      "majorTicks": 6,
+                      "max": 3,
+                      "min": 0,
+                      "showUnit": true,
+                      "tooltip": {
+                        "textKey": "label.pressure"
+                      },
+                      "variant": "radial"
+                    },
+                    "bindings": [
+                      {
+                        "property": "value",
+                        "source": {
+                          "tag": "tag-air-pressure"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n-fl-speed",
+                    "element": {
+                      "type": "component",
+                      "kind": "progressBar"
+                    },
+                    "layout": {
+                      "width": {
+                        "mode": "fixed",
+                        "value": 240.0
+                      },
+                      "height": {
+                        "mode": "fixed",
+                        "value": 24.0
+                      },
+                      "crossAlign": "center"
+                    },
+                    "properties": {
+                      "barColor": {
+                        "token": "primary"
+                      },
+                      "max": 100,
+                      "min": 0
+                    },
+                    "bindings": [
+                      {
+                        "property": "value",
+                        "source": {
+                          "tag": "tag-line-speed-pv"
+                        },
+                        "transform": {
+                          "type": "linear",
+                          "factor": 0.16666666666666666
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-fl-fault-code",
+                "element": {
+                  "type": "component",
+                  "kind": "numericDisplay"
+                },
+                "properties": {
+                  "decimals": 0,
+                  "prefix": "Fault code: "
+                },
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tag": "tag-filler-motor"
+                    },
+                    "member": "faultCodes[0]"
+                  }
+                ]
+              },
+              {
+                "id": "n-fl-back",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "action.back"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "back"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scr-alarms",
+      "name": "Alarms",
+      "title": {
+        "textKey": "title.alarms"
+      },
+      "root": {
+        "id": "n-al-root",
+        "element": {
+          "type": "column",
+          "spacing": 12.0
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "height": {
+            "mode": "fill"
+          },
+          "padding": {
+            "top": 16.0,
+            "end": 16.0,
+            "bottom": 16.0,
+            "start": 16.0
+          }
+        },
+        "children": [
+          {
+            "id": "n-al-title",
+            "element": {
+              "type": "component",
+              "kind": "text"
+            },
+            "properties": {
+              "text": {
+                "textKey": "title.alarms"
+              },
+              "textStyle": "title"
+            }
+          },
+          {
+            "id": "n-al-status",
+            "element": {
+              "type": "row",
+              "alignment": "center",
+              "spacing": 24.0
+            },
+            "children": [
+              {
+                "id": "n-al-estop",
+                "element": {
+                  "type": "component",
+                  "kind": "indicator"
+                },
+                "properties": {
+                  "activeColor": {
+                    "token": "alarm"
+                  },
+                  "label": {
+                    "textKey": "label.estop"
+                  },
+                  "shape": "square"
+                },
+                "bindings": [
+                  {
+                    "property": "active",
+                    "source": {
+                      "tag": "tag-status-word"
+                    },
+                    "transform": {
+                      "type": "bit",
+                      "index": 0
+                    }
+                  },
+                  {
+                    "property": "blink",
+                    "source": {
+                      "tag": "tag-status-word"
+                    },
+                    "transform": {
+                      "type": "bit",
+                      "index": 0
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-al-door",
+                "element": {
+                  "type": "component",
+                  "kind": "indicator"
+                },
+                "properties": {
+                  "activeColor": {
+                    "token": "warning"
+                  },
+                  "label": {
+                    "textKey": "label.door"
+                  }
+                },
+                "bindings": [
+                  {
+                    "property": "active",
+                    "source": {
+                      "tag": "tag-status-word"
+                    },
+                    "transform": {
+                      "type": "bit",
+                      "index": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n-al-list",
+            "element": {
+              "type": "component",
+              "kind": "container"
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "weight": 1.0
+            },
+            "children": [
+              {
+                "id": "n-al-placeholder",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "layout": {
+                  "padding": {
+                    "top": 16.0,
+                    "end": 16.0,
+                    "bottom": 16.0,
+                    "start": 16.0
+                  }
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "placeholder.alarmViewer"
+                  }
+                }
+              }
+            ],
+            "style": "style-card"
+          },
+          {
+            "id": "n-al-actions",
+            "element": {
+              "type": "row",
+              "arrangement": "end",
+              "spacing": 12.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              }
+            },
+            "children": [
+              {
+                "id": "n-al-ack-drives",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "action.ackDrives"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "acknowledgeAlarms",
+                        "group": "drives"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-al-ack-all",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "style": "style-command",
+                "properties": {
+                  "text": {
+                    "textKey": "action.ackAll"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "acknowledgeAlarms"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-al-back",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "action.back"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "navigate",
+                        "screen": "scr-overview"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scr-recipes",
+      "name": "Recipes",
+      "title": {
+        "textKey": "title.recipes"
+      },
+      "root": {
+        "id": "n-rc-root",
+        "element": {
+          "type": "column",
+          "spacing": 12.0
+        },
+        "layout": {
+          "width": {
+            "mode": "fill"
+          },
+          "padding": {
+            "top": 16.0,
+            "end": 16.0,
+            "bottom": 16.0,
+            "start": 16.0
+          }
+        },
+        "children": [
+          {
+            "id": "n-rc-title",
+            "element": {
+              "type": "component",
+              "kind": "text"
+            },
+            "properties": {
+              "text": {
+                "textKey": "title.recipes"
+              },
+              "textStyle": "title"
+            }
+          },
+          {
+            "id": "n-rc-grid",
+            "element": {
+              "type": "grid",
+              "columns": [
+                {
+                  "mode": "fixed",
+                  "value": 200.0
+                },
+                {
+                  "mode": "fraction",
+                  "weight": 1.0
+                }
+              ],
+              "rows": [
+                {
+                  "mode": "auto"
+                },
+                {
+                  "mode": "auto"
+                }
+              ],
+              "columnGap": 12.0,
+              "rowGap": 8.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "maxWidth": 720.0
+            },
+            "children": [
+              {
+                "id": "n-rc-l-volume",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "layout": {
+                  "gridCell": {
+                    "column": 0,
+                    "row": 0
+                  }
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "label.fillVolume"
+                  }
+                }
+              },
+              {
+                "id": "n-rc-v-volume",
+                "element": {
+                  "type": "component",
+                  "kind": "numericDisplay"
+                },
+                "layout": {
+                  "gridCell": {
+                    "column": 1,
+                    "row": 0
+                  }
+                },
+                "style": "style-value",
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tag": "tag-fill-volume-sp"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "n-rc-l-speed",
+                "element": {
+                  "type": "component",
+                  "kind": "text"
+                },
+                "layout": {
+                  "gridCell": {
+                    "column": 0,
+                    "row": 1
+                  }
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "label.speed"
+                  }
+                }
+              },
+              {
+                "id": "n-rc-v-speed",
+                "element": {
+                  "type": "component",
+                  "kind": "numericDisplay"
+                },
+                "layout": {
+                  "gridCell": {
+                    "column": 1,
+                    "row": 1
+                  }
+                },
+                "style": "style-value",
+                "bindings": [
+                  {
+                    "property": "value",
+                    "source": {
+                      "tag": "tag-line-speed-sp"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n-rc-actions",
+            "element": {
+              "type": "row",
+              "spacing": 12.0,
+              "wrap": true
+            },
+            "children": [
+              {
+                "id": "n-rc-load-500",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "style": "style-command",
+                "properties": {
+                  "text": {
+                    "textKey": "recipe.set500"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "confirm": {
+                      "textKey": "action.load"
+                    },
+                    "actions": [
+                      {
+                        "type": "loadRecipe",
+                        "recipe": "rcp-bottle",
+                        "set": "set-500ml"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-rc-load-1000",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "style": "style-command",
+                "properties": {
+                  "text": {
+                    "textKey": "recipe.set1000"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "confirm": {
+                      "textKey": "action.load"
+                    },
+                    "actions": [
+                      {
+                        "type": "loadRecipe",
+                        "recipe": "rcp-bottle",
+                        "set": "set-1000ml"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-rc-save",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "action.save"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "saveRecipe",
+                        "recipe": "rcp-bottle"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pop-settings",
+      "name": "Settings popup",
+      "kind": "popup",
+      "title": {
+        "textKey": "title.settings"
+      },
+      "root": {
+        "id": "n-st-root",
+        "element": {
+          "type": "component",
+          "kind": "container"
+        },
+        "layout": {
+          "width": {
+            "mode": "fixed",
+            "value": 360.0
+          }
+        },
+        "children": [
+          {
+            "id": "n-st-col",
+            "element": {
+              "type": "column",
+              "spacing": 12.0
+            },
+            "layout": {
+              "width": {
+                "mode": "fill"
+              },
+              "padding": {
+                "top": 16.0,
+                "end": 16.0,
+                "bottom": 16.0,
+                "start": 16.0
+              }
+            },
+            "children": [
+              {
+                "id": "n-st-dark",
+                "element": {
+                  "type": "component",
+                  "kind": "switch"
+                },
+                "properties": {
+                  "label": {
+                    "textKey": "label.darkMode"
+                  }
+                },
+                "bindings": [
+                  {
+                    "property": "checked",
+                    "source": {
+                      "tag": "tag-hmi-dark-mode"
+                    },
+                    "mode": "readWrite"
+                  }
+                ]
+              },
+              {
+                "id": "n-st-lang",
+                "element": {
+                  "type": "row",
+                  "spacing": 8.0
+                },
+                "children": [
+                  {
+                    "id": "n-st-en",
+                    "element": {
+                      "type": "component",
+                      "kind": "button"
+                    },
+                    "properties": {
+                      "text": "English"
+                    },
+                    "events": [
+                      {
+                        "event": "click",
+                        "actions": [
+                          {
+                            "type": "setLocale",
+                            "locale": "en"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n-st-it",
+                    "element": {
+                      "type": "component",
+                      "kind": "button"
+                    },
+                    "properties": {
+                      "text": "Italiano"
+                    },
+                    "events": [
+                      {
+                        "event": "click",
+                        "actions": [
+                          {
+                            "type": "setLocale",
+                            "locale": "it"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n-st-close",
+                "element": {
+                  "type": "component",
+                  "kind": "button"
+                },
+                "layout": {
+                  "crossAlign": "end"
+                },
+                "properties": {
+                  "text": {
+                    "textKey": "action.close"
+                  }
+                },
+                "events": [
+                  {
+                    "event": "click",
+                    "actions": [
+                      {
+                        "type": "closePopup"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "style": "style-card"
+      }
+    }
+  ],
+  "extensions": {
+    "hmiStudio.examples": {
+      "purpose": "RUST-03A reference fixture",
+      "simulationOnly": true
+    }
+  }
+}

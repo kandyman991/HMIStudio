@@ -2,10 +2,11 @@
 
 | ID | Scope | Status |
 | --- | --- | --- |
-| RUST-00 | Repository rules, architecture, CI | Candidate |
-| RUST-01 | Desktop shell, typed commands, Windows/Linux development installers | Candidate |
+| RUST-00 | Repository rules, architecture, CI | Merged |
+| RUST-01 | Desktop shell, typed commands, Windows/Linux development installers | Merged; manual acceptance deferred to RUST-02 |
 | RUST-02 | Menus, docking, tabs, shortcuts, workspace persistence | Planned |
-| RUST-03 | Versioned project model, storage, command transactions, undo/redo | Planned |
+| RUST-03A | Versioned project model, validation, serialization and schema | PR #2 candidate |
+| RUST-03B | Storage, command transactions, undo/redo | PR #3 candidate |
 | RUST-04 | Interactive semantic layout designer | Planned |
 | RUST-05 | Existing project import and Compose rendering parity | Planned |
 | RUST-06 | Drivers, tags, bindings, alarms, recipes, search, simulation | Planned |

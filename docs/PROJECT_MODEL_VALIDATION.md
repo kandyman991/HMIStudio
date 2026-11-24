@@ -170,3 +170,11 @@ Next exact action: verify corrected-head CI, review the final patch, resolve
 remaining acceptance evidence, then integrate after PR #1 without overwriting its
 continuity records. Update the shared handoff/decision registers when integrating
 the independently scoped crate (PR #1 owns those files until merged).
+
+## Final integration review (2026-11-24)
+- Reviewed corrected predecessor ca60316 (CI run 45385961404 passed on Windows/Linux). Reconciled with main 7a07d7e using an ancestry-preserving merge, no conflicts.
+- CONFIRMED_FAILURE: portable resource path validation allowed Windows-normalized trailing dot/space segments, reserved device filenames and invalid filename characters. Reject these lexically on every host. This is not a filesystem sandbox: extraction/import must still reject symlinks, path collisions and escapes at I/O boundaries.
+- CONFIRMED_FAILURE: toggleTag and stepTag allowed write-only tags although they need the current value. SaveRecipe also allowed non-readable fields. Require read permission for those operations, retain write-only support for constant writes, pulses and recipe download. Reject non-finite step clamps. Added regression tests for portable paths and action access.
+- Local locked test suite: 76 passed, 0 failed. Existing JSON Schema drift test passed; no structural schema or dependency change.
+- Dependency audit: OSV-Scanner 2.7.1 on project-model Cargo.lock, 21 packages including local crate, exit 0, no advisory results. Cargo locked metadata: 20 external crates, crates.io only, 15 MIT OR Apache-2.0, 3 MIT, 1 Unlicense OR MIT, 1 (MIT OR Apache-2.0) AND Unicode-3.0; all declared. No project license chosen; distribution compliance tracked in #4.
+- Final corrected-head hosted CI and independent review still required. Kotlin/Compose interoperability, filesystem containment and runtime enforcement are not claimed. No private source imported.

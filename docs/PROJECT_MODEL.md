@@ -74,7 +74,7 @@ is translated into the other. No HTML is ever converted into Kotlin.
 | Screens & navigation | `screens[]` (pages and popups, each with a root `Node`), `navigation.startScreen`, ordered menu `items`. |
 | Device & resolution profiles | `deviceProfiles[]` (platform, pixel resolution, density, orientation, touch) and `breakpoints[]` (dp width classes). |
 | Component definitions & instances | `components[]` reusable definitions with typed parameters (including `tag` parameters); `instance` nodes reference them. |
-| Resources | `resources[]` with kind, sandboxed relative path, media type, optional SHA-256. |
+| Resources | `resources[]` with kind, portable lexical relative path (I/O containment and symlink checks are separate), media type, optional SHA-256. |
 | Styles & themes | `themes[]` (color/typography/metric tokens), `styles[]` (named property sets, optionally per component kind). |
 | Extensible metadata | `extensions` maps (namespaced keys, arbitrary JSON) on the project, nodes, screens, definitions, tags, connections and resources. Preserved verbatim. |
 

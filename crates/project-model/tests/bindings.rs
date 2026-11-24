@@ -343,3 +343,55 @@ fn secrets_in_connections_are_flagged_and_paths_are_sandboxed() {
         ],
     );
 }
+
+#[test]
+fn resource_paths_reject_nonportable_windows_segments() {
+    for bad in [
+        "assets/.. /x.png",
+        "assets/NUL.png",
+        "COM1.txt",
+        "LPT².png",
+        "assets/name.",
+        "assets/file ",
+        "assets/x?y",
+        "assets/\u{0}bad",
+    ] {
+        let r = report_with(|v| v["resources"][0]["path"] = json!(bad));
+        assert_error(&r, C::InvalidResource, "/resources/0/path");
+    }
+    assert!(!report_with(|v| v["resources"][0]["path"] = json!("assets/图像 1.png")).has_errors());
+}
+
+#[test]
+fn read_modify_write_actions_and_recipe_upload_require_read_access() {
+    let r = report_with(|v| {
+        v["tags"][1]["access"] = json!("write");
+        v["tags"][2]["access"] = json!("write");
+        v["screens"][0]["root"]["children"][2]["bindings"][0]["mode"] = json!("write");
+        v["screens"][0]["root"]["children"][3]["events"][0]["actions"] = json!([
+            {"type":"toggleTag","target":{"tag":"tag-bool-rw"}},
+            {"type":"stepTag","target":{"tag":"tag-real-rw"},"step":1},
+            {"type":"writeTag","target":{"tag":"tag-bool-rw"},"value":true},
+            {"type":"pulseTag","target":{"tag":"tag-bool-rw"},"durationMs":100},
+            {"type":"loadRecipe","recipe":"rcp-1"},
+            {"type":"saveRecipe","recipe":"rcp-1"}
+        ]);
+    });
+    assert_only_errors(
+        &r,
+        &[
+            (
+                C::InvalidAction,
+                "/screens/0/root/children/3/events/0/actions/0/target",
+            ),
+            (
+                C::InvalidAction,
+                "/screens/0/root/children/3/events/0/actions/1/target",
+            ),
+            (
+                C::InvalidAction,
+                "/screens/0/root/children/3/events/0/actions/5/recipe",
+            ),
+        ],
+    );
+}

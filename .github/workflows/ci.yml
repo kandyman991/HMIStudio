@@ -1,0 +1,49 @@
+name: Desktop CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            bundle: deb
+          - os: windows-latest
+            bundle: msi
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm run tauri -- icon assets/icon.svg
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - run: npm run tauri -- build --bundles ${{ matrix.bundle }} -- --locked
+      - run: git diff --exit-code -- package-lock.json src-tauri/Cargo.lock
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hmi-studio-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.deb
+          if-no-files-found: error
+          retention-days: 7

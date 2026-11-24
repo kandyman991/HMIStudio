@@ -1,0 +1,37 @@
+name: Engineering handoff snapshot
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+concurrency:
+  group: handoff-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read live GitHub metadata (no write-back or artifacts)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          default_branch=$(gh api "repos/$REPO" --jq .default_branch)
+          main_sha=$(gh api "repos/$REPO/branches/$default_branch" --jq .commit.sha)
+          prs=$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" | jq -s 'add | map({number,head_sha:.head.sha,base_sha:.base.sha,draft})')
+          runs=$(gh api "repos/$REPO/actions/runs?per_page=30" --jq '.workflow_runs | map({id,head_sha,status,conclusion,event})')
+          jq -n --arg repository "$REPO" --arg branch "$default_branch" --arg main_sha "$main_sha" --arg observed_at "$(date -u +%FT%TZ)" --argjson open_prs "$prs" --argjson recent_runs "$runs" '{repository:$repository,default_branch:$branch,main_sha:$main_sha,observed_at:$observed_at,open_prs:$open_prs,recent_runs:$recent_runs}' > "$RUNNER_TEMP/handoff.json"
+          {
+            echo '## Live metadata observation'
+            echo 'Not an approval or curated engineering handoff. Verify live GitHub before resumption.'
+            echo '~~~json'
+            cat "$RUNNER_TEMP/handoff.json"
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -38,13 +38,16 @@ or semantic layout-parity implementation. Unimplemented menus are disabled.
   compilation, installer generation or visual test run locally. Hosted
   Windows/Linux CI and independent review required. No project license selected.
 
-## RUST-02B: workspace presentation candidate
+## RUST-02B: workspace presentation (merged)
 - Explorer and inspector can exchange side docks; diagnostics is anchored at the bottom. All three docks can hide/show and resize using pointer handles or focused arrow/Home/End keys. Six bounded sizes avoid uncontrolled workspace geometry and new CSP exceptions.
 - Standard, Design and Diagnostics presets; reset and v2 preference restoration with validation, bounds and v1 visibility migration. Only presentation state enters localStorage.
 - Open screens from explorer; close individual tabs without deleting the screen; cycle tabs using Ctrl/Cmd-Tab and Ctrl/Cmd-Shift-Tab; Ctrl/Cmd-W closes the active tab. Reconcile tabs with authoritative screen IDs after each response, including undo/redo. In-memory project means tab IDs are intentionally session-only.
 - Shared registry controls menu/toolbar availability, check marks and shortcuts. Ignore global edit shortcuts inside text inputs. Planned commands remain disabled.
 - npm test runs five Node test cases on pure workspace state (corruption, migration, bounded sizes, presets, tab lifecycle and invalid IDs). npm build runs these tests before TypeScript and Vite, using the existing Node 22 CI configuration. No local test execution claimed; exact-head CI and independent review pending.
 - Bounded docking only: arbitrary floating/nested docking and custom named preset management are not implemented. Manual Windows/Linux keyboard, layout, resize and restart checks remain pending at RUST-02 acceptance.
+
+## RUST-02C candidate
+See [Native project persistence](NATIVE_PERSISTENCE.md). Native dialogs, trusted local storage, autosave, recovery and dirty close lifecycle implemented; native CI and independent review pending.
 
 ## Remaining slices (proposed sequencing)
 - RUST-02C: host-owned native dialog, single-writer lock, trusted project and

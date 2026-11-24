@@ -8,7 +8,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 
 type Node = { id: string; name?: string; element: { type: string; kind?: string }; children?: Node[]; properties?: Record<string, unknown> };
 type Screen = { id: string; name: string; root: Node };
-type Snapshot = { revision: number; project: { metadata: { name: string }; screens: Screen[] }; diagnostics: { severity: string; code: string; path: string; message: string }[]; status: { dirty: boolean; canUndo: boolean; canRedo: boolean; undoLabel?: string; redoLabel?: string; errorCount: number; warningCount: number } };
+type Snapshot = { revision: number; project: { metadata: { name: string }; screens: Screen[] }; diagnostics: { severity: string; code: string; path: string; message: string }[]; status: { dirty: boolean; canUndo: boolean; canRedo: boolean; undoLabel?: string; redoLabel?: string; errorCount: number; warningCount: number; path?: string | null; autosaveCurrent: boolean } };
 type Command =
   | { op: "insertNode"; parent: string; node: Node; assignNewIds: true }
   | { op: "removeNode"; node: string }
@@ -16,7 +16,10 @@ type Command =
   | { op: "renameScreen"; screen: string; name: string }
   | { op: "setProperty"; node: string; name: string; value: string };
 type Request = { request: "snapshot" | "validate" } | { request: "undo" | "redo"; expectedRevision: number } | { request: "execute"; transaction: { commands: Command[]; expectedRevision: number; label: string } };
-type Reply = { response: { response: string; error?: { message: string }; outcome?: { allocatedIds: Record<string,string> } }; snapshot: Snapshot };
+type Reply = { generation: number; response: { response: string; error?: { message: string }; outcome?: { allocatedIds: Record<string,string> } }; snapshot: Snapshot };
+type ProjectAction = "open" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
+type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean; message: string; pendingUntitled: boolean };
+type PersistenceStatus = { pendingUntitled: boolean; autosaveMessage: string };
 function readPanels(): Preferences {
   try { return restorePreferences(localStorage.getItem(STORAGE_KEY),localStorage.getItem("studio.workspace.v1")); }
   catch { return {...DEFAULTS}; }
@@ -64,13 +67,17 @@ function Studio(){
   const [panels,setPanels]=useState<Preferences>(readPanels);
   const [tab,setTab]=useState<"properties"|"bindings"|"events">("properties");
   const inFlight=useRef(false);
+  const generation=useRef<number|null>(null);
+  const [pendingRecovery,setPendingRecovery]=useState(true);
+  const [autosaveMessage,setAutosaveMessage]=useState("Checking recovery…");
   const screen=snapshot?.project.screens.find(s=>s.id===tabs.active);
   const chosen=screen?findNode(screen.root,selected):undefined;
   const send=useCallback(async(request:Request)=>{
     if(inFlight.current){setStatus("Another engineering command is pending; retry after it finishes.");return;}
     inFlight.current=true;setBusy(true);
     try{
-      const reply=await invoke<Reply>("engineering_request",{request});
+      const reply=await invoke<Reply>("engineering_request",{request,generation:generation.current});
+      generation.current=reply.generation;
       setSnapshot(reply.snapshot);
       setTabs(t=>{const ids=reply.snapshot.project.screens.map(s=>s.id);const next=reconcileTabs(t,ids);return request.request==="snapshot"&&ids.length&&!next.open.length?openTab(next,ids[0]):next;});
       if(reply.response.response==="error")setStatus(reply.response.error?.message??"Command rejected");
@@ -79,8 +86,45 @@ function Studio(){
     finally{inFlight.current=false;setBusy(false);}
   },[]);
   useEffect(()=>{void send({request:"snapshot"});},[send]);
+  useEffect(()=>{
+    let mounted=true;
+    async function refresh(){
+      if(inFlight.current)return;
+      try{
+        const p=await invoke<PersistenceStatus>("persistence_status");
+        if(mounted&&!inFlight.current){setPendingRecovery(p.pendingUntitled);setAutosaveMessage(p.autosaveMessage);}
+      }catch{/* native dialog or autosave in progress; retry */}
+    }
+    void refresh();
+    const timer=window.setInterval(()=>void refresh(),2000);
+    return()=>{mounted=false;window.clearInterval(timer);};
+  },[snapshot]);
+  async function projectAction(action:ProjectAction){
+    if(inFlight.current)return;
+    inFlight.current=true;setBusy(true);
+    try{
+      const reply=await invoke<ProjectReply>("project_action",{action});
+      generation.current=reply.generation;
+      setSnapshot(reply.snapshot);
+      setPendingRecovery(reply.pendingUntitled);
+      if(reply.replaced){
+        const first=reply.snapshot.project.screens[0]?.id;
+        setTabs(first?{open:[first],active:first}:{open:[],active:null});
+        setSelected(null);
+      }
+      setStatus(reply.message);
+    }catch(e){
+      setStatus("Project operation failed: "+String(e));
+      // A save may have succeeded before the subsequent open failed. Re-read
+      // authoritative status without resetting existing screen tabs.
+      try{
+        const reply=await invoke<Reply>("engineering_request",{request:{request:"snapshot"},generation:generation.current});
+        generation.current=reply.generation;setSnapshot(reply.snapshot);
+      }catch{/* preserve the existing view until the host becomes available */}
+    }finally{inFlight.current=false;setBusy(false);}
+  }
   useEffect(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(panels));}catch{/* only presentation preferences */}},[panels]);
-  const execute=(command:Command,label:string)=>{if(snapshot)void send({request:"execute",transaction:{commands:[command],expectedRevision:snapshot.revision,label}})};
+  const execute=(command:Command,label:string)=>{if(snapshot&&!pendingRecovery)void send({request:"execute",transaction:{commands:[command],expectedRevision:snapshot.revision,label}})};
   const history=useCallback((request:"undo"|"redo")=>{if(snapshot && (request==="undo"?snapshot.status.canUndo:snapshot.status.canRedo))void send({request,expectedRevision:snapshot.revision});},[snapshot,send]);
   const toggle=(key:Panel)=>setPanels(p=>({...p,[key]:!p[key]}));
   const resize=(key:SizeKey,n:number)=>setPanels(p=>({...p,[key]:clampSize(n)}));
@@ -89,7 +133,7 @@ function Studio(){
   const cycle=(delta:number)=>{if(!inFlight.current){setTabs(t=>cycleTab(t,delta));setSelected(null);}};
   const insert=(kind:"button"|"text"|"gauge")=>{if(screen)execute({op:"insertNode",parent:screen.root.id,node:{id:"pending",element:{type:"component",kind},properties:kind==="gauge"?{value:0,min:0,max:100}:{text:kind==="button"?"Button":"Text"}},assignNewIds:true},"Insert "+kind);};
   type Action = {run:()=>void; enabled:boolean; shortcut?:string; checked?:boolean};
-  const ready=!!snapshot&&!busy;
+  const ready=!!snapshot&&!busy&&!pendingRecovery;
   const actions:Record<string,Action>={
     "New screen":{run:()=>execute({op:"createScreen",name:"Screen "+((snapshot?.project.screens.length??0)+1)},"New screen"),enabled:ready},
     "Undo":{run:()=>history("undo"),enabled:ready&&!!snapshot?.status.canUndo,shortcut:"Mod+Z"},
@@ -110,7 +154,13 @@ function Studio(){
     "Close tab":{run:()=>{if(tabs.active)close(tabs.active);},enabled:ready&&!!tabs.active,shortcut:"Mod+W"},
     "Next tab":{run:()=>cycle(1),enabled:ready&&tabs.open.length>1,shortcut:"Mod+Tab"},
     "Previous tab":{run:()=>cycle(-1),enabled:ready&&tabs.open.length>1,shortcut:"Mod+Shift+Tab"},
-    "Exit (discard session)":{run:()=>{if(window.confirm("Exit and discard this in-memory session? Project saving is not available in this slice."))void invoke("discard_and_exit").catch(e=>setStatus(String(e)));},enabled:ready}
+    "New project":{run:()=>void projectAction("newProject"),enabled:ready,shortcut:"Mod+N"},
+    "Open project":{run:()=>void projectAction("open"),enabled:ready,shortcut:"Mod+O"},
+    "Save project":{run:()=>void projectAction("save"),enabled:ready,shortcut:"Mod+S"},
+    "Save project as":{run:()=>void projectAction("saveAs"),enabled:ready,shortcut:"Mod+Shift+S"},
+    "Recover project":{run:()=>void projectAction("recover"),enabled:ready},
+    "Resolve untitled recovery":{run:()=>void projectAction("resolveUntitled"),enabled:!!snapshot&&!busy&&pendingRecovery},
+    "Exit":{run:()=>void projectAction("exit"),enabled:!busy}
   };
   function action(name:string){setMenu(null);if(!inFlight.current&&actions[name]?.enabled)actions[name].run();}
   const disabled=(name:string)=>!actions[name]?.enabled;
@@ -124,21 +174,22 @@ function Studio(){
     }
     window.addEventListener("keydown",keys);return()=>window.removeEventListener("keydown",keys);
   });
-  const menus:Record<string,string[]>={File:["New screen","Open project (planned)","Save project (planned)","Close tab","Exit (discard session)"],Edit:["Undo","Redo","Delete selection"],View:["Project explorer","Inspector","Diagnostics","Swap side docks","Standard layout","Design layout","Diagnostics layout","Reset workspace","Next tab","Previous tab"],Insert:["Button","Text","Gauge"],Arrange:["Align (planned)"],Project:["Validate project"],PLC:["Connections (planned)"],Simulation:["Preview (planned)"],Runtime:["Export (planned)","Publish (planned)"],Tools:["Preferences (planned)"],Help:["About (planned)"]};
+  const menus:Record<string,string[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Delete selection"],View:["Project explorer","Inspector","Diagnostics","Swap side docks","Standard layout","Design layout","Diagnostics layout","Reset workspace","Next tab","Previous tab"],Insert:["Button","Text","Gauge"],Arrange:["Align (planned)"],Project:["Validate project"],PLC:["Connections (planned)"],Simulation:["Preview (planned)"],Runtime:["Export (planned)","Publish (planned)"],Tools:["Preferences (planned)"],Help:["About (planned)"]};
   return <main className="studio" onClick={()=>setMenu(null)}>
-    <header><strong>◈ HMI STUDIO</strong><span>{snapshot?.project.metadata.name??"Loading"}{snapshot?.status.dirty?" *":""} · Untitled session</span><small>RUST-02B</small></header>
+    <header><strong>◈ HMI STUDIO</strong><span>{snapshot?.project.metadata.name??"Loading"}{snapshot?.status.dirty?" *":""} · {snapshot?.status.path??"Untitled project"}</span><small>RUST-02C</small></header>
     <nav aria-label="Main menu" onClick={e=>e.stopPropagation()}>{Object.entries(menus).map(([name,items])=><div className="menu" key={name}><button aria-expanded={menu===name} onClick={()=>setMenu(menu===name?null:name)}>{name}</button>{menu===name&&<div className="dropdown">{items.map(item=><button disabled={disabled(item)} key={item} onClick={()=>action(item)}>{item}{actions[item]?.checked?" ✓":""}{actions[item]?.shortcut&&<small className="shortcut">{actions[item].shortcut}</small>}</button>)}</div>}</div>)}</nav>
-    <div className="toolbar">{["New screen","Undo","Redo","Button","Text","Gauge","Delete selection","Validate project"].map(name=><button key={name} disabled={disabled(name)} onClick={()=>action(name)}>{name}</button>)}<span className="grow"/>{["Project explorer","Inspector","Diagnostics"].map(name=><button key={name} disabled={disabled(name)} aria-pressed={actions[name].checked} onClick={()=>action(name)}>{name}</button>)}</div>
+    <div className="toolbar">{["Open project","Save project","New screen","Undo","Redo","Button","Text","Gauge","Delete selection","Validate project"].map(name=><button key={name} disabled={disabled(name)} onClick={()=>action(name)}>{name}</button>)}<span className="grow"/>{["Project explorer","Inspector","Diagnostics"].map(name=><button key={name} disabled={disabled(name)} aria-pressed={actions[name].checked} onClick={()=>action(name)}>{name}</button>)}</div>
+    {pendingRecovery&&snapshot&&<div className="recovery-banner" role="status">Resolve untitled recovery before editing. <button disabled={busy} onClick={()=>action("Resolve untitled recovery")}>Review recovery</button></div>}
     <section className={"workspace dock-workspace "+(panels.swapped?"swapped":"")}>
     {panels.left&&<aside className={"left dock-panel size-"+panels.explorerSize}><h3>PROJECT EXPLORER</h3><div className="tree">{snapshot?.project.screens.map(s=><button key={s.id} className={"layer "+(screen?.id===s.id?"active":"")} disabled={busy} onClick={()=>activate(s.id)}>{s.name}</button>)}</div><h3>COMPONENTS / LAYERS</h3>{screen&&<Tree node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/>}</aside>}
     {panels.left&&<div className="explorer-split"><Splitter label="Resize explorer" size={panels.explorerSize} vertical direction={panels.swapped?-1:1} change={n=>resize("explorerSize",n)}/></div>}
     <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}>{s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}</div><div className="viewport">{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="screen"><div className="screen-title">{screen.name} · structural preview</div><Preview node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/></div>}</div></section>
     {panels.right&&<div className="inspector-split"><Splitter label="Resize inspector" size={panels.inspectorSize} vertical direction={panels.swapped?1:-1} change={n=>resize("inspectorSize",n)}/></div>}
-    {panels.right&&<aside className={"right dock-panel size-"+panels.inspectorSize}><h3>INSPECTOR</h3><div className="inspector-tabs">{(["properties","bindings","events"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div>{tab==="properties"?<>{screen&&<EditField key={screen.id+":"+snapshot?.revision} label="Screen name" value={screen.name} disabled={busy} normalize={v=>v.trim()} commit={name=>execute({op:"renameScreen",screen:screen.id,name},"Rename screen")}/>}{chosen?<><dl><dt>ID</dt><dd>{chosen.id}</dd><dt>Type</dt><dd>{chosen.element.kind??chosen.element.type}</dd></dl>{(chosen.element.kind==="text"||chosen.element.kind==="button")&&<EditField key={chosen.id+":"+snapshot?.revision} label="Text" value={typeof chosen.properties?.text==="string"?chosen.properties.text:""} disabled={busy||typeof chosen.properties?.text==="object"} commit={value=>execute({op:"setProperty",node:chosen.id,name:"text",value},"Edit text")}/>}</>:<p>Select a layer.</p>}</>:<p>Editing {tab} is planned.</p>}</aside>}
+    {panels.right&&<aside className={"right dock-panel size-"+panels.inspectorSize}><h3>INSPECTOR</h3><div className="inspector-tabs">{(["properties","bindings","events"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div>{tab==="properties"?<>{screen&&<EditField key={generation.current+":"+screen.id+":"+snapshot?.revision} label="Screen name" value={screen.name} disabled={busy||pendingRecovery} normalize={v=>v.trim()} commit={name=>execute({op:"renameScreen",screen:screen.id,name},"Rename screen")}/>}{chosen?<><dl><dt>ID</dt><dd>{chosen.id}</dd><dt>Type</dt><dd>{chosen.element.kind??chosen.element.type}</dd></dl>{(chosen.element.kind==="text"||chosen.element.kind==="button")&&<EditField key={generation.current+":"+chosen.id+":"+snapshot?.revision} label="Text" value={typeof chosen.properties?.text==="string"?chosen.properties.text:""} disabled={busy||pendingRecovery||typeof chosen.properties?.text==="object"} commit={value=>execute({op:"setProperty",node:chosen.id,name:"text",value},"Edit text")}/>}</>:<p>Select a layer.</p>}</>:<p>Editing {tab} is planned.</p>}</aside>}
     </section>
     {panels.diagnostics&&<Splitter label="Resize diagnostics" size={panels.diagnosticsSize} vertical={false} direction={-1} change={n=>resize("diagnosticsSize",n)}/>}
     {panels.diagnostics&&<section className={"diagnostics dock-diagnostics size-"+panels.diagnosticsSize}><h3>DIAGNOSTICS <span>{snapshot?.status.errorCount??0} errors · {snapshot?.status.warningCount??0} warnings</span></h3><p role="status">{status}</p>{snapshot?.diagnostics.map((d,i)=><p key={i}>{d.severity} · {d.code} · {d.path} · {d.message}</p>)}</section>}
-    <footer><span role="status">{status}</span><span>{snapshot?.status.dirty?"Unsaved · File > Exit (discard session)":"In-memory project"} · No live PLC</span></footer>
+    <footer><span role="status">{status}</span><span>{(snapshot?.status.dirty?"Unsaved changes":"No unsaved edits")+" · "+autosaveMessage} · No live PLC</span></footer>
   </main>;
 }
 createRoot(document.getElementById("root")!).render(<Studio/>);

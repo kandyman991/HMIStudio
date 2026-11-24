@@ -82,3 +82,7 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## REUSE-02A notice and fixture follow-up — 2026-11-24
 - PR #15 predecessor `a8c7f9fedf8421621571a7106dfc3fd31d37ac0d` passed Required CI 45447543946 and snapshot 45447543876; unrelated jobs skipped. Private HMI Forge #57 `c8c7ef9b11729d0f603e9459946a596d1b10f2a1` contains matching sanitized fixture; Kotlin contract 3/3 and preflight routing passed locally; exact-head private CI and merge pending.
 - Exact dependency license selections and source provenance assessment recorded in docs/reuse/REUSE_02A_NOTICE_REVIEW.md. Source-only scope is distinct from binary notice/release gates. Owner rights attestation for exact 27-file allowlist remains required; no source pushed to public repo. Next: record attestation, finish #57 and #15 CI/review, then separate import-only PR; retain PR #7 and safety gates for bridge.
+
+## REUSE-02A owner rights attestation — 2026-11-24
+- Owner confirmed the exact 27-file allowlist rights and no unauthorized proprietary/customer material; see D-009 follow-up and REUSE_02A_NOTICE_REVIEW.md. No production/release clearance.
+- #15 predecessor `a82bc361f56087187264836dc961f8ec26a01c94` passed Required CI 45449132831 and snapshot 45449133015; new documentation head needs exact-head checks. Private #57 at `c8c7ef9b11729d0f603e9459946a596d1b10f2a1` still awaiting CI. Next: review/merge #57 and #15 after respective gates, then separate source-only import PR; no source transfer yet.

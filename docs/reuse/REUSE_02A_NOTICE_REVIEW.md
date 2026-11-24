@@ -278,3 +278,6 @@ Per-path assessment remains conditional on the owner confirming rights and absen
 | `engine/tests/s7.rs` | Project-local synthetic test harness/server | Candidate hash verified; rights confirmation pending |
 
 No public code transfer, runtime distribution, production connectivity or release approval.
+
+## Owner attestation — 2026-11-24
+Owner confirmed control of the rights to the exact 27-file allowlist from pinned HMI Forge revision 92a612d104693800d7119ee4dc0114636b19002f, including AI-assisted contributions, and confirmed that these files contain no unauthorized third-party proprietary code or customer material. This is the owner rights/disclosure attestation requested in REUSE-02A, not an independent legal certification. Authorization is confined to the reviewed sanitized source candidate under D-009; no private history, SDKs, signing material, third-party vendored source, binaries or release/distribution approval. This supersedes the pending-owner-attestation language and the conditional path dispositions above; the technical evidence and limitations remain unchanged.

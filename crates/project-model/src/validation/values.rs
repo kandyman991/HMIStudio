@@ -273,7 +273,17 @@ impl Validator<'_> {
             DataType::UInt16 => int_range(0, u16::MAX.into()),
             DataType::UInt32 => int_range(0, u32::MAX.into()),
             DataType::UInt64 => int_range(0, u64::MAX.into()),
-            DataType::Float32 | DataType::Float64 => {
+            DataType::Float32 => {
+                if value
+                    .as_f64()
+                    .is_some_and(|v| v.abs() <= f64::from(f32::MAX))
+                {
+                    Ok(())
+                } else {
+                    fail()
+                }
+            }
+            DataType::Float64 => {
                 if value.is_number() {
                     Ok(())
                 } else {

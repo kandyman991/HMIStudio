@@ -23,6 +23,8 @@
 //! so values JSON cannot represent (NaN, infinities) are reported instead of
 //! being silently written as `null`.
 
+use serde::de::{self, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
 use crate::migration::{MigrationError, MigrationRegistry, MigrationStep};
@@ -137,8 +139,69 @@ pub struct LoadedProject {
     pub report: ValidationReport,
 }
 
+// Decode every object without serde_json::Value's last-key-wins behavior.
+struct UniqueValue(Value);
+
+impl<'de> Deserialize<'de> for UniqueValue {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct UniqueVisitor;
+        impl<'de> Visitor<'de> for UniqueVisitor {
+            type Value = UniqueValue;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a JSON value with unique object keys")
+            }
+            fn visit_bool<E: de::Error>(self, v: bool) -> Result<Self::Value, E> {
+                Ok(UniqueValue(Value::Bool(v)))
+            }
+            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+                Ok(UniqueValue(Value::from(v)))
+            }
+            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                Ok(UniqueValue(Value::from(v)))
+            }
+            fn visit_f64<E: de::Error>(self, v: f64) -> Result<Self::Value, E> {
+                serde_json::Number::from_f64(v)
+                    .map(|n| UniqueValue(Value::Number(n)))
+                    .ok_or_else(|| E::custom("non-finite JSON number"))
+            }
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(UniqueValue(Value::String(v.to_owned())))
+            }
+            fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
+                Ok(UniqueValue(Value::String(v)))
+            }
+            fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+                Ok(UniqueValue(Value::Null))
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut items = Vec::new();
+                while let Some(UniqueValue(v)) = seq.next_element()? {
+                    items.push(v);
+                }
+                Ok(UniqueValue(Value::Array(items)))
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut items = serde_json::Map::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    if items.contains_key(&key) {
+                        return Err(de::Error::custom(format!(
+                            "duplicate JSON object key {key:?}"
+                        )));
+                    }
+                    let UniqueValue(value) = map.next_value()?;
+                    items.insert(key, value);
+                }
+                Ok(UniqueValue(Value::Object(items)))
+            }
+        }
+        deserializer.deserialize_any(UniqueVisitor)
+    }
+}
+
 fn parse_value(input: &str) -> Result<Value, LoadError> {
-    serde_json::from_str(input).map_err(|e| LoadError::from_json(&e))
+    serde_json::from_str::<UniqueValue>(input)
+        .map(|v| v.0)
+        .map_err(|e| LoadError::from_json(&e))
 }
 
 /// Reads `format` and `schemaVersion` from a JSON document without
@@ -187,7 +250,8 @@ pub fn parse_project_with(
     parse_value_with(value, registry)
 }
 
-/// Parses an already decoded JSON document.
+/// Parses an already decoded JSON document. Duplicate keys must have been
+/// rejected by the caller before decoding; they cannot be recovered from Value.
 pub fn parse_value_with(
     value: Value,
     registry: &MigrationRegistry,

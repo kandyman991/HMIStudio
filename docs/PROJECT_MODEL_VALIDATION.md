@@ -138,3 +138,35 @@ expected diagnostic code (or `load-error.<kind>`).
 - Binding/action checks treat `tag` parameters without a declared `dataType` as
   untyped (type checks are skipped, access checks still apply).
 - Cycle reporting guarantees at least one cycle per strongly connected group.
+
+## Independent review corrections (2026-11-24)
+
+Reviewed initial PR #2 head 491d4aa8909064dee47f3ec82201923229894c3f.
+Three findings corrected in the same PR:
+
+- JSON decoding through serde_json::Value previously discarded duplicate object
+  keys (last key wins), including conflicting schema versions and nested extension
+  data. Text entry points now reject duplicate keys recursively before migrations
+  or typed loading. The predecoded Value API cannot detect duplicates already lost
+  by callers. Regression: duplicate_json_keys_are_rejected_before_version_and_model_loading.
+- Float32 tag, action and recipe values previously accepted numbers beyond the
+  finite f32 range. Shared value validation now rejects overflow. Normal floating
+  point rounding/underflow policy is not changed. Regression:
+  float32_overflow_is_rejected_in_tag_and_recipe_values.
+- Recursive reference-graph DFS could exhaust the call stack on long chains of
+  otherwise shallow reusable definitions or UDTs. Replaced with heap-backed DFS,
+  preserving deterministic cycle reporting. Regression:
+  long_reference_chain_uses_heap_and_reports_cycle (20,000 vertices).
+
+Independent local preflight on Linux x86_64, Cargo 1.100.0: 74 tests passed,
+fmt and Clippy -D warnings passed, rustdoc -D warnings passed, both valid
+fixtures accepted. No new dependencies or JSON Schema structural changes.
+Exact corrected-head Windows/Linux CI remains required. Full advisory/license
+audit and Kotlin golden round-trip/render parity are not established.
+No production execution or private source migration is claimed. No previously
+rejected architecture is revived by these corrections.
+
+Next exact action: verify corrected-head CI, review the final patch, resolve
+remaining acceptance evidence, then integrate after PR #1 without overwriting its
+continuity records. Update the shared handoff/decision registers when integrating
+the independently scoped crate (PR #1 owns those files until merged).

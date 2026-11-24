@@ -1160,7 +1160,7 @@ fn collect_struct_refs<'a>(dt: &'a DataType, out: &mut Vec<&'a str>) {
     }
 }
 
-/// Finds elementary cycles reachable in a directed graph, deterministically.
+/// Finds DFS back-edge cycles in a directed graph, deterministically.
 /// Each cycle is reported once, rotated so that it starts at the node that
 /// comes first in `order`, and closed (`[a, b, a]`).
 pub(super) fn find_cycles<'a>(
@@ -1177,55 +1177,66 @@ pub(super) fn find_cycles<'a>(
         Done,
     }
     let mut marks: BTreeMap<&str, Mark> = order.iter().map(|n| (*n, Mark::New)).collect();
-    fn dfs<'a>(
-        node: &'a str,
-        edges: &BTreeMap<&'a str, Vec<&'a str>>,
-        marks: &mut BTreeMap<&'a str, Mark>,
-        stack: &mut Vec<&'a str>,
-        rank: &BTreeMap<&str, usize>,
-        found: &mut BTreeSet<Vec<&'a str>>,
-        result: &mut Vec<Vec<&'a str>>,
-    ) {
-        marks.insert(node, Mark::Active);
-        stack.push(node);
-        for &next in edges.get(node).map(Vec::as_slice).unwrap_or(&[]) {
+    // Use a heap-backed traversal: a long chain of definitions is legal
+    // even though individual layout trees have a depth limit.
+    for &root in order {
+        if marks.get(root).copied() != Some(Mark::New) {
+            continue;
+        }
+        let mut stack = vec![(root, 0usize)];
+        let mut active_positions = BTreeMap::from([(root, 0usize)]);
+        marks.insert(root, Mark::Active);
+        while let Some(&(node, edge_index)) = stack.last() {
+            let next = edges.get(node).and_then(|out| out.get(edge_index)).copied();
+            let Some(next) = next else {
+                stack.pop();
+                active_positions.remove(node);
+                marks.insert(node, Mark::Done);
+                continue;
+            };
+            if let Some(frame) = stack.last_mut() {
+                frame.1 += 1;
+            }
             match marks.get(next).copied() {
-                None => {} // dangling reference, reported elsewhere
+                None | Some(Mark::Done) => {}
+                Some(Mark::New) => {
+                    marks.insert(next, Mark::Active);
+                    active_positions.insert(next, stack.len());
+                    stack.push((next, 0));
+                }
                 Some(Mark::Active) => {
-                    if let Some(pos) = stack.iter().position(|n| *n == next) {
-                        let mut cycle: Vec<&str> = stack[pos..].to_vec();
-                        // Rotate to the lowest-ranked member.
+                    if let Some(&pos) = active_positions.get(next) {
+                        let mut cycle: Vec<&str> = stack[pos..].iter().map(|f| f.0).collect();
                         let min = (0..cycle.len())
                             .min_by_key(|i| rank.get(cycle[*i]).copied().unwrap_or(usize::MAX))
                             .unwrap_or(0);
                         cycle.rotate_left(min);
                         if found.insert(cycle.clone()) {
-                            let mut closed = cycle.clone();
-                            closed.push(cycle[0]);
-                            result.push(closed);
+                            cycle.push(cycle[0]);
+                            result.push(cycle);
                         }
                     }
                 }
-                Some(Mark::New) => dfs(next, edges, marks, stack, rank, found, result),
-                Some(Mark::Done) => {}
             }
-        }
-        stack.pop();
-        marks.insert(node, Mark::Done);
-    }
-    for &n in order {
-        if marks.get(n).copied() == Some(Mark::New) {
-            let mut stack = Vec::new();
-            dfs(
-                n,
-                edges,
-                &mut marks,
-                &mut stack,
-                &rank,
-                &mut found,
-                &mut result,
-            );
         }
     }
     result
+}
+
+#[cfg(test)]
+mod cycle_tests {
+    use super::*;
+    #[test]
+    fn long_reference_chain_uses_heap_and_reports_cycle() {
+        let names: Vec<String> = (0..20_000).map(|i| format!("n-{i}")).collect();
+        let order: Vec<&str> = names.iter().map(String::as_str).collect();
+        let mut edges: BTreeMap<&str, Vec<&str>> =
+            order.windows(2).map(|w| (w[0], vec![w[1]])).collect();
+        assert!(find_cycles(&order, &edges).is_empty());
+        edges.insert(order[19_999], vec![order[19_998]]);
+        assert_eq!(
+            find_cycles(&order, &edges),
+            vec![vec![order[19_998], order[19_999], order[19_998]]]
+        );
+    }
 }

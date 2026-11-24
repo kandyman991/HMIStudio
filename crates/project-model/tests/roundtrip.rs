@@ -181,3 +181,44 @@ fn floats_round_trip_exactly() {
     assert_eq!(spacing.to_bits(), (0.1f64 + 0.2).to_bits());
     assert_eq!(back, p);
 }
+
+#[test]
+fn duplicate_json_keys_are_rejected_before_version_and_model_loading() {
+    let root = base().to_string().replacen(
+        r#""schemaVersion":1"#,
+        r#""schemaVersion":2,"schemaVersion":1"#,
+        1,
+    );
+    let nested =
+        base()
+            .to_string()
+            .replacen(r#""name":"Test""#, r#""name":"First","name":"Test""#, 1);
+    let extension = base().to_string().replacen(
+        r#""metadata":"#,
+        r#""extensions":{"x":{"k":1,"k":2}},"metadata":"#,
+        1,
+    );
+    for doc in [root, nested, extension] {
+        assert!(
+            matches!(parse_project(&doc), Err(LoadError::Syntax { message, .. }) if message.contains("duplicate JSON object key"))
+        );
+        assert!(hmi_project_model::serialization::detect_version(&doc).is_err());
+    }
+}
+
+#[test]
+fn float32_overflow_is_rejected_in_tag_and_recipe_values() {
+    let r = report_with(|v| {
+        v["tags"][2]["initialValue"] = json!(1e100);
+        v["recipes"][0]["sets"][0]["values"]["fld-1"] = json!(-1e100);
+    });
+    assert_error(
+        &r,
+        hmi_project_model::DiagnosticCode::InvalidTag,
+        "/tags/2/initialValue",
+    );
+    assert!(
+        r.errors().any(|d| d.path.starts_with("/recipes/0/sets/0")),
+        "{r}"
+    );
+}

@@ -16,6 +16,6 @@ npm run tauri -- dev
 
 ## Status
 
-RUST-00/01 candidate: a reconstructed workspace shell, not the original HTML prototype (which was not available during recovery). Only the implemented Rust commands are functional; unavailable engineering actions are explicitly marked. No PLC connectivity or runtime export yet. Dependency lockfiles are committed; final-head native CI evidence, installer launch/close and visual fidelity acceptance are still required. No private source has been migrated. No open-source license is declared pending owner selection.
+RUST-00/01 candidate: a reconstructed workspace shell, not the original HTML prototype (which was not available during recovery). Only the implemented Rust commands are functional; unavailable engineering actions are explicitly marked. No PLC connectivity or runtime export yet. Dependency lockfiles are committed; exact-head native CI, independent review and applicable dependency checks remain engineering merge gates. Manual installer launch/close and visual fidelity acceptance are deferred to RUST-02 under D-008, not passed. No private source has been migrated. No open-source license is declared pending owner selection.
 
 See [architecture](docs/ARCHITECTURE.md), [roadmap](ROADMAP.md) and [engineering rules](AGENTS.md).

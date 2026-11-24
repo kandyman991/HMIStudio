@@ -19,6 +19,13 @@
 - Development/simulation reads and writes, operator commands, setpoints, alarms, recipes and runtime tests need no production approval. Actual machinery commissioning, trusted deployment, release signing and licensing are separate.
 - Label placeholders; do not claim production connectivity, deployment or milestone acceptance until verified.
 
+## Engineering merge versus milestone acceptance (binding D-008)
+- Routine development PRs do not require owner installation, manual desktop testing or visual sign-off. Require compilation, automated tests, exact-head CI, independent review, applicable dependency security/license checks and installer generation when packaging is affected.
+- Record deferred manual evidence explicitly, with the milestone that owns it. Do not request an owner install merely to unblock an intermediate PR; do not label deferred evidence as passed.
+- RUST-01 Windows/Linux install, launch, close and visual/prototype comparison are deferred to RUST-02. Continue development and merge after the engineering gates pass. The reconstructed UI is not proof of original-prototype fidelity.
+- Manual desktop acceptance is required at RUST-02 workspace, RUST-04 designer, RUST-05 runtime interoperability, RUST-07 deployment and RUST-08 full release acceptance, not every intermediate PR within those milestones. RUST-03 uses automated engineering tests; RUST-06 uses simulation first, with hardware acceptance at explicitly defined hardware milestones.
+- Do not defer a known failing required automated check, unresolved blocking review finding, or material security/safety defect. Production approval, trusted deployment, physical commissioning and release acceptance remain separate. An explicitly scoped owner-approved acceptance requirement overrides the routine default.
+
 ## Architecture and handoff gates
 - Before architectural changes, search accepted decisions and failed approaches. Do not revive rejected designs without explicit owner approval, changed assumptions and regression evidence.
 - In the same PR, record material decisions and failures, limitations, test evidence and the next exact action. Classify CONFIRMED_FAILURE, REJECTED_BY_DESIGN, SUPERSEDED and INCONCLUSIVE separately.

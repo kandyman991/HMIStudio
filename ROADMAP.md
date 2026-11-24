@@ -15,8 +15,9 @@
 
 ## RUST-00/01 acceptance
 - Review rules and architecture; select license before distributing migrated code.
-- Recover original HTML and compare fidelity; current implementation is a reconstruction.
+- Current implementation is a reconstruction; original HTML fidelity comparison or approved deviation deferred to RUST-02 under D-008.
 - Verify committed npm and Cargo lockfiles and locked CI installs/builds.
 - Verify exact-head frontend build, Rust tests, Windows MSI and Linux DEB builds.
-- Install/launch/close on both OSs, verify Rust command responses, inspect visual design.
+- Independent review and applicable security/license checks required before engineering merge.
+- Manual install/launch/close on both OSs, command interaction and visual acceptance are deferred to RUST-02, not claimed passed. Routine PRs do not require manual owner acceptance; see D-008.
 - No production capabilities or private code transfer.

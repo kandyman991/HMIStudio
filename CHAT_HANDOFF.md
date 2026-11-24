@@ -17,8 +17,13 @@
 - Review found inconsistent lockfile status in decision/policy records and a UI command overlap risk: the React busy flag alone is not a synchronous single-flight guard, and menu insertion could be offered before the initial snapshot. Corrected records, added an immediate single-flight guard and disabled menu insertion until snapshot availability. Native/local preflight not executed during review; require fresh CI and final-head review.
 - No verified prototype comparison or approved deviation, nor Windows/Linux install/launch/close evidence. PR remains candidate and draft; no acceptance or merge claimed.
 
+## Owner-directed acceptance change — 2026-11-24 (D-008)
+- Supersedes the earlier manual merge gates above. PR #1 predecessor 3767484d2afd590273ee7347f4674f7e655d8289 passed [Desktop CI](https://github.com/kandyman991/HMIStudio/actions/runs/45379956997) and [handoff CI](https://github.com/kandyman991/HMIStudio/actions/runs/45379957113).
+- Manual Windows/Linux install/launch/close, command interaction and original prototype comparison or approved deviation are explicitly deferred to RUST-02 workspace acceptance. No manual test or visual fidelity result claimed. Do not block routine development or request owner installation before then.
+- PR #2 RUST-03A is open at observed head ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd; verify its own CI and review. Do not overwrite concurrent work.
+
 ## Next exact action
-Verify live PR #1 head and checks. Obtain exact-head locked CI and independent review, batch any required fixes. Recover the actual prototype or document owner-approved deviation, then perform desktop acceptance. Merge only after the agreed gates. Next milestone: RUST-02 workspace; coordinate RUST-03A integration separately.
+Verify live PR #1 head, required exact-head CI, independent review and applicable dependency security/license checks; merge after engineering gates pass without requiring manual desktop testing. Integrate PR #2 after its engineering gates pass; proceed with RUST-02 workspace and RUST-03B engineering operations. Carry deferred RUST-01 manual evidence into RUST-02 acceptance.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

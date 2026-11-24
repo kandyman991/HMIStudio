@@ -1,18 +1,18 @@
 # Detailed milestone plan
 
-ROADMAP.md is the summary. This plan defines acceptance, not claims of completion. See CHAT_HANDOFF.md for current evidence.
+ROADMAP.md is the summary. This plan defines engineering merge gates and milestone acceptance, not claims of completion. Binding decision D-008 separates them: routine PRs require compilation, automated tests, exact-head CI, independent review, applicable dependency security/license checks and installer generation when packaging changes. Manual acceptance is required at designated milestone boundaries, not each intermediate PR. Record any deferred tests and their target milestone. See CHAT_HANDOFF.md for current evidence.
 
 | Milestone | Dependencies | Acceptance |
 | --- | --- | --- |
-| RUST-00/01 foundation | None | Continuity rules, lockfiles, exact-head native builds/tests, original prototype comparison or approved deviation, Windows/Linux install/launch/close, independent review |
-| RUST-02 workspace | RUST-01 | Menus, dockable panels, shortcuts, tabs and persistent workspace state; tested on desktop targets |
+| RUST-00/01 foundation | None | Continuity rules, lockfiles, exact-head native builds/tests, installer generation and independent review; manual Windows/Linux install/launch/close and prototype comparison or approved deviation deferred to RUST-02 under D-008 |
+| RUST-02 workspace | RUST-01 | Menus, dockable panels, shortcuts, tabs and persistent workspace state; manual Windows/Linux install/launch/close, command interaction and visual acceptance including deferred RUST-01 prototype comparison or approved deviation |
 | RUST-03A project model | Independent | Framework-neutral versioned model, validation, deterministic serialization, schemas, fixtures and tests |
 | RUST-03B engineering operations | RUST-03A | Transactional commands, project storage, undo/redo, recovery and persistence tests |
-| RUST-04 layout editor | RUST-02, RUST-03B | Visual component operations, nested constraints, alignment and responsive preview |
-| RUST-05 interoperability | RUST-04 | Authorized import fixtures and equivalent Compose rendering verified across target profiles |
+| RUST-04 layout editor | RUST-02, RUST-03B | Visual component operations, nested constraints, alignment and responsive preview; manual desktop designer acceptance |
+| RUST-05 interoperability | RUST-04 | Authorized import fixtures and equivalent Compose rendering verified across target profiles; manual interoperability acceptance |
 | RUST-06 engineering systems | RUST-03B | Tags, drivers, bindings, alarms, recipes, search and isolated simulation tests |
-| RUST-07 deployment | RUST-05, relevant RUST-06 | Standalone bundles and project-only publishing, pairing and trust verification with platform-specific tests |
+| RUST-07 deployment | RUST-05, relevant RUST-06 | Standalone bundles and project-only publishing, pairing and trust verification with platform-specific tests; manual deployment acceptance |
 | RUST-08 migration acceptance | Prior milestones | Compatibility, installation and acceptance on Windows/Linux/Android runtime targets |
 | RUST-09 advanced engineering | Stable core | Optional AI, vector/3D features; separate scoped validation |
 
-Current RUST-00/01 candidate in PR #1, earlier head CI passed. RUST-03A parallel work assigned; live branch/PR status must be checked. All other milestones planned. Update this document and ROADMAP.md when statuses actually change.
+Current RUST-00/01 candidate in PR #1, predecessor 3767484 passed desktop and handoff CI; RUST-03A candidate in PR #2. Verify live heads and engineering gates. Manual RUST-01 acceptance is deferred, not passed. All other milestones planned. Update this document and ROADMAP.md when statuses actually change.

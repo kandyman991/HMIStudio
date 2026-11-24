@@ -215,6 +215,23 @@ are noted as context. They are not imported as HMIStudio records.
     PR's verified head, and merges;
   - REUSE-02 starts only on explicit authorization.
 
+## Independent review findings and corrections — 2026-11-24
+
+This is a partial independent static review, not approval or a completed acceptance gate. The following corrections supersede conflicting claims elsewhere in the audit. Source inspected at the pinned HMI Forge revision, including `engine/Cargo.toml`, `engine/src/protocol.rs`, `engine/src/engine.rs`, `engine/src/guard.rs` and `engine/src/main.rs`. No test execution or source migration was performed during this review.
+
+| Finding | Correction / required acceptance |
+| --- | --- |
+| Protocol negotiation | `Engine::handle` compares the requested protocol against exactly `PROTOCOL_VERSION`; mismatch returns `UNSUPPORTED_PROTOCOL`. This is a version handshake, not multi-version negotiation. REUSE-02 must keep protocol 3 unchanged. Any later protocol 4 must explicitly implement and test a backward-compatible handshake/codec strategy. |
+| Numeric write limits | `Value::as_f64` casts i64 to f64, and `check_write` compares that rounded value to f64 bounds. Adjacent integers above 2^53 may round identically. Treat Long/UInt32/UInt64 conversions separately from write-limit enforcement: UInt32 fits exactly, but unrestricted i64/u64 limit checking is not lossless. Before enabling guarded wide-integer writes, use an exact comparison or reject unsupported ranges and test boundary, type, sign and overflow cases. Do not declare the write guard production-ready. |
+| Process lifecycle | stdin EOF and explicit shutdown trigger normal disconnect; stdout write failure only exits the writer task. Request/output channels are unbounded. Do not assume a crashed, stalled or disconnected client can never leave the engine running, or that pulses are guaranteed to deassert after a crash or failed driver write. Test bounded queues/framing, supervision, timeout, child termination/reaping, failed output, loss of client and stale write state. Never automatically retry a write or re-arm after restart. |
+| Runtime design | Data-driven Compose is a proposal for the normal runtime; it does not revoke the requirement to evaluate generated Kotlin/Compose projects or standalone application exports. Preserve Mode A and Mode B; O-11 remains open. Performance superiority and zero runtime risk are unmeasured and must not be claimed. |
+| Licensing | O-1/O-2/O-7 approved as recorded above; proprietary first-party ownership does not automatically grant third-party redistribution rights. Review exact dependency graph, notices and provenance, including MPL-covered source availability and bundled JRE obligations. Do not import private history. |
+| Current GitHub state | At review, main was `58d83ca540463d9507c1cd76555d0bac5bb6378b`, two commits ahead of the audit fork point; PR #8 and #11 merged, #7 and #12 open. Legacy PR #55 remains open and #56 merged. Earlier inventory statuses are pinned historical observations, not live state. Reconcile from current main without clobbering parallel work. |
+
+Remaining audit gate: independently verify the full inventory and model/runtime/deployment mappings against pinned source, review dependency and disclosure evidence, reconcile shared decisions/roadmap/handoff against live main, and obtain exact-head CI. The originally reported 37 passing engine tests and Kotlin CI are inherited evidence only. Do not mark REUSE-01 accepted on this partial review.
+
+REUSE-02 preparation is authorized by the owner's request, but implementation remains a separate branch/PR after REUSE-01 merge. Start with REUSE-02A: pinned-source inventory, provenance/rights and sensitive-content checks, dependency advisory and notice triage, and an isolated protocol-3 contract test plan. Resolve O-5 hosting and applicable model/driver decisions before integrating the bridge; keep O-6 release disposition separate. Preserve existing simulator behavior; PR #7 must be reviewed and integrated before dependent bridge work. No source transfer, PLC connection, production approval or deployment is claimed.
+
 ## 10. Documents
 
 `HMIFORGE_INVENTORY.md`, `COMPATIBILITY_MATRIX.md`, `RUST_ENGINE_INTEGRATION.md`, `PROJECT_MODEL_COMPATIBILITY.md`,

@@ -40,3 +40,53 @@ footer{gap:12px;overflow:hidden}footer span{overflow:hidden;text-overflow:ellips
 
 .recovery-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#40382a;color:#f7e2ac}
 header>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* RUST-04B: provisional industrial engineering workspace, not prototype parity. */
+:root{font-size:12px;background:#131820;color:#d8e2ee}
+.studio header{height:37px;flex:none;background:#18212b;padding:0 14px;border-bottom:1px solid #374655}
+.studio header strong{letter-spacing:.12em;color:#8fc6ff}
+.build-label{font-size:10px;letter-spacing:.06em;white-space:nowrap}
+.studio nav{padding:2px 8px;background:#202a35}
+.menu>button{padding:5px 9px}
+.ribbon{background:#273340;padding:5px 9px;gap:0;align-items:stretch}
+.tool-group{padding:3px 9px;border-right:1px solid #465566;display:flex;flex-direction:column;justify-content:space-between;gap:5px}
+.tool-group>div{display:flex;gap:3px;flex-wrap:wrap}
+.tool-group small{color:#a4b5c7;letter-spacing:.08em;font-size:9px;text-align:center}
+.tool-group button{font-size:11px;padding:5px 7px;min-height:26px}
+.tool-group button[aria-pressed=true]{background:#315675}
+.dock-panel{background:#1d2732}
+.dock-panel h3,.diagnostics h3{background:#263441;color:#b9d4ee;font-size:10px;letter-spacing:.08em;padding:8px 10px}
+.tree{padding:5px 4px 10px}
+.layer{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-block:5px}
+.component-library{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:4px;padding:8px}
+.component-library button{display:grid;justify-items:center;gap:3px;padding:6px 3px;font-size:11px}
+.component-library button span{font-size:20px;color:#8bc1fa}
+.screen-tabs{padding:4px 4px 0;gap:2px;background:#18222d;min-height:32px}
+.screen-tab button{border-radius:3px 3px 0 0}
+.designer-bar{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;background:#293847;color:#b8d0e7;border-block:1px solid #3c4b5c;font-size:11px}
+.designer-bar span{color:#9db1c5}
+.viewport{display:block;padding:22px;background-color:#151e28;background-image:linear-gradient(#263240 1px,transparent 1px),linear-gradient(90deg,#263240 1px,transparent 1px);background-size:20px 20px}
+.artboard-wrap{width:800px;margin:0 auto}
+.artboard-caption{display:flex;justify-content:space-between;color:#b9cce0;padding:6px 0;gap:12px}
+.artboard-caption span{color:#e1c28a}
+.artboard-ruler{height:22px;background:repeating-linear-gradient(90deg,#64788e 0 1px,transparent 1px 10px),#263441;display:flex;color:#d1dfed;border-bottom:1px solid #708398}
+.artboard-ruler span{width:100px;flex:none;font-size:10px;padding:3px 4px}
+.artboard{width:800px;height:480px;background:#e9eef3;color:#203447;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;outline:1px solid #8195a9;box-shadow:0 8px 24px #0008}
+.preview-node{box-sizing:border-box}
+.preview-flow{outline:1px dashed #7995ab;outline-offset:-1px}
+.preview-node.preview-selected{outline:2px solid #1682e9;outline-offset:-2px}
+.preview-component,.preview-unsupported{font:inherit;border:0;border-radius:2px;min-width:0;min-height:0;color:#203447;background:#d7e4ef;white-space:pre-wrap;overflow-wrap:anywhere}
+.preview-component.text{background:transparent}
+.preview-component.button{background:#256b9a;color:white}
+.preview-component.gauge{display:grid;gap:2px;background:#cddce8}
+.preview-component.gauge strong{font-size:24px}
+.preview-component.placeholder,.preview-unsupported{background:#eadbbd;color:#6b4b12}
+.preview-note{font-size:11px;color:#aebed0;margin:10px 0}
+.inspector-tabs{padding:5px;gap:2px}
+.inspector-tabs button{font-size:10px;padding:5px}
+.layout-field{padding:8px 10px;display:grid;gap:6px;border-bottom:1px solid #354354}
+.layout-field label{display:grid;gap:4px;color:#b7c9dc}
+.layout-field select,.layout-field input:not([type=checkbox]){width:100%;min-width:0;background:#111b25;border:1px solid #46596d;color:#dce5f1;border-radius:3px;padding:5px;font:inherit}
+.layout-field .check-line{display:flex;align-items:center;gap:6px}
+.layout-warning{color:#e1c28a}
+footer{background:#223a50;color:#d7e5f4;padding:5px 10px}

@@ -6,14 +6,18 @@ import { clampSize, restorePreferences, preset, DEFAULTS, STORAGE_KEY, reconcile
 import type { Preferences, Tabs, Panel } from "./workspace";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { insertionParent, siblingDestination } from "./designer";
+import { nodeStyle, previewLimit, isFlow, parseFixed } from "./layout-preview";
+import type { Element, Layout, Size, Arrangement, Cross } from "./layout-preview";
 
-type Node = { id: string; name?: string; element: { type: string; kind?: string }; children?: Node[]; properties?: Record<string, unknown> };
+type Node = { id: string; name?: string; element: Element; layout?: Layout; responsive?: unknown[]; bindings?: unknown[]; children?: Node[]; properties?: Record<string, unknown> };
 type Screen = { id: string; name: string; root: Node };
 type Snapshot = { revision: number; project: { metadata: { name: string }; screens: Screen[] }; diagnostics: { severity: string; code: string; path: string; message: string }[]; status: { dirty: boolean; canUndo: boolean; canRedo: boolean; undoLabel?: string; redoLabel?: string; errorCount: number; warningCount: number; path?: string | null; autosaveCurrent: boolean } };
 type Command =
   | { op: "insertNode"; parent: string; node: Node; assignNewIds: true }
   | { op: "removeNode"; node: string }
   | { op: "reorderNode"; node: string; index: number }
+  | { op: "setLayout"; node: string; layout: Layout }
+  | { op: "setElement"; node: string; element: Element }
   | { op: "createScreen"; name: string }
   | { op: "renameScreen"; screen: string; name: string }
   | { op: "setProperty"; node: string; name: string; value: string };
@@ -44,10 +48,41 @@ function label(n: Node): string { return n.name ?? (typeof n.properties?.text ==
 function Tree({node,selected,select,depth=0}:{node:Node;selected:string|null;select:(id:string)=>void;depth?:number}) {
   return <><button className={"layer depth-"+Math.min(depth,5)+(selected===node.id?" active":"")} onClick={()=>select(node.id)}>{node.children?.length?"▾":"·"} {label(node)}</button>{node.children?.map(n=><Tree key={n.id} node={n} selected={selected} select={select} depth={depth+1}/>)}</>;
 }
-function Preview({node,selected,select}:{node:Node;selected:string|null;select:(id:string)=>void}) {
-  const kind=node.element.kind ?? node.element.type;
-  if(node.element.type!=="component") return <div className={"layout-preview "+(kind==="row"?"row-preview":"column-preview")}><button className={"container-label "+(selected===node.id?" active":"")} onClick={()=>select(node.id)}>{label(node)}</button>{node.children?.map(n=><Preview key={n.id} node={n} selected={selected} select={select}/>)}</div>;
-  return <button className={"object "+kind+(selected===node.id?" selected":"")} onClick={()=>select(node.id)}>{kind==="gauge"?<><small>Gauge · static preview</small><strong>{String(node.properties?.value ?? 0)}</strong></>:label(node)}</button>;
+function Preview({node,selected,select,parent}:{node:Node;selected:string|null;select:(id:string)=>void;parent?:Element}) {
+  const kind=node.element.kind??node.element.type, limits=previewLimit(node);
+  const style=nodeStyle(node,parent);
+  // Selection chrome is an outline, never a participating child of the flow.
+  const cls="preview-node"+(selected===node.id?" preview-selected":"");
+  if(isFlow(node.element))return <div className={cls+" preview-flow"} style={style} title={label(node)+(limits.length?" · "+limits.join("; "):"")} onClick={e=>{e.stopPropagation();select(node.id);}}>{node.children?.map(n=><Preview key={n.id} node={n} parent={node.element} selected={selected} select={select}/>)}</div>;
+  if(node.element.type!=="component")return <button type="button" className={cls+" preview-unsupported"} style={style} onClick={e=>{e.stopPropagation();select(node.id);}} title={limits.join("; ")}>Unsupported · {label(node)} (see layers)</button>;
+  return <button type="button" className={cls+" preview-component "+(["text","button","gauge"].includes(kind)?kind:"placeholder")} style={style} title={limits.join("; ")||label(node)} onClick={e=>{e.stopPropagation();select(node.id);}}>{kind==="gauge"?<><small>Static gauge</small><strong>{String(node.properties?.value??0)}</strong></>:kind==="text"||kind==="button"?label(node):"Placeholder · "+kind}</button>;
+}
+function countLimits(node:Node):number{return previewLimit(node).length+(node.children??[]).reduce((sum,n)=>sum+countLimits(n),0);}
+function SizeEditor({axis,size,disabled,commit}:{axis:string;size:Size|undefined;disabled:boolean;commit:(s:Size)=>void}){
+  const current=size??{mode:"auto"} as Size;
+  const [mode,setMode]=useState<Size["mode"]>(current.mode);
+  const [value,setValue]=useState(current.mode==="fixed"?String(current.value):current.mode==="fill"?String((current.fraction??1)*100):"100");
+  const n=parseFixed(value);
+  const valid=mode==="auto"||(n!==undefined&&(mode==="fixed"||(n>0&&n<=100)));
+  return <form className="layout-field" onSubmit={e=>{e.preventDefault();if(disabled||!valid)return;commit(mode==="auto"?{mode}:mode==="fixed"?{mode,value:n!}:{mode,fraction:n!/100});}}>
+    <label>{axis}<select disabled={disabled} value={mode} onChange={e=>setMode(e.currentTarget.value as Size["mode"])}><option value="auto">Hug / auto</option><option value="fixed">Fixed dp</option><option value="fill">Fill %</option></select></label>
+    {mode!=="auto"&&<input aria-label={axis+(mode==="fixed"?" dp":" percent")} type="number" min={mode==="fill"?0.01:0} max={mode==="fill"?100:undefined} step="any" value={value} disabled={disabled} onChange={e=>setValue(e.currentTarget.value)}/>}
+    <button type="submit" disabled={disabled||!valid}>Apply</button>
+  </form>;
+}
+function FlowEditor({element,disabled,commit}:{element:Element;disabled:boolean;commit:(e:Element)=>void}){
+  const [spacing,setSpacing]=useState(String(element.spacing??0));
+  const [alignment,setAlignment]=useState<Cross>(element.alignment??"start");
+  const [arrangement,setArrangement]=useState<Arrangement>(element.arrangement??"start");
+  const [wrap,setWrap]=useState(element.wrap??false);
+  const gap=parseFixed(spacing);
+  return <form className="layout-field" onSubmit={e=>{e.preventDefault();if(!disabled&&gap!==undefined)commit({...element,spacing:gap,alignment,arrangement,wrap});}}>
+    <label>Gap (dp)<input type="number" min="0" step="any" value={spacing} disabled={disabled} onChange={e=>setSpacing(e.currentTarget.value)}/></label>
+    <label>Main axis<select value={arrangement} disabled={disabled} onChange={e=>setArrangement(e.currentTarget.value as Arrangement)}>{(["start","center","end","spaceBetween","spaceAround","spaceEvenly"] as const).map(a=><option key={a}>{a}</option>)}</select></label>
+    <label>Cross axis<select value={alignment} disabled={disabled} onChange={e=>setAlignment(e.currentTarget.value as Cross)}>{(["start","center","end"] as const).map(a=><option key={a}>{a}</option>)}</select></label>
+    <label className="check-line"><input type="checkbox" checked={wrap} disabled={disabled} onChange={e=>setWrap(e.currentTarget.checked)}/> Wrap children</label>
+    <button type="submit" disabled={disabled||gap===undefined}>Apply arrangement</button>
+  </form>;
 }
 // Explicit commits avoid starting an IPC edit during the blur that precedes
 // a toolbar/menu click. Rejected edits must not masquerade as saved values.
@@ -67,7 +102,7 @@ function Studio(){
   const [tabs,setTabs]=useState<Tabs>({open:[],active:null});
   const [selected,setSelected]=useState<string|null>(null);
   const [panels,setPanels]=useState<Preferences>(readPanels);
-  const [tab,setTab]=useState<"properties"|"bindings"|"events">("properties");
+  const [tab,setTab]=useState<"properties"|"layout"|"bindings"|"events">("properties");
   const inFlight=useRef(false);
   const generation=useRef<number|null>(null);
   const [pendingRecovery,setPendingRecovery]=useState(true);
@@ -194,16 +229,16 @@ function Studio(){
   });
   const menus:Record<string,string[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Delete selection"],View:["Project explorer","Inspector","Diagnostics","Swap side docks","Standard layout","Design layout","Diagnostics layout","Reset workspace","Next tab","Previous tab"],Insert:["Button","Text","Gauge","Row","Column"],Arrange:["Move earlier","Move later","Align (planned)"],Project:["Validate project"],PLC:["Connections (planned)"],Simulation:["Preview (planned)"],Runtime:["Export (planned)","Publish (planned)"],Tools:["Preferences (planned)"],Help:["About (planned)"]};
   return <main className="studio" onClick={()=>setMenu(null)}>
-    <header><strong>◈ HMI STUDIO</strong><span>{snapshot?.project.metadata.name??"Loading"}{snapshot?.status.dirty?" *":""} · {snapshot?.status.path??"Untitled project"}</span><small>RUST-04A draft</small></header>
+    <header><strong>◈ HMI STUDIO</strong><span>{snapshot?.project.metadata.name??"Loading"}{snapshot?.status.dirty?" *":""} · {snapshot?.status.path??"Untitled project"}</span><small className="build-label">ENGINEERING · RUST-04B</small></header>
     <nav aria-label="Main menu" onClick={e=>e.stopPropagation()}>{Object.entries(menus).map(([name,items])=><div className="menu" key={name}><button aria-expanded={menu===name} onClick={()=>setMenu(menu===name?null:name)}>{name}</button>{menu===name&&<div className="dropdown">{items.map(item=><button disabled={disabled(item)} key={item} onClick={()=>action(item)}>{item}{actions[item]?.checked?" ✓":""}{actions[item]?.shortcut&&<small className="shortcut">{actions[item].shortcut}</small>}</button>)}</div>}</div>)}</nav>
-    <div className="toolbar">{["Open project","Save project","New screen","Undo","Redo","Button","Text","Gauge","Delete selection","Validate project"].map(name=><button key={name} disabled={disabled(name)} onClick={()=>action(name)}>{name}</button>)}<span className="grow"/>{["Project explorer","Inspector","Diagnostics"].map(name=><button key={name} disabled={disabled(name)} aria-pressed={actions[name].checked} onClick={()=>action(name)}>{name}</button>)}</div>
+    <div className="toolbar ribbon" aria-label="Engineering toolbar">{[{label:"PROJECT",items:["Open project","Save project","New screen"]},{label:"EDIT",items:["Undo","Redo","Delete selection"]},{label:"ARRANGE",items:["Move earlier","Move later"]},{label:"VERIFY",items:["Validate project"]}].map(group=><div className="tool-group" key={group.label}><div>{group.items.map(name=><button key={name} disabled={disabled(name)} onClick={()=>action(name)}>{name}</button>)}</div><small>{group.label}</small></div>)}<span className="grow"/><div className="tool-group"><div>{["Project explorer","Inspector","Diagnostics"].map(name=><button key={name} disabled={disabled(name)} aria-pressed={actions[name].checked} onClick={()=>action(name)}>{name}</button>)}</div><small>WORKSPACE</small></div></div>
     {pendingRecovery&&snapshot&&<div className="recovery-banner" role="status">Resolve untitled recovery before editing. <button disabled={busy} onClick={()=>action("Resolve untitled recovery")}>Review recovery</button></div>}
     <section className={"workspace dock-workspace "+(panels.swapped?"swapped":"")}>
-    {panels.left&&<aside className={"left dock-panel size-"+panels.explorerSize}><h3>PROJECT EXPLORER</h3><div className="tree">{snapshot?.project.screens.map(s=><button key={s.id} className={"layer "+(screen?.id===s.id?"active":"")} disabled={busy} onClick={()=>activate(s.id)}>{s.name}</button>)}</div><h3>COMPONENTS / LAYERS</h3>{screen&&<Tree node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/>}</aside>}
+    {panels.left&&<aside className={"left dock-panel size-"+panels.explorerSize}><h3>PROJECT EXPLORER</h3><div className="tree">{snapshot?.project.screens.map(s=><button key={s.id} className={"layer "+(screen?.id===s.id?"active":"")} disabled={busy} onClick={()=>activate(s.id)}>{s.name}</button>)}</div><h3>COMPONENT LIBRARY</h3><div className="component-library">{[{name:"Button",glyph:"▣"},{name:"Text",glyph:"T"},{name:"Gauge",glyph:"◴"},{name:"Row",glyph:"▥"},{name:"Column",glyph:"▤"}].map(({name,glyph})=><button key={name} disabled={disabled(name)} onClick={()=>action(name)}><span aria-hidden="true">{glyph}</span>{name}</button>)}</div><h3>LAYERS</h3>{screen&&<Tree node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/>}</aside>}
     {panels.left&&<div className="explorer-split"><Splitter label="Resize explorer" size={panels.explorerSize} vertical direction={panels.swapped?-1:1} change={n=>resize("explorerSize",n)}/></div>}
-    <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}>{s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}</div><div className="viewport">{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="screen"><div className="screen-title">{screen.name} · structural preview · {parent?"Insert into "+(label(findNode(screen.root,parent)??screen.root)):"Select a row or column to insert"}</div><Preview node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/></div>}</div></section>
+    <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}>{s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}</div><div className="designer-bar"><strong>{screen?.name??"No screen"}</strong><span>Base layout · 800 × 480 dp · 100%</span></div><div className="viewport">{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="artboard-wrap"><div className="artboard-caption">{parent?"Insert into "+label(findNode(screen.root,parent)??screen.root):"Select a row or column to insert"}<span>{countLimits(screen.root)} preview limitations</span></div><div className="artboard-ruler" aria-hidden="true">{[0,100,200,300,400,500,600,700].map(n=><span key={n}>{n}</span>)}</div><div className="artboard"><Preview node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/></div><p className="preview-note">Base semantic flow preview · static components · responsive, non-flow and live semantics not evaluated. Not runtime parity.</p></div>}</div></section>
     {panels.right&&<div className="inspector-split"><Splitter label="Resize inspector" size={panels.inspectorSize} vertical direction={panels.swapped?1:-1} change={n=>resize("inspectorSize",n)}/></div>}
-    {panels.right&&<aside className={"right dock-panel size-"+panels.inspectorSize}><h3>INSPECTOR</h3><div className="inspector-tabs">{(["properties","bindings","events"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div>{tab==="properties"?<>{screen&&<EditField key={generation.current+":"+screen.id+":"+snapshot?.revision} label="Screen name" value={screen.name} disabled={busy||pendingRecovery} normalize={v=>v.trim()} commit={name=>execute({op:"renameScreen",screen:screen.id,name},"Rename screen")}/>}{chosen?<><dl><dt>ID</dt><dd>{chosen.id}</dd><dt>Type</dt><dd>{chosen.element.kind??chosen.element.type}</dd></dl>{(chosen.element.kind==="text"||chosen.element.kind==="button")&&<EditField key={generation.current+":"+chosen.id+":"+snapshot?.revision} label="Text" value={typeof chosen.properties?.text==="string"?chosen.properties.text:""} disabled={busy||pendingRecovery||typeof chosen.properties?.text==="object"} commit={value=>execute({op:"setProperty",node:chosen.id,name:"text",value},"Edit text")}/>}</>:<p>Select a layer.</p>}</>:<p>Editing {tab} is planned.</p>}</aside>}
+    {panels.right&&<aside className={"right dock-panel size-"+panels.inspectorSize}><h3>INSPECTOR</h3><div className="inspector-tabs">{(["properties","layout","bindings","events"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div>{tab==="properties"?<>{screen&&<EditField key={generation.current+":"+screen.id+":"+snapshot?.revision} label="Screen name" value={screen.name} disabled={busy||pendingRecovery} normalize={v=>v.trim()} commit={name=>execute({op:"renameScreen",screen:screen.id,name},"Rename screen")}/>}{chosen?<><dl><dt>ID</dt><dd>{chosen.id}</dd><dt>Type</dt><dd>{chosen.element.kind??chosen.element.type}</dd></dl>{(chosen.element.kind==="text"||chosen.element.kind==="button")&&<EditField key={generation.current+":"+chosen.id+":"+snapshot?.revision} label="Text" value={typeof chosen.properties?.text==="string"?chosen.properties.text:""} disabled={busy||pendingRecovery||typeof chosen.properties?.text==="object"} commit={value=>execute({op:"setProperty",node:chosen.id,name:"text",value},"Edit text")}/>}</>:<p>Select a layer.</p>}</>:tab==="layout"?chosen?<><h3>SIZE / FLOW</h3>{(isFlow(chosen.element)||chosen.element.type==="component")?<div key={generation.current+":"+chosen.id+":"+snapshot?.revision}><SizeEditor axis="Width" size={chosen.layout?.width} disabled={!ready} commit={width=>execute({op:"setLayout",node:chosen.id,layout:{...chosen.layout,width}},"Set width")}/><SizeEditor axis="Height" size={chosen.layout?.height} disabled={!ready} commit={height=>execute({op:"setLayout",node:chosen.id,layout:{...chosen.layout,height}},"Set height")}/>{isFlow(chosen.element)&&<FlowEditor element={chosen.element} disabled={!ready} commit={element=>execute({op:"setElement",node:chosen.id,element},"Set flow arrangement")}/>}</div>:<p>Layout editing is not available for this element.</p>}{previewLimit(chosen).map(l=><p className="layout-warning" key={l}>{l}</p>)}</>:<p>Select a layer to edit its layout.</p>:<p>Editing {tab} is planned.</p>}</aside>}
     </section>
     {panels.diagnostics&&<Splitter label="Resize diagnostics" size={panels.diagnosticsSize} vertical={false} direction={-1} change={n=>resize("diagnosticsSize",n)}/>}
     {panels.diagnostics&&<section className={"diagnostics dock-diagnostics size-"+panels.diagnosticsSize}><h3>DIAGNOSTICS <span>{snapshot?.status.errorCount??0} errors · {snapshot?.status.warningCount??0} warnings</span></h3><p role="status">{status}</p>{snapshot?.diagnostics.map((d,i)=><p key={i}>{d.severity} · {d.code} · {d.path} · {d.message}</p>)}</section>}

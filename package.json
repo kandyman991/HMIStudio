@@ -8,7 +8,7 @@
     "check": "tsc --noEmit",
     "build": "npm test && tsc --noEmit && vite build",
     "tauri": "tauri",
-    "test": "node --experimental-strip-types --test tests/workspace.test.mjs tests/designer.test.mjs"
+    "test": "node --experimental-strip-types --test tests/workspace.test.mjs tests/designer.test.mjs tests/layout-preview.test.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

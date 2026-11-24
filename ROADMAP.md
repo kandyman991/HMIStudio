@@ -4,10 +4,10 @@
 | --- | --- | --- |
 | RUST-00 | Repository rules, architecture, CI | Merged |
 | RUST-01 | Desktop shell, typed commands, Windows/Linux development installers | Merged; manual acceptance deferred to RUST-02 |
-| RUST-02 | Menus, docking, tabs, shortcuts, workspace persistence | RUST-02A/B/C merged; desktop acceptance open (#10) |
+| RUST-02 | Menus, docking, tabs, shortcuts, workspace persistence | RUST-02A/B/C merged; Windows checklist passed; duplicate Linux tests waived; visual acceptance open (#10) |
 | RUST-03A | Versioned project model, validation, serialization and schema | Merged |
 | RUST-03B | Storage, command transactions, undo/redo | Merged |
-| RUST-04 | Interactive semantic layout designer | RUST-04A draft preparation; acceptance dependency open |
+| RUST-04 | Interactive semantic layout designer | RUST-04A merged; RUST-04B candidate; visual acceptance open |
 | RUST-05 | Existing project import and Compose rendering parity | Planned |
 | RUST-06 | Drivers, tags, bindings, alarms, recipes, search, simulation | Planned |
 | RUST-07 | Standalone export and project-only publishing to paired runtimes | Planned |

@@ -53,8 +53,12 @@
 - PR #8 merged at 4ca18a5973e0b624d06318c4767812989802c29b; exact source 620c09cc347c859b9e9ad8431890fdcfcf55872c passed Desktop CI 45418769428, engineering core CI 45418769365 and handoff CI 45418769375. Native logs show 9 Windows / 10 Linux tests passed, including the new regression.
 - Linux CI DEB extracted into isolated temporary storage; app launched with isolated XDG directories and X11, mapped a window and exited normally after WM_DELETE_WINDOW. No package-manager install, interactive/visual acceptance or native Wayland test. Windows desktop unavailable. Acceptance issue #10 tracks the outstanding D-008 gates.
 - RUST-04A preparatory draft from the merged source: nested row/column insertion and sibling order, typed engine transactions, pure selection-rule tests. No new dependencies, schema changes or native permissions. No local build/test claim. Existing #7/#9 are independent.
+## RUST-04A merged / RUST-04B candidate — 2026-11-24
+- PR #11 merged at 58d83ca540463d9507c1cd76555d0bac5bb6378b. Reviewed source 6030fa387a3fee3bd2b13ae8779ff2c690db0db5; desktop CI 45421552926 and handoff 45421552619 passed, 7 frontend tests on both platforms, 9 Windows / 10 Linux native tests. No blocking findings.
+- Issue #10 records owner Windows checklist 9/9, Linux CI and isolated launch/close, waiver of duplicate Linux manual tests. Owner explicitly authorized #11 merge while rejecting current visual direction. Visual acceptance carried into RUST-04; original HTML artifact remains unavailable (F-001). D-009 records scope.
+- RUST-04B branch feat/rust-04b-layout-rendering adds base flow CSS mapping, size/arrangement editing via Rust commands, grouped toolbars/library/ruler/inspector and pure tests. No new dependencies, native permissions or schema changes. Unsupported layout/live/responsive features explicitly marked; no visual parity or local test claim.
 ## Next exact action
-Complete issue #10 before marking RUST-02 accepted; review and test RUST-04A draft, retain dependency gate, then extend semantic layout editing and preview.
+Verify exact-head hosted CI and independent review of RUST-04B, correct findings, then engineering merge; carry #10 visual acceptance into RUST-04 and recover actual reference or obtain approval of redesigned baseline. Next RUST-04C pointer manipulation.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

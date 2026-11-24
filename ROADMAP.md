@@ -24,4 +24,7 @@
 - No production capabilities or private code transfer.
 
 ## CI-02 — Change-aware CI
-Candidate: applicable tests, stable merge gate, pinned Rust dependency/compilation cache and on-demand Windows/Linux installers with three-day retention. Required before REUSE-02A continuation; see docs/CI_RUNNER_POLICY.md.
+Merged in PR #14 (`39eba35`): applicable tests, stable engineering gate, pinned Rust dependency/compilation cache and on-demand Windows/Linux installers with three-day retention. Documentation-only routing demonstration pending on PR #9; see docs/CI_RUNNER_POLICY.md.
+
+## HMI Forge reuse track (PR #9 candidate)
+REUSE-01 audit reviewed in part, pending final review and exact-head CI. REUSE-02A pinned-source rights/provenance, advisory and sensitive-content preflight before any transfer; REUSE-02 bridge proposed under RUST-06; REUSE-03/04 map to RUST-05 import/runtime interoperability; REUSE-05 to RUST-07 deployment; REUSE-06 to RUST-08 acceptance. These mappings are planning proposals, not completed work. See docs/reuse/AUDIT_SUMMARY.md.

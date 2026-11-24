@@ -136,6 +136,18 @@ Not changed: HMI Forge decision 14 (the first physical-machinery write). Product
 deployment, release signing and licensing all remain separate. Development and simulation stay free of production
 approval (HMIStudio D-004).
 
+### Owner decision record — 2026-11-24
+
+The owner approved the three recommendations presented for O-1, O-2 and O-7. This dated record supersedes pending-owner wording for these three decisions elsewhere in the original audit; the other audit statements remain historical observations.
+
+- **O-1 — ACCEPTED direction:** retain proprietary ownership of first-party HMIStudio and HMI Forge code; do not select an open-source license at this stage. Public visibility is not an open-source license. Selective transfer of owner-controlled first-party engine code is authorized in principle under O-2, subject to documented rights/provenance, dependency license review, redistribution obligations and secret/customer-data screening. No blanket authorization for third-party or proprietary SDK code, and no release/distribution clearance is implied.
+- **O-2 — ACCEPTED direction:** selectively import the audited Rust communication engine into HMIStudio using a pinned source revision and squashed provenance-recorded import, without private history. Retain HMI Forge as the private Kotlin/Compose runtime repository. Keep public CI independent of private credentials; use reviewed public contract fixtures and private cross-repository integration checks. Both runtime delivery modes and Windows/Linux/Android targets remain required. Do not retire working legacy functionality prematurely.
+- **O-7 — ACCEPTED:** the owner authorizes publication of the architectural audit detail in this PR. This does not authorize publishing secrets, customer data, signing material, proprietary SDKs, private history or unaudited source.
+
+O-3 through O-6 and O-8 through O-12 are not approved by this decision. Preserve the Rust desktop architecture, the canonical project model, and development/simulation policy. Exact source selection and import checks remain REUSE-02 deliverables; resolve applicable outstanding decisions before implementing affected work. No migration, release acceptance or production approval is claimed.
+
+Next: independent source-level audit review, reconcile the PR with live main and concurrent RUST work, update the shared engineering records without overwriting concurrent changes, and obtain exact-head CI before merge. Do not equate owner approval with technical acceptance.
+
 ## 7. Implementation sequence and independent tasks
 
 The sequence and the parallel tasks are in `REUSE_MILESTONE_PLAN.md`:

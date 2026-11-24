@@ -1,0 +1,10 @@
+node_modules/
+dist/
+target/
+src-tauri/icons/
+.env
+.env.*
+*.jks
+*.p12
+*.pem
+*.key

@@ -1,0 +1,8 @@
+{
+  "identifier": "main",
+  "description": "Main Studio window; no plugin permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": []
+}

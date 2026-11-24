@@ -5,6 +5,7 @@ import "./style.css";
 import { clampSize, restorePreferences, preset, DEFAULTS, STORAGE_KEY, reconcileTabs, openTab, closeTab, cycleTab } from "./workspace";
 import type { Preferences, Tabs, Panel } from "./workspace";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { insertionParent, siblingDestination } from "./designer";
 
 type Node = { id: string; name?: string; element: { type: string; kind?: string }; children?: Node[]; properties?: Record<string, unknown> };
 type Screen = { id: string; name: string; root: Node };
@@ -12,6 +13,7 @@ type Snapshot = { revision: number; project: { metadata: { name: string }; scree
 type Command =
   | { op: "insertNode"; parent: string; node: Node; assignNewIds: true }
   | { op: "removeNode"; node: string }
+  | { op: "reorderNode"; node: string; index: number }
   | { op: "createScreen"; name: string }
   | { op: "renameScreen"; screen: string; name: string }
   | { op: "setProperty"; node: string; name: string; value: string };
@@ -131,7 +133,19 @@ function Studio(){
   const activate=(id:string)=>{if(!inFlight.current){setTabs(t=>openTab(t,id));setSelected(null);}};
   const close=(id:string)=>{if(!inFlight.current){setTabs(t=>closeTab(t,id));if(tabs.active===id)setSelected(null);}};
   const cycle=(delta:number)=>{if(!inFlight.current){setTabs(t=>cycleTab(t,delta));setSelected(null);}};
-  const insert=(kind:"button"|"text"|"gauge")=>{if(screen)execute({op:"insertNode",parent:screen.root.id,node:{id:"pending",element:{type:"component",kind},properties:kind==="gauge"?{value:0,min:0,max:100}:{text:kind==="button"?"Button":"Text"}},assignNewIds:true},"Insert "+kind);};
+  const parent=screen?insertionParent(screen.root,chosen?.id??null):undefined;
+  const earlier=screen&&chosen?siblingDestination(screen.root,chosen.id,-1):undefined;
+  const later=screen&&chosen?siblingDestination(screen.root,chosen.id,1):undefined;
+  const insert=(kind:"button"|"text"|"gauge"|"row"|"column")=>{
+    if(!parent)return;
+    const node:Node=kind==="row"||kind==="column"
+      ?{id:"pending",name:kind==="row"?"Row":"Column",element:{type:kind}}
+      :{id:"pending",element:{type:"component",kind},properties:kind==="gauge"?{value:0,min:0,max:100}:{text:kind==="button"?"Button":"Text"}};
+    execute({op:"insertNode",parent,node,assignNewIds:true},"Insert "+kind);
+  };
+  const reorder=(index:number|undefined)=>{
+    if(chosen&&index!==undefined)execute({op:"reorderNode",node:chosen.id,index},"Reorder layer");
+  };
   type Action = {run:()=>void; enabled:boolean; shortcut?:string; checked?:boolean};
   const ready=!!snapshot&&!busy&&!pendingRecovery;
   const actions:Record<string,Action>={
@@ -139,9 +153,13 @@ function Studio(){
     "Undo":{run:()=>history("undo"),enabled:ready&&!!snapshot?.status.canUndo,shortcut:"Mod+Z"},
     "Redo":{run:()=>history("redo"),enabled:ready&&!!snapshot?.status.canRedo,shortcut:"Mod+Shift+Z"},
     "Delete selection":{run:()=>{if(chosen)execute({op:"removeNode",node:chosen.id},"Delete selection");},enabled:ready&&!!chosen&&chosen.id!==screen?.root.id,shortcut:"Delete"},
-    "Button":{run:()=>insert("button"),enabled:ready&&!!screen},
-    "Text":{run:()=>insert("text"),enabled:ready&&!!screen},
-    "Gauge":{run:()=>insert("gauge"),enabled:ready&&!!screen},
+    "Button":{run:()=>insert("button"),enabled:ready&&parent!==undefined},
+    "Text":{run:()=>insert("text"),enabled:ready&&parent!==undefined},
+    "Gauge":{run:()=>insert("gauge"),enabled:ready&&parent!==undefined},
+    "Row":{run:()=>insert("row"),enabled:ready&&parent!==undefined},
+    "Column":{run:()=>insert("column"),enabled:ready&&parent!==undefined},
+    "Move earlier":{run:()=>reorder(earlier),enabled:ready&&earlier!==undefined},
+    "Move later":{run:()=>reorder(later),enabled:ready&&later!==undefined},
     "Validate project":{run:()=>void send({request:"validate"}),enabled:ready},
     "Project explorer":{run:()=>toggle("left"),enabled:!busy,checked:panels.left},
     "Inspector":{run:()=>toggle("right"),enabled:!busy,checked:panels.right},
@@ -174,16 +192,16 @@ function Studio(){
     }
     window.addEventListener("keydown",keys);return()=>window.removeEventListener("keydown",keys);
   });
-  const menus:Record<string,string[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Delete selection"],View:["Project explorer","Inspector","Diagnostics","Swap side docks","Standard layout","Design layout","Diagnostics layout","Reset workspace","Next tab","Previous tab"],Insert:["Button","Text","Gauge"],Arrange:["Align (planned)"],Project:["Validate project"],PLC:["Connections (planned)"],Simulation:["Preview (planned)"],Runtime:["Export (planned)","Publish (planned)"],Tools:["Preferences (planned)"],Help:["About (planned)"]};
+  const menus:Record<string,string[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Delete selection"],View:["Project explorer","Inspector","Diagnostics","Swap side docks","Standard layout","Design layout","Diagnostics layout","Reset workspace","Next tab","Previous tab"],Insert:["Button","Text","Gauge","Row","Column"],Arrange:["Move earlier","Move later","Align (planned)"],Project:["Validate project"],PLC:["Connections (planned)"],Simulation:["Preview (planned)"],Runtime:["Export (planned)","Publish (planned)"],Tools:["Preferences (planned)"],Help:["About (planned)"]};
   return <main className="studio" onClick={()=>setMenu(null)}>
-    <header><strong>◈ HMI STUDIO</strong><span>{snapshot?.project.metadata.name??"Loading"}{snapshot?.status.dirty?" *":""} · {snapshot?.status.path??"Untitled project"}</span><small>RUST-02C</small></header>
+    <header><strong>◈ HMI STUDIO</strong><span>{snapshot?.project.metadata.name??"Loading"}{snapshot?.status.dirty?" *":""} · {snapshot?.status.path??"Untitled project"}</span><small>RUST-04A draft</small></header>
     <nav aria-label="Main menu" onClick={e=>e.stopPropagation()}>{Object.entries(menus).map(([name,items])=><div className="menu" key={name}><button aria-expanded={menu===name} onClick={()=>setMenu(menu===name?null:name)}>{name}</button>{menu===name&&<div className="dropdown">{items.map(item=><button disabled={disabled(item)} key={item} onClick={()=>action(item)}>{item}{actions[item]?.checked?" ✓":""}{actions[item]?.shortcut&&<small className="shortcut">{actions[item].shortcut}</small>}</button>)}</div>}</div>)}</nav>
     <div className="toolbar">{["Open project","Save project","New screen","Undo","Redo","Button","Text","Gauge","Delete selection","Validate project"].map(name=><button key={name} disabled={disabled(name)} onClick={()=>action(name)}>{name}</button>)}<span className="grow"/>{["Project explorer","Inspector","Diagnostics"].map(name=><button key={name} disabled={disabled(name)} aria-pressed={actions[name].checked} onClick={()=>action(name)}>{name}</button>)}</div>
     {pendingRecovery&&snapshot&&<div className="recovery-banner" role="status">Resolve untitled recovery before editing. <button disabled={busy} onClick={()=>action("Resolve untitled recovery")}>Review recovery</button></div>}
     <section className={"workspace dock-workspace "+(panels.swapped?"swapped":"")}>
     {panels.left&&<aside className={"left dock-panel size-"+panels.explorerSize}><h3>PROJECT EXPLORER</h3><div className="tree">{snapshot?.project.screens.map(s=><button key={s.id} className={"layer "+(screen?.id===s.id?"active":"")} disabled={busy} onClick={()=>activate(s.id)}>{s.name}</button>)}</div><h3>COMPONENTS / LAYERS</h3>{screen&&<Tree node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/>}</aside>}
     {panels.left&&<div className="explorer-split"><Splitter label="Resize explorer" size={panels.explorerSize} vertical direction={panels.swapped?-1:1} change={n=>resize("explorerSize",n)}/></div>}
-    <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}>{s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}</div><div className="viewport">{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="screen"><div className="screen-title">{screen.name} · structural preview</div><Preview node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/></div>}</div></section>
+    <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}>{s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}</div><div className="viewport">{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="screen"><div className="screen-title">{screen.name} · structural preview · {parent?"Insert into "+(label(findNode(screen.root,parent)??screen.root)):"Select a row or column to insert"}</div><Preview node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/></div>}</div></section>
     {panels.right&&<div className="inspector-split"><Splitter label="Resize inspector" size={panels.inspectorSize} vertical direction={panels.swapped?1:-1} change={n=>resize("inspectorSize",n)}/></div>}
     {panels.right&&<aside className={"right dock-panel size-"+panels.inspectorSize}><h3>INSPECTOR</h3><div className="inspector-tabs">{(["properties","bindings","events"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div>{tab==="properties"?<>{screen&&<EditField key={generation.current+":"+screen.id+":"+snapshot?.revision} label="Screen name" value={screen.name} disabled={busy||pendingRecovery} normalize={v=>v.trim()} commit={name=>execute({op:"renameScreen",screen:screen.id,name},"Rename screen")}/>}{chosen?<><dl><dt>ID</dt><dd>{chosen.id}</dd><dt>Type</dt><dd>{chosen.element.kind??chosen.element.type}</dd></dl>{(chosen.element.kind==="text"||chosen.element.kind==="button")&&<EditField key={generation.current+":"+chosen.id+":"+snapshot?.revision} label="Text" value={typeof chosen.properties?.text==="string"?chosen.properties.text:""} disabled={busy||pendingRecovery||typeof chosen.properties?.text==="object"} commit={value=>execute({op:"setProperty",node:chosen.id,name:"text",value},"Edit text")}/>}</>:<p>Select a layer.</p>}</>:<p>Editing {tab} is planned.</p>}</aside>}
     </section>

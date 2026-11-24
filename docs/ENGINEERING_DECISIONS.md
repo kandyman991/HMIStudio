@@ -29,3 +29,12 @@ Routine early-development PRs must not block on manual installation or owner vis
 RUST-01 Windows/Linux install, launch, close, interaction and original prototype comparison (or approved deviation) move to the RUST-02 workspace acceptance boundary. RUST-03 engineering core uses automated tests; RUST-04 designer, RUST-05 interoperability, RUST-07 deployment and RUST-08 release require planned manual acceptance at their milestone boundaries. RUST-06 simulation first, physical PLC tests at explicitly defined hardware milestones. Intermediate PRs can merge before manual milestone acceptance if engineering gates pass. Explicitly scoped owner-required testing, known blocking defects, security/safety controls and production/release approval are not waived.
 
 Rationale: avoid repetitive manual installs of incomplete development snapshots while retaining verifiable engineering quality and meaningful UI/runtime/hardware acceptance. Rejected alternative: require owner installation and visual sign-off on each PR. Evidence: predecessor 3767484 passed desktop CI and handoff CI; actual desktop installation/visual tests have not run. This decision does not claim they passed.
+
+## RUST-03B engineering implementation decisions (2026-11-24)
+Adopted in the PR #3 candidate, subject to final CI; not production or owner release acceptance. See docs/ENGINEERING_CORE.md and docs/ENGINEERING_CORE_VALIDATION.md for alternatives, evidence and limitations.
+- 03B-1: Snapshot-based transactions and undo, not inverse commands; memory cost remains measurable.
+- 03B-2: RUST-03A validation gate, rejectNewErrors default with strict available; repair invalid projects incrementally.
+- 03B-3: Monotonic revision distinct from content state id; dirty tracking follows save and undo.
+- 03B-4: Session-wide ID retirement, including explicit IDs and within committed transactions.
+- 03B-5: Engine-owned persistence through narrow FileSystem trait; no webview filesystem bridge. Exclusive staging, verified backup and conflict detection; trusted storage and single-writer enforcement still required at host boundary.
+- 03B-6: Sidecar for backups and atomic v2 autosave envelope; reject stale recovery overwrites absent explicit consent; preserve recovery on close. Reject two-file update for loss of prior snapshot on interruption. Untitled recovery directory host-selected.

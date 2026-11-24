@@ -1,0 +1,26 @@
+[package]
+name = "hmi-engineering-core"
+version = "0.1.0"
+edition = "2021"
+description = "Authoritative HMI Studio engineering engine: project session, typed commands, atomic transactions, undo/redo and crash-safe persistence."
+repository = "https://github.com/kandyman991/HMIStudio"
+publish = false
+# No `license` field on purpose: the project owner has not selected a license yet.
+
+# Standalone workspace root: builds and locks independently of src-tauri/ and
+# of any future root workspace (same policy as crates/project-model).
+[workspace]
+
+[dependencies]
+hmi-project-model = { path = "../project-model" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.145", features = ["float_roundtrip"] }
+thiserror = "2"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"

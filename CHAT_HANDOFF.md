@@ -26,8 +26,12 @@
 - PR #1 merged as 7a07d7e74cc156ed76238e89068ff320b84a5978; reviewed source 1ec641d6b668e2343eb1ad187eb161c86b191d82 passed desktop CI 45395978746 and handoff CI 45395978594. Dependency concerns and third-party distribution obligations tracked in #4. RUST-01 manual acceptance remains deferred to RUST-02.
 - PR #2 predecessor ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd passed project model CI 45385961404. Reconciled with main without conflicts; corrected portable paths and action read permissions, 76 local tests passed, crate advisory scan clean. See docs/PROJECT_MODEL_VALIDATION.md. Final corrected-head CI still required.
 - PR #3 observed head 33db7fcdf51a5e43a4da703af75e5f3e3919f76d is stacked on ca60316; preserve its ancestry and integrate updated main before review.
+## RUST-03B integration review — 2026-11-24
+- PR #2 merged as 0ccf044d2a65cc86400e053647e95520fcfe98c1; source 36943f5 passed project model CI 45405558411, desktop CI 45405558172, handoff 45405558243. 76 local model tests passed.
+- PR #3 predecessor 33db7fcdf51a5e43a4da703af75e5f3e3919f76d passed engineering core CI 45399624280 and project model CI 45399623931. Reconciled with main without conflicts. Persistence and ID retirement findings corrected; 58 core tests passed locally, no lockfile advisory findings. See docs/ENGINEERING_CORE_VALIDATION.md. Corrected-head hosted CI pending.
+- No Tauri integration, production functionality, real power-loss or Kotlin parity acceptance yet. Issue #4 remains. Manual desktop acceptance at RUST-02.
 ## Next exact action
-Verify PR #2 final corrected head, CI and independent review, then merge with ancestry preserved. Integrate and independently review PR #3; proceed with RUST-02 workspace. Carry deferred desktop acceptance and issue #4 forward.
+Verify live PR #3 corrected head and final required CI, merge when green; then RUST-02 professional workspace and typed ProjectSession host integration. Carry forward trusted storage/single-writer and manual desktop acceptance boundaries.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

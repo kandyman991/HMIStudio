@@ -3,29 +3,29 @@
   "kind": "historical_observation",
   "observed_date": "2026-11-24",
   "repository": "kandyman991/HMIStudio",
-  "main_sha": "7a07d7e74cc156ed76238e89068ff320b84a5978",
+  "main_sha": "0ccf044d2a65cc86400e053647e95520fcfe98c1",
   "observed_pr": {
-    "number": 2,
-    "head": "ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd",
+    "number": 3,
+    "head": "33db7fcdf51a5e43a4da703af75e5f3e3919f76d",
     "state": "open",
     "draft": false
   },
   "observed_ci": {
-    "run_id": 45385961404,
-    "source_sha": "ca60316e163eb0441e7d2eb9ccb3be2900d0dcfd",
+    "run_id": 45399624280,
+    "source_sha": "33db7fcdf51a5e43a4da703af75e5f3e3919f76d",
     "windows": "success",
     "linux": "success"
   },
   "limitations": [
-    "Historical observation predates final PR #2 fixes; verify live refs and CI.",
+    "Historical observation predates corrected PR #3 head; verify live refs and CI.",
     "Desktop manual acceptance deferred to RUST-02.",
     "Foundation dependency/redistribution issues tracked in #4.",
-    "Kotlin interoperability not validated."
+    "Kotlin interoperability, trusted storage and single-writer host enforcement not validated."
   ],
-  "next_action": "Verify corrected PR #2 CI and review, merge, then integrate and review stacked PR #3.",
+  "next_action": "Verify corrected PR #3 CI and merge; proceed RUST-02 and typed host integration.",
   "observed_handoff_ci": {
-    "run_id": 45395978594,
-    "source_sha": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+    "run_id": 45405558243,
+    "source_sha": "36943f5015363ac13cd471aeee6646d4d8f4d53e",
     "conclusion": "success"
   }
 }

@@ -46,8 +46,11 @@
 - PR #6 merged as 264ace7e47d3c16c21c8415875fb64db1bf7c1d0. Source 77d020fcf1876ff94a4d06315509f8c59df89d2a was independently reviewed against d17f299c (zero behind); Desktop CI 45413654836 and handoff CI 45413654872 passed. No blocking findings, new dependencies or permissions. Manual keyboard/dock checks deferred to RUST-02.
 - RUST-02C branch feat/rust-02c-native-persistence starts from that merge. Native project dialogs, OS advisory locks, guarded storage, 30-second Rust autosave, explicit recovery and close/save/discard flow. See docs/NATIVE_PERSISTENCE.md for decisions, local evidence and limitations.
 - Local official Node 22 frontend build and 5 isolated Rust storage-host tests passed; native Tauri compilation unavailable locally (missing WebKitGTK development libraries). No local installation or visual acceptance. Exact-head hosted desktop CI and independent review required. Issue #4 remains.
+## RUST-02C independent review — 2026-11-24
+- PR #8 predecessor de884bbf087b2d87b0b26df83361e0a2eb83b128 is zero commits behind main 264ace7e. Desktop CI 45416711659 and handoff CI 45416711993 passed; Windows MSI and Ubuntu DEB jobs completed locked builds/tests and installer upload.
+- Review found stale recovery after undo to the saved state. Corrected session-owned autosave cleanup and redo bookkeeping; added host regression test. Static inspection only; no local compilation or test execution on the correction. No new dependencies or permissions in correction; predecessor reports targeted advisory and license checks on four new registry packages, not a full audit. Issue #4 remains.
 ## Next exact action
-Review RUST-02C candidate, verify exact-head hosted Windows/Linux desktop and handoff CI, correct findings and review dependency delta before engineering merge. Manual RUST-02 acceptance remains at milestone boundary under D-008; then RUST-04 layout designer.
+Verify corrected exact-head desktop, core and handoff CI and independent final review before merging PR #8. Complete manual Windows/Linux desktop acceptance and prototype comparison or approved deviation under D-008 before claiming RUST-02 accepted; then RUST-04 layout designer.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

@@ -2,7 +2,7 @@
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
     persistence::sidecar_dir,
-    ProjectSession, SaveOptions, SessionConfig,
+    AutosaveOutcome, ProjectSession, SaveOptions, SessionConfig,
 };
 use hmi_project_model::{load_project, MigrationRegistry};
 use std::{
@@ -381,13 +381,14 @@ impl Host {
     }
 
     pub fn autosave(&mut self) {
-        if self.pending_untitled || !self.session.is_dirty() {
+        if self.pending_untitled {
             return;
         }
         self.autosave_message = match self
             .preflight()
             .and_then(|_| self.session.autosave().map_err(err))
         {
+            Ok(AutosaveOutcome::Clean) => "No unsaved edits to recover".into(),
             Ok(_) => "Recovery snapshot current".into(),
             Err(e) => format!("Autosave failed: {e}"),
         };
@@ -495,6 +496,30 @@ mod tests {
         assert!(b.save().is_err());
         assert_eq!(fs::read(&path).unwrap(), b"external changes");
         assert!(b.session.is_dirty());
+    }
+
+    #[test]
+    fn undo_to_saved_state_retires_recovery_and_redo_recreates_it() {
+        let t = Temp::new();
+        let path = t.0.join("undo.hmi.json");
+        let mut a = Host::new(&t.0.join("app")).unwrap();
+        a.save_as(&path).unwrap();
+        edit(&mut a, "Unsaved edit");
+        a.autosave();
+        let envelope = a.active_recovery().unwrap();
+        assert!(envelope.exists());
+        a.session.undo(None).unwrap();
+        assert!(!a.session.is_dirty());
+        a.autosave();
+        assert!(!envelope.exists());
+        a.session.redo(None).unwrap();
+        assert!(a.session.is_dirty());
+        a.autosave();
+        assert!(envelope.exists());
+        drop(a);
+        let mut b = Host::new(&t.0.join("app")).unwrap();
+        assert!(b.open_with(&path, false, |_| Ok(Some(true))).unwrap());
+        assert_eq!(b.session.project().screens[0].name, "Unsaved edit");
     }
 
     #[test]

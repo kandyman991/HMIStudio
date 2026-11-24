@@ -23,3 +23,6 @@ Based on PR #6 merge `264ace7e47d3c16c21c8415875fb64db1bf7c1d0`. The existing en
 
 Install Windows/Linux development installers; verify native dialog cancel, new/open/save/save-as, invalid document error, restart and recovery, deleted-base recovery, two cooperating instances/locks, dirty close save/discard/cancel, external-file conflict and backup, autosave status/errors, keyboard and dock interaction, prototype comparison or approved deviation. Verify close terminates process. Do not infer these checks from packaging or host tests. No manual acceptance claimed.
 
+
+## Independent review correction
+- A dirty autosave followed by undo back to the saved state could leave an obsolete recovery envelope. At the next native autosave tick, the core now removes a session-owned obsolete envelope, syncs its directory and resets autosave bookkeeping so redo can recreate it. Unresolved recovery remains protected. A host regression test covers save/edit/autosave/undo/cleanup/redo/recovery; the normal 30-second crash window remains. No new dependencies or permissions. Corrected source requires fresh CI; local native execution was unavailable during review.

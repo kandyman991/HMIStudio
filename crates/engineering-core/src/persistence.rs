@@ -718,6 +718,21 @@ impl ProjectSession {
             return Err(SaveError::Closed);
         }
         if !self.is_dirty() {
+            // An undo can return to the saved state after a dirty autosave.
+            // Retire only a slot this session owns, never an unresolved one.
+            if self.storage.autosaved_state.is_some() {
+                let dir = self.autosave_dir()?;
+                let path = autosave_path(&dir);
+                match self.fs.remove_file(&path) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(io_err("remove stale autosave", &path, &e)),
+                }
+                self.fs
+                    .sync_dir(&dir)
+                    .map_err(|e| io_err("autosave sync", &dir, &e))?;
+                self.storage.autosaved_state = None;
+            }
             return Ok(AutosaveOutcome::Clean);
         }
         if self.storage.autosaved_state == Some(self.current_state_id()) {

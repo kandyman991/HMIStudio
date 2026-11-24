@@ -34,8 +34,12 @@
 - PR #3 merged as 101c8f311a5fb8110ccfe127c0f4edde39c100f0. Corrected source 897693263da6e1d3f5644944fe3bc566288a5cdf passed core CI 45408061199, desktop CI 45408060862, handoff CI 45408061233. Both platform jobs in both matrices succeeded.
 - Branch feat/rust-02a-session-workspace starts from that main. Replaces demo Engine with restricted ProjectSession bridge; tabs, layer selection, basic edits, undo/redo, diagnostics, panel visibility. Local frontend build and three isolated host tests passed. Native CI pending. No disk operations exposed. See docs/WORKSPACE_IMPLEMENTATION.md.
 - Retain issue #4 and D-008 manual acceptance. No private source migration.
+## RUST-02A independent review — 2026-11-24
+- Reviewed PR #5 predecessor 9874868f1570bf7b7597d6869842ff6e68b38ef2 against main 101c8f311a5fb8110ccfe127c0f4edde39c100f0 (zero commits behind). Source review found inspector blur-triggered IPC could silently swallow the next toolbar action, rejected values could remain displayed, and selection could change during a pending operation.
+- Corrective commit c258c10953f63df31ee573e0b153d73f2813a860 uses explicit Apply/Enter and Escape reset for inspector fields, guards command overlap and navigation, and clears stale selection on screen creation. No new dependencies. Static source inspection only; frontend build and native tests have not yet run on corrected source. Original desktop CI 45410119932 was in progress at review; handoff CI 45410119886 passed on the predecessor only.
+- Review of Cargo lock delta found three added registry packages already used by the model; issue #4 residual advisories remain. No fresh independent advisory scan performed. No disk access or new native integration authorized. Explicit manual RUST-02 acceptance remains deferred under D-008.
 ## Next exact action
-Review RUST-02A candidate and exact-head hosted desktop CI, then implement remaining workspace docking and trusted native persistence slices. Require RUST-02 manual Windows/Linux acceptance at milestone boundary.
+Verify final PR #5 source and exact-head hosted desktop/handoff CI, resolve remaining review or dependency findings, then mark ready and merge. Begin RUST-02B from merged main (dockable/resizable panels, layout presets, tab lifecycle, command registry, keyboard navigation and versioned workspace preference restoration). RUST-02C owns trusted native persistence. Require RUST-02 manual Windows/Linux acceptance at milestone boundary.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.

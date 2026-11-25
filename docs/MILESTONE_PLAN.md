@@ -36,7 +36,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | Merged | [RUST-04B](#rust-04b) (merged) |
 | [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Merged | [RUST-04A](#rust-04a) (merged) |
-| [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | In progress | [RUST-04B.1](#rust-04b.1) (merged) |
+| [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | Proposed completion | [RUST-04B.1](#rust-04b.1) (merged) |
 | [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged) |
 | [RUST-06](#rust-06) Engineering systems | Engineering | In progress | [RUST-03B](#rust-03b) (merged) |
 | [RUST-06A](#rust-06a) Industrial tag foundation | Engineering | Merged | [RUST-03B](#rust-03b) (merged) |
@@ -319,7 +319,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 <a id="rust-04c"></a>
 ### RUST-04C — Direct graphical manipulation
 
-**In progress** · Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.
+**Proposed completion** · Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.
 
 **Acceptance criteria**
 
@@ -339,12 +339,17 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 
 **Assignment** · ChatGPT, feat/rust-04c-direct-manipulation (recorded 2026-11-25T14:02:11Z)
 
+**Proposal** · Supported base semantic flow manipulation candidate: pointer selection, reorder/reparent, constrained fixed-dp resize/snap, scroll pan and cross-axis alignment. Local tests pass; independent review and exact-head CI required. Native comparison remains at RUST-04 acceptance.
+
+[PR #26](https://github.com/kandyman991/HMIStudio/pull/26) · draft · head [e59e154](https://github.com/kandyman991/HMIStudio/commit/e59e154a5333623f8a7990dd8e80feafc110eee0) · snapshot 2026-11-25T14:05:43Z · CI unrecorded
+
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/README.md](reference/README.md)
 
 **History**
 
 - 2026-11-25 · started · Reserved RUST-04C from verified main bfd81fc; reconciled PR #25 engineering integration and carried native validation to RUST-04. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Implemented selection, flow reorder/reparent, resize with snap, pan and semantic cross-axis alignment through existing typed transactions; local 17 frontend tests, TypeScript/Vite and isolated browser gesture fixture passed. No native acceptance claimed. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · completion proposed · Draft PR #26 opened for the supported base-flow implementation candidate. Final independent review and fresh exact-head CI required; actual native designer acceptance remains open. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-05"></a>
 ### RUST-05 — Import and Compose interoperability

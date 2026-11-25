@@ -2,7 +2,7 @@
   "id": "RUST-04C",
   "title": "Direct graphical manipulation",
   "track": "Engineering",
-  "phase": "in_progress",
+  "phase": "proposed",
   "counts": true,
   "summary": "Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.",
   "dependencies": [
@@ -50,6 +50,24 @@
       "type": "handoff",
       "summary": "Implemented selection, flow reorder/reparent, resize with snap, pan and semantic cross-axis alignment through existing typed transactions; local 17 frontend tests, TypeScript/Vite and isolated browser gesture fixture passed. No native acceptance claimed.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "completion_proposed",
+      "summary": "Draft PR #26 opened for the supported base-flow implementation candidate. Final independent review and fresh exact-head CI required; actual native designer acceptance remains open.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    }
+  ],
+  "proposal": "Supported base semantic flow manipulation candidate: pointer selection, reorder/reparent, constrained fixed-dp resize/snap, scroll pan and cross-axis alignment. Local tests pass; independent review and exact-head CI required. Native comparison remains at RUST-04 acceptance.",
+  "completionPr": 26,
+  "prs": [
+    {
+      "number": 26,
+      "head": "e59e154a5333623f8a7990dd8e80feafc110eee0",
+      "branch": "feat/rust-04c-direct-manipulation",
+      "state": "draft",
+      "observedAt": "2026-11-25T14:05:43Z",
+      "runs": []
     }
   ]
 }

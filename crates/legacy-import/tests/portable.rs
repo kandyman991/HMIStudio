@@ -156,3 +156,181 @@ fn explicit_screen_order_is_version_aware() {
         .project
         .is_none());
 }
+
+fn industrial_fixture() -> Value {
+    let mut f = fixture(9);
+    f["variables"]["label-a"]["access"] = json!("SETPOINT");
+    f["variables"]["label-a"]["engineeringUnit"] = json!("rpm");
+    f["variables"]["second"] = json!({"id":"second","path":"Second","type":"LONG","access":"READ_ONLY","engineeringUnit":"rpm"});
+    f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"s7","displayName":"Synthetic source","configuration":{"host":"example.invalid","port":"102","rack":"0","slot":"1","pollIntervalMs":"200","timeoutMs":"2000"},"commissioningAllowed":true});
+    f["externalMappings"]["map-a"] = json!({"id":"map-a","internalVariableId":"label-a","sourceId":"src/a","externalAddress":"DB1.DBD0","access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":-9007199254740992i64,"max":9007199254740992i64,"step":2,"confirm":false}});
+    f["externalMappings"]["map-b"] = json!({"id":"map-b","internalVariableId":"second","sourceId":"src/a","externalAddress":"DB1.DBD8","access":"READ"});
+    f["security"] = json!({"permissions":{"custom/a":{"id":"custom/a","displayName":"Custom"}},"roles":{"role/a":{"id":"role/a","displayName":"Operator","permissions":["custom/a","operate"]}},"anonymousRoleId":"role/a","autoLogoutMinutes":3});
+    f["screens"]["screen/a"]["requiredPermission"] = json!("custom/a");
+    f["screens"]["screen/a"]["components"]["label-a"]["requiredPermission"] = json!("operate");
+    f
+}
+#[test]
+fn industrial_mapping_and_leaf_accounting() {
+    let f = industrial_fixture();
+    let bytes = serde_json::to_vec(&f).unwrap();
+    let a = import_portable(&bytes);
+    let b = import_portable(&bytes);
+    assert_eq!(a.report, b.report);
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let q = b.project.unwrap();
+    assert_eq!(save_project(&p).unwrap(), save_project(&q).unwrap());
+    assert!(p.has_v2_features());
+    assert_eq!(p.connections.len(), 1);
+    assert_eq!(p.units.len(), 1);
+    assert_eq!(p.tags[0].unit, p.tags[1].unit);
+    assert_eq!(p.tags[0].connection.as_ref(), Some(&p.connections[0].id));
+    let v = serde_json::to_value(&p).unwrap();
+    let i = &v["v2"]["industrial"];
+    assert_eq!(i["connections"][0]["commissioningAllowed"], true);
+    assert_eq!(i["tags"][0]["limits"]["min"], json!(-9007199254740992i64));
+    assert_eq!(i["tags"][0]["confirmationRequired"], true);
+    assert_eq!(i["tags"][0]["writeConfirmed"], true);
+    assert_eq!(i["security"]["autoLogoutSeconds"], 180);
+    assert_eq!(
+        i["security"]["roles"][0]["id"],
+        i["security"]["anonymousRole"]
+    );
+    assert_eq!(
+        i["screens"][0]["requiredPermission"],
+        i["security"]["roles"][0]["permissions"][0]
+    );
+    assert_eq!(
+        i["nodes"][0]["requiredPermission"],
+        i["security"]["roles"][0]["permissions"][1]
+    );
+    let mut expected = BTreeSet::new();
+    paths(&f, "", &mut expected);
+    assert_eq!(
+        expected,
+        a.report.findings.iter().map(|x| x.path.clone()).collect()
+    );
+}
+#[test]
+fn industrial_refusal_cases() {
+    let base = industrial_fixture();
+    for (p, v) in [
+        ("/schemaVersion", json!(8)),
+        ("/externalMappings/map-a/writeConfirmed", json!(false)),
+        ("/externalMappings/map-a/sourceId", json!("unknown")),
+        (
+            "/externalMappings/map-a/internalVariableId",
+            json!("unknown"),
+        ),
+        ("/externalMappings/map-a/access", json!("WRITE")),
+        (
+            "/externalMappings/map-a/command/min",
+            json!(9007199254740993i64),
+        ),
+        (
+            "/externalMappings/map-a/command/max",
+            json!(9223372036854775807i64),
+        ),
+        ("/externalMappings/map-a/command/step", json!(0)),
+        ("/security/roles/role~1a/permissions/0", json!("unknown")),
+        ("/security/anonymousRoleId", json!("unknown")),
+        ("/security/autoLogoutMinutes", json!(71582789)),
+        ("/screens/screen~1a/requiredPermission", json!("unknown")),
+        (
+            "/externalSources/src~1a/configuration/host",
+            json!("user:secret@example.invalid"),
+        ),
+    ] {
+        let mut f = base.clone();
+        *f.pointer_mut(p).unwrap() = v;
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        assert!(a.project.is_none(), "{p}");
+        assert!(a.report.findings.iter().any(|f| f.disposition == "refused"));
+    }
+    for (k, v) in [
+        ("maxChange", json!(1)),
+        ("decimals", json!(2)),
+        ("readbackTimeoutMs", json!(3000)),
+        ("critical", json!(true)),
+        ("writeOnly", json!(true)),
+    ] {
+        let mut f = base.clone();
+        f["externalMappings"]["map-a"]["command"][k] = v;
+        assert!(
+            import_portable(&serde_json::to_vec(&f).unwrap())
+                .project
+                .is_none(),
+            "{k}"
+        );
+    }
+    let mut f = base.clone();
+    f["externalMappings"]["duplicate"] = f["externalMappings"]["map-a"].clone();
+    f["externalMappings"]["duplicate"]["id"] = json!("duplicate");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+#[test]
+fn momentary_and_maintained_defaults() {
+    let mut f = industrial_fixture();
+    f["variables"]["label-a"]["access"] = json!("COMMAND");
+    f["variables"]["label-a"]["type"] = json!("BOOL");
+    f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
+    for (kind, expected) in [("MOMENTARY", "momentary"), ("MAINTAINED", "maintained")] {
+        f["externalMappings"]["map-a"]["command"] = json!({"kind":kind});
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        let v =
+            serde_json::to_value(a.project.unwrap_or_else(|| panic!("{:?}", a.report))).unwrap();
+        let w = &v["v2"]["industrial"]["tags"][0];
+        assert_eq!(w["command"], expected);
+        if kind == "MOMENTARY" {
+            assert_eq!(w["pulseMs"], 500);
+        } else {
+            assert_eq!(w["confirmationRequired"], true);
+        }
+    }
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"MOMENTARY","pulseMs":99});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+#[test]
+fn opcua_and_loopback_declarations() {
+    let mut f = industrial_fixture();
+    f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"opcua","configuration":{"endpoint":"opc.tcp://example.invalid:4840","securityPolicy":"Basic256Sha256","securityMode":"SignAndEncrypt","publishingIntervalMs":"200"}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    assert!(p.has_v2_features());
+    f["externalSources"]["src/a"]["configuration"]["endpoint"] =
+        json!("opc.tcp://user:secret@example.invalid:4840");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+    f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"loopback","configuration":{}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a
+        .project
+        .unwrap_or_else(|| panic!("{:?}", a.report))
+        .has_v2_features());
+}
+
+#[test]
+fn refuse_address_alias_with_writable_tag_and_credential_keys() {
+    let mut f = industrial_fixture();
+    f["externalMappings"]["map-b"]["externalAddress"] =
+        f["externalMappings"]["map-a"]["externalAddress"].clone();
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.code == "ambiguous-writable-address-alias"));
+    let mut f = industrial_fixture();
+    f["externalSources"]["src/a"]["configuration"]["password"] = json!("SECRET-TEST");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(!serde_json::to_string(&a.report)
+        .unwrap()
+        .contains("SECRET-TEST"));
+}

@@ -1,6 +1,7 @@
 //! Read-only portable legacy import, initial conservative mapping slice.
 //! No filesystem writes, archive extraction, I/O, or runtime authorization.
 use hmi_project_model::{model::Project, serialization::load_project};
+mod industrial;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -400,7 +401,10 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
             };
             m.mark(&path(&p, "type"), &path(&t, "dataType"));
             if let Some(a) = x.get("access") {
-                if a.as_str() != Some("READ_ONLY") {
+                if !matches!(
+                    a.as_str(),
+                    Some("READ_ONLY" | "READ_WRITE" | "COMMAND" | "SETPOINT")
+                ) {
                     return None;
                 }
                 m.mark(&path(&p, "access"), &path(&t, "access"));
@@ -436,12 +440,8 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
                     m.mark(&path(&src, "value"), &dest);
                 }
             }
-            for k in ["engineeringUnit", "simulationValue"] {
-                if let Some(x) = x.get(k) {
-                    if x.is_null() {
-                        m.mark(&path(&p, k), &t);
-                    }
-                }
+            if x.get("simulationValue").is_some_and(Value::is_null) {
+                m.mark(&path(&p, "simulationValue"), &t);
             }
             tags.push(tag);
         }
@@ -449,18 +449,17 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
     for (k, t) in [
         ("componentDefinitions", "/components"),
         ("alarms", "/alarms"),
-        ("externalSources", "/connections"),
-        ("externalMappings", "/tags"),
         ("assets", "/resources"),
         ("theme", "/themes"),
-        ("security", "/v2/industrial/security"),
         ("enumerations", "/v2/bindings/enumerations"),
     ] {
         if let Some(x) = v.get(k) {
             m.empty(x, &path("", k), t);
         }
     }
-    let doc = json!({"format":"hmi-studio.project","schemaVersion":2,"id":project_id,"metadata":metadata,"navigation":{"startScreen":start},"localization":{"defaultLocale":"en","locales":["en"]},"screens":result,"tags":tags,"extensions":{"hmiforge.idMap":m.ids}});
+    let mut doc = json!({"format":"hmi-studio.project","schemaVersion":2,"id":project_id,"metadata":metadata,"navigation":{"startScreen":start},"localization":{"defaultLocale":"en","locales":["en"]},"screens":result,"tags":tags,"extensions":{"hmiforge.idMap":m.ids}});
+    industrial::map(v, &mut doc, m)?;
+    doc["extensions"]["hmiforge.idMap"] = json!(m.ids);
     load_project(&doc.to_string()).ok().map(|x| x.project)
 }
 fn map_label(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping) -> Option<Value> {

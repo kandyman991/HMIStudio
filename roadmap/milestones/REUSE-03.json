@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A merged, schema v2 frozen; REUSE-03B portable decoder foundation and conservative canonical mapping implemented.",
+  "summary": "REUSE-03A merged; schema v2 frozen. REUSE-03B portable decoder and conservative industrial/security declaration mapping implemented.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1\u2013V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Complete full per-version feature mapping, legacy source semantic validation, safe preservation and publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI required."
+    "Complete adaptive layout, component, expression/enumeration and other feature mappings; resolve or explicitly refuse legacy semantics not representable in frozen v2; complete source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -104,6 +104,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Added standalone read-only portable importer foundation with strict bounded JSON, version 1\u201310 admission, deterministic ID mapping, SHA-256 and leaf report, static label/screens and internal read-only tags, exact typed defaults. Six local regression groups, Clippy and rustdoc passed; frozen schema unchanged. Unsupported content refuses project. Full mapping and engineering integration outstanding.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "REUSE-03B.2 maps S7/OPC UA/loopback connection declarations, single external mapping per tag, exact setpoint limits, momentary/maintained commands, deduplicated units and role/permission references into frozen v2. Explicitly refuses ambiguous mappings, credential fields and unsupported write-policy semantics. Eleven local regression groups and Clippy/rustdoc passed; schema unchanged.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

@@ -281,3 +281,7 @@ Owner approved O-3, O-4 and synthetic-only O-1 fixture scope. Reserved REUSE-03 
 ## REUSE-03A industrial/security declarations — 2026-11-25
 
 Typed candidate model and deterministic validation added; existing v1 serialization and behavior unchanged. Seven new synthetic regressions cover command and limit validation, loopback isolation and permission references. Conservative float32 narrowing refusal is a candidate engineering default, not production enforcement. Next exact action: complete typed engineering integration and remaining action/enumeration/component/expression contracts before schema activation. PR #35 remains draft.
+
+## REUSE-03A expression/enumeration candidate — 2026-11-25
+
+Added staged typed Rust expression parser/type checker/snapshot evaluator and discrete enum mappings; eight new original synthetic test groups pass. Contract-1 numerical behavior is f64; refuse lossy canonical integer input. No Kotlin transfer or runtime binding; cross-runtime edge parity remains unverified. Next exact action: action/component contracts, canonical typed engineering integration and v1-to-v2 migration. PR #35 stays draft and reservation remains active.

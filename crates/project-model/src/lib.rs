@@ -19,6 +19,7 @@
 //! `docs/PROJECT_MODEL_VALIDATION.md`.
 
 pub mod catalog;
+pub mod expression;
 pub mod id;
 pub mod migration;
 pub mod model;

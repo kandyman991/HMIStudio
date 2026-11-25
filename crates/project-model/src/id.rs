@@ -204,6 +204,11 @@ define_id!(
     RoleId
 );
 
+define_id!(
+    /// Identifies a discrete enumeration (candidate schema v2).
+    EnumerationId
+);
+
 /// Deterministic allocator for new identifiers.
 ///
 /// Editors use it to create identifiers for new objects. It produces

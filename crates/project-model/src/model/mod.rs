@@ -11,6 +11,7 @@ pub mod layout;
 pub mod project;
 pub mod style;
 pub mod v2;
+pub mod v2_bindings;
 
 pub use crate::id::*;
 pub use common::{Extensions, LocalizedText, TextKeyRef, ValueRange};

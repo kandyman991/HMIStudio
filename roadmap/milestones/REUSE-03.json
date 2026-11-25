@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A in progress: owner decisions and compatibility baseline; typed industrial/security declarations and staged semantic validation implemented. Current schema remains v1.",
+  "summary": "REUSE-03A in progress: compatibility baseline, staged industrial/security declarations and read-only expression/enumeration candidate with validation implemented. Active schema remains v1.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Canonical v2 integration, typed commands, action/enumeration/component and expression contracts, migration and downstream validation remain open. Decoder mapping waits for frozen schema."
+    "Canonical v2 integration, typed commands, remaining action/component contracts, migration, downstream validation and cross-runtime expression parity remain open. Decoder mapping waits for frozen schema."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -50,6 +50,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Implemented staged industrial/security declarations and deterministic validation, retaining v1 schema. Exact integer limits, command type/access, reference uniqueness, safe loopback and default false commissioning/write confirmation tested with seven synthetic cases. No runtime or policy enforcement claimed.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Added bounded Rust expression contract-1 candidate, exact integer scalar admission, typed localized discrete enumeration definitions and reference/target validation; eight original synthetic test groups passed. Cross-runtime parity and canonical integration remain open.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

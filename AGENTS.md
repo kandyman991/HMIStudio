@@ -19,6 +19,13 @@
 - Development/simulation reads and writes, operator commands, setpoints, alarms, recipes and runtime tests need no production approval. Actual machinery commissioning, trusted deployment, release signing and licensing are separate.
 - Label placeholders; do not claim production connectivity, deployment or milestone acceptance until verified.
 
+## Living roadmap
+- At task start, handoff and completion proposal update the relevant `roadmap/milestones/<ID>.json` file with verified scope, branch/assignment, blockers, links and dated history. Check open PRs and coordinate assignments before editing shared records.
+- Use `proposed` for review candidates. Record `merged` after verifying the actual merge on the default branch. Record `accepted` only after the milestone evidence required by D-008 is recorded. A proposal can have successful exact-head CI and still await merge and acceptance.
+- Regenerate with `node roadmap/generate.mjs` and verify with `node roadmap/generate.mjs --check --verify-migration`. Never hand edit `docs/MILESTONE_PLAN.md` or `roadmap/dashboard.html`. Resolve concurrent milestone changes in their source files and regenerate both views.
+- PR, issue and CI snapshots require observation timestamps and verified exact heads. Keep private information out of public records. See `roadmap/README.md`.
+
+
 ## Engineering merge versus milestone acceptance (binding D-008)
 - Routine development PRs do not require owner installation, manual desktop testing or visual sign-off. Require compilation, automated tests, exact-head CI, independent review, applicable dependency security/license checks and installer generation when packaging is affected.
 - Record deferred manual evidence explicitly, with the milestone that owns it. Do not request an owner install merely to unblock an intermediate PR; do not label deferred evidence as passed.

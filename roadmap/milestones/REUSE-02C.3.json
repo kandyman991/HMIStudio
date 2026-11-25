@@ -1,0 +1,62 @@
+{
+  "id": "REUSE-02C.3",
+  "title": "Isolated read-only EngineDriver",
+  "track": "Reuse",
+  "phase": "merged",
+  "counts": true,
+  "summary": "PR #19 merged checked scalar translation, cancellable startup and fresh-generation recovery in the isolated loopback engine.",
+  "dependencies": [
+    {
+      "id": "REUSE-02C.2",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify checked scalar translation, cancellation, recovery and complete snapshot validation before publishing values.",
+    "Verify exact-head Required CI, tag CI including fresh real children and audit, handoff and independent review."
+  ],
+  "prs": [
+    {
+      "number": 19,
+      "head": "9560d35eaae751a5352cb40c78015931f448a8f2",
+      "branch": "feat/reuse-02c3-engine-driver",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45575498171,
+          "name": "Desktop CI",
+          "head": "9560d35eaae751a5352cb40c78015931f448a8f2",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45575498315,
+          "name": "Engineering handoff snapshot",
+          "head": "9560d35eaae751a5352cb40c78015931f448a8f2",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45575498358,
+          "name": "Tag engine CI",
+          "head": "9560d35eaae751a5352cb40c78015931f448a8f2",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "d1571fc5cd801a2b7d65b63dd3de7d25bf531817"
+    }
+  ],
+  "docs": [
+    "docs/reuse/REUSE_02C3_ENGINE_DRIVER.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Review found an incomplete invalidation on out-of-range values. The corrected candidate added full snapshot validation before returning results.",
+      "record": "CHAT_HANDOFF.md"
+    }
+  ]
+}

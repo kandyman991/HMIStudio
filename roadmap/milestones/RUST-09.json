@@ -1,0 +1,15 @@
+{
+  "id": "RUST-09",
+  "title": "Advanced engineering",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Optional local AI assistance, vector and 3D features.",
+  "dependencies": [],
+  "criteria": [
+    "Scope and validate advanced features against a stable engineering core."
+  ],
+  "blockers": [
+    "Confirm stable core readiness before scheduling."
+  ]
+}

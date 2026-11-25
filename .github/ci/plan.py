@@ -14,6 +14,11 @@ def classify(paths, force=False):
     if force:
         enable(*FLAGS)
     for path in paths:
+        if path.startswith("roadmap/") or path in {
+            ".github/ci/plan.py", ".github/ci/test_plan.py", ".github/ci/test_roadmap.py",
+        }:
+            # Desktop CI's changes job validates these development-only inputs.
+            continue
         if ("/" not in path and path.endswith(".md")) or (
             path.startswith("docs/") and path.endswith(".md")
         ) or path == "handoff/state.json":

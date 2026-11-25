@@ -1,0 +1,21 @@
+{
+  "id": "RUST-08",
+  "title": "Migration acceptance",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Verify compatibility and installation across Windows, Linux and Android runtime targets.",
+  "dependencies": [
+    {
+      "id": "RUST-07",
+      "gate": "accepted"
+    }
+  ],
+  "criteria": [
+    "Complete full release acceptance across Windows, Linux and Android after the prior milestones.",
+    "Record compatibility, installation, and runtime acceptance."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ]
+}

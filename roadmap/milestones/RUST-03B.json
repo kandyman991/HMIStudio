@@ -1,0 +1,54 @@
+{
+  "id": "RUST-03B",
+  "title": "Engineering operations",
+  "track": "Engineering",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Transactional engineering commands and persistence merged in PR #3.",
+  "dependencies": [
+    {
+      "id": "RUST-03A",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify transactional commands, project storage, undo/redo, recovery and persistence.",
+    "Retain exact-head core, desktop and handoff evidence."
+  ],
+  "prs": [
+    {
+      "number": 3,
+      "head": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+      "branch": "feat/rust-03b-engineering-core",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45408060862,
+          "name": "Desktop CI",
+          "head": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45408061233,
+          "name": "Engineering handoff snapshot",
+          "head": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45408061199,
+          "name": "Engineering Core CI",
+          "head": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "101c8f311a5fb8110ccfe127c0f4edde39c100f0"
+    }
+  ],
+  "docs": [
+    "docs/ENGINEERING_CORE_VALIDATION.md"
+  ]
+}

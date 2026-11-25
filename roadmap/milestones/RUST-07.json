@@ -1,0 +1,24 @@
+{
+  "id": "RUST-07",
+  "title": "Deployment",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Support standalone bundles and project-only publishing to paired runtimes.",
+  "dependencies": [
+    {
+      "id": "RUST-05",
+      "gate": "accepted"
+    }
+  ],
+  "criteria": [
+    "Verify standalone bundles and project-only publishing, pairing and trust across target platforms.",
+    "Complete manual deployment acceptance."
+  ],
+  "blockers": [
+    "Confirm and deliver the relevant RUST-06 engineering systems before deployment acceptance."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ]
+}

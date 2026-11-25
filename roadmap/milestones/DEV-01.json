@@ -1,0 +1,37 @@
+{
+  "id": "DEV-01",
+  "title": "Living development roadmap",
+  "track": "Developer workflow",
+  "phase": "proposed",
+  "counts": true,
+  "summary": "Structured roadmap owns milestone state and generates the detailed plan and dashboard.",
+  "dependencies": [],
+  "criteria": [
+    "Preserve milestone records, criteria, dependencies and history with deterministic generated views and schema validation.",
+    "Provide a local interactive graph, progress, filters, assignments, blockers, evidence, next eligible tasks, prompts and continuity.",
+    "Integrate stale-output and consistency checks without unrelated installer builds. Independently review the feature and verify exact-head hosted checks."
+  ],
+  "assignment": {
+    "owner": "Codex",
+    "branch": "feat/dev-01-living-roadmap",
+    "observedAt": "2026-11-25T09:01:59Z"
+  },
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "started",
+      "summary": "Started DEV-01 from observed main d1571fc. Active PRs #12, #13 and #20 kept separate."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Hand off the generated views, migration proof and privacy checks for independent review."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "completion_proposed",
+      "summary": "Submitted DEV-01 as a scoped candidate for exact-head CI and review."
+    }
+  ],
+  "proposal": "Completion proposal for the structured roadmap and its two generated views. Verify the PR head, hosted checks and independent review before integration."
+}

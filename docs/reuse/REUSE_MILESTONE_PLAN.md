@@ -1,5 +1,8 @@
 # REUSE-01 — Reuse milestone plan (REUSE-01 … REUSE-06)
 
+> Historical proposal from the REUSE-01 audit. Current states and dependencies are in the [generated milestone plan](../MILESTONE_PLAN.md), sourced from the structured roadmap.
+
+
 Status: **proposed**. This plan records the staged roadmap. Owner authorization and remaining decisions are recorded in AUDIT_SUMMARY.md; REUSE-02A preparation is distinct from source transfer and bridge implementation.
 Owner decisions O-1 … O-12 are listed in `AUDIT_SUMMARY.md` §6.
 

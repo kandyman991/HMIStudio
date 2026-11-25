@@ -1,0 +1,58 @@
+{
+  "id": "REUSE-02C.1",
+  "title": "Bridge supervision",
+  "track": "Reuse",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Bounded communication and pulse-starvation correction merged in PR #17.",
+  "dependencies": [
+    {
+      "id": "REUSE-02B",
+      "gate": "merged"
+    },
+    {
+      "id": "RUST-06A",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify bounded command delivery, supervision and deterministic pulse-starvation regression in simulation.",
+    "Require exact-head Required CI, handoff, dedicated tag checks and review."
+  ],
+  "prs": [
+    {
+      "number": 17,
+      "head": "8e900bc7c1883c0ad9fac3103e21cbb322915b97",
+      "branch": "feat/reuse-02c1-bridge-supervision",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45489970600,
+          "name": "Desktop CI",
+          "head": "8e900bc7c1883c0ad9fac3103e21cbb322915b97",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45489970760,
+          "name": "Engineering handoff snapshot",
+          "head": "8e900bc7c1883c0ad9fac3103e21cbb322915b97",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45489971060,
+          "name": "Tag engine CI",
+          "head": "8e900bc7c1883c0ad9fac3103e21cbb322915b97",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "dbdeeb2ea74555ba879380168e17c923a1c41da2"
+    }
+  ],
+  "docs": [
+    "docs/reuse/REUSE_02C1_BRIDGE_SUPERVISION.md"
+  ]
+}

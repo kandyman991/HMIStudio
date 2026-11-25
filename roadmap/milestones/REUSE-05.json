@@ -1,0 +1,25 @@
+{
+  "id": "REUSE-05",
+  "title": "Deployment Modes A and B",
+  "track": "Reuse",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Proposed RUST-07 mapping using the runtime deployment listener.",
+  "dependencies": [
+    {
+      "id": "REUSE-04",
+      "gate": "merged",
+      "note": "The proposal calls for REUSE-04 P1 before deployment."
+    }
+  ],
+  "criteria": [
+    "Resolve runtime protocol, O-8 and signing decisions. Preserve standalone and project-only delivery.",
+    "Verify pairing, deployment, staged activation, rollback, refusal cases and manual RUST-07 deployment acceptance."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "blockers": [
+    "Confirm the deployment protocol/legacy listener gate and applicable key and signing decisions before implementation."
+  ]
+}

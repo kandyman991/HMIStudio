@@ -1,0 +1,43 @@
+{
+  "id": "REUSE-01",
+  "title": "Inventory and compatibility audit",
+  "track": "Reuse",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Audit-only baseline merged in PR #9. It did not transfer source or approve transfer.",
+  "dependencies": [],
+  "criteria": [
+    "Produce reproducible inventory, matrix, integration designs, validation and handoff.",
+    "Complete independent review. Preserve audit reproduction, including the 37-test engine result."
+  ],
+  "prs": [
+    {
+      "number": 9,
+      "head": "6d346ce6e2515e81edaade8925ed3f2424419463",
+      "branch": "docs/reuse-01-hmiforge-audit",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45445225707,
+          "name": "Desktop CI",
+          "head": "6d346ce6e2515e81edaade8925ed3f2424419463",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45445226131,
+          "name": "Engineering handoff snapshot",
+          "head": "6d346ce6e2515e81edaade8925ed3f2424419463",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "238fd18a4006ced60b5459a37ff18ac1471a6e2c"
+    }
+  ],
+  "docs": [
+    "docs/reuse/AUDIT_SUMMARY.md",
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "REUSE-04",
+  "title": "Runtime compatibility",
+  "track": "Reuse",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Proposed RUST-05B mapping. P1 compatibility package and P2 Kotlin parity remain separate slices.",
+  "dependencies": [
+    {
+      "id": "REUSE-03",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Resolve owner decisions on the runtime repository and key compatibility.",
+    "Verify byte-identical signed format-2 packages, Kotlin decoder admission, JVM and Android emulator parity within tolerance and manual RUST-05 acceptance.",
+    "Evaluate generated Kotlin export under O-11."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "blockers": [
+    "Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work."
+  ]
+}

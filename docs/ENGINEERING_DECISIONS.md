@@ -44,6 +44,15 @@ Adopted in the PR #3 candidate, subject to final CI; not production or owner rel
 - 30-second native autosave cadence; recovery must be explicitly resolved before edits can overwrite its slot. Save As refuses unrelated existing projects or recovery data; external modification is never force-overwritten through the UI. Recovery of a deleted original requires selecting the sidecar envelope and saving to a different filename.
 - Native Save/Discard/Cancel before project replacement or close; session generation protects stale engineering edits after replacement. See docs/NATIVE_PERSISTENCE.md for test evidence, alternatives and limits. Candidate only, pending exact-head native CI and independent review; no change to D-008.
 
+## D-DEV-01 — Living development roadmap
+
+Owner-approved direction (2026-11-25). The per-milestone structured records are authoritative for milestone scope, dependencies, ownership, blockers, status and evidence. The deterministic generator produces `docs/MILESTONE_PLAN.md` and the offline HTML dashboard. Review scope and historical decisions in the existing linked records.
+
+A review candidate and its CI remain a proposal. Verify the merge commit on the default branch before recording integration, then require evidence for milestone acceptance under D-008. Canonical edits, generated outputs and the curated handoff travel in the scoped PR. CI validates generation, migration, dependency and evidence consistency in the existing Required CI path. No automated branch writes or site deployments are used.
+
+Use repository-safe observations and label their freshness. The public repository has no supported private Pages configuration. The dashboard is operated from a local checkout.
+
+
 ## D-CI-02 — Change-aware CI and on-demand installer generation (accepted direction, 2026-11-24)
 Owner-directed: replace universal desktop packaging with conservative path classification, always-evaluated Required CI, applicable frontend/crate/native checks, manual and packaging-sensitive Windows/Linux installer builds, three-day development artifact retention, dependency compilation caching and superseded-run cancellation. Preserve hosted-only runners, exact-head CI, independent review, dependency review and D-008 milestone acceptance. Rejected alternative: package both platforms for every documentation or routine source edit. CI-02 merged in PR #14 (`39eba35`) after exact-head full CI and review; no branch protection contexts were enforced. Documentation-only demonstration and independent manual dispatch remain unverified; no measured savings claimed. See CI_RUNNER_POLICY.md.
 
@@ -73,6 +82,10 @@ Latest-state subscriptions replace unbounded channels. Choose 64 subscribers, 25
 
 ### REUSE-02C.3 — Explicit isolated driver and checked scalar translation (candidate)
 Host explicitly supplies and registers the separate engine executable for Simulator only; no project-supplied executable/endpoints/credentials. Initial adapter supports 1–4 unique read-only zero-initialized scalar points and rejects unsupported configurations. Use signed integer protocol variants with checked narrowing and unsigned range checks; UInt64 above signed Long capacity is refused rather than rounded. Preserve exact float variants and finite-only values. No writes or arming exposed; this is scoped incremental implementation, not a new simulation approval requirement. On source/transport loss, discard generation, mark TagEngine connection bad and obtain fresh baseline through normal reconnect. Cancellation extends into startup waits; full driver mapping, richer quality semantics and writes/termination are later work. Evidence and limits: docs/reuse/REUSE_02C3_ENGINE_DRIVER.md.
+
+### DEV-01 review corrections — proposed
+
+Implementation PRs require a matching shared reservation and canonical milestone update. GitHub observation synchronization may propose merge-state changes only from explicitly designated completion PRs and verified exact-head evidence. The automation must use reviewed pull requests, not direct default-branch writes; acceptance remains explicit. Scope relationships distinguish summary acceptance gates from counted implementation slices. No public hosting or credential configuration is authorized by this change.
 
 ### D-02C4A-1 — Global disarm on connection loss (owner accepted, 2026-11-25)
 Under protocol 3, a source that leaves the connected state ends the control period for the whole engine:

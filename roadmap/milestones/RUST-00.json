@@ -1,0 +1,51 @@
+{
+  "id": "RUST-00",
+  "title": "Repository foundation",
+  "track": "Engineering",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Repository rules, architecture, continuity and CI established with the foundation PR.",
+  "dependencies": [],
+  "criteria": [
+    "Review repository rules and architecture. Select the project license before distributing migrated code.",
+    "Record continuity rules, committed npm/Cargo lockfiles and independent review."
+  ],
+  "prs": [
+    {
+      "number": 1,
+      "head": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+      "branch": "feat/rust-00-01-foundation",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45395978746,
+          "name": "Desktop CI",
+          "head": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45395978594,
+          "name": "Engineering handoff snapshot",
+          "head": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "7a07d7e74cc156ed76238e89068ff320b84a5978"
+    }
+  ],
+  "issues": [
+    {
+      "number": 4,
+      "label": "Track foundation dependency advisories and third-party redistribution obligations",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "docs": [
+    "AGENTS.md",
+    "docs/ARCHITECTURE.md"
+  ]
+}

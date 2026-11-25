@@ -1,32 +1,49 @@
 {
   "schema_version": 1,
   "kind": "historical_observation",
-  "observed_date": "2026-11-24",
+  "observed_date": "2026-11-25",
+  "observed_at": "2026-11-25T09:01:59Z",
   "repository": "kandyman991/HMIStudio",
-  "main_sha": "101c8f311a5fb8110ccfe127c0f4edde39c100f0",
+  "main_sha": "d1571fc5cd801a2b7d65b63dd3de7d25bf531817",
   "observed_pr": {
-    "number": 3,
-    "head": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+    "number": 19,
+    "head": "9560d35eaae751a5352cb40c78015931f448a8f2",
     "state": "closed",
     "draft": false
   },
   "observed_ci": {
-    "run_id": 45408061199,
-    "source_sha": "897693263da6e1d3f5644944fe3bc566288a5cdf",
-    "windows": "success",
-    "linux": "success"
-  },
-  "limitations": [
-    "Historical observation; verify live refs and CI.",
-    "RUST-02A native CI and independent review pending.",
-    "Desktop manual acceptance deferred to RUST-02.",
-    "Foundation dependency/redistribution issues tracked in #4.",
-    "Native project persistence, Kotlin interoperability and full docking not validated."
-  ],
-  "next_action": "Review RUST-02A and exact-head CI; proceed with workspace docking and trusted persistence.",
-  "observed_handoff_ci": {
-    "run_id": 45408061233,
-    "source_sha": "897693263da6e1d3f5644944fe3bc566288a5cdf",
+    "run_id": 45575498171,
+    "source_sha": "9560d35eaae751a5352cb40c78015931f448a8f2",
     "conclusion": "success"
-  }
+  },
+  "observed_handoff_ci": {
+    "run_id": 45575498315,
+    "source_sha": "9560d35eaae751a5352cb40c78015931f448a8f2",
+    "conclusion": "success"
+  },
+  "observed_open_prs": [
+    {
+      "number": 12,
+      "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+      "draft": true
+    },
+    {
+      "number": 13,
+      "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+      "draft": false
+    },
+    {
+      "number": 20,
+      "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+      "draft": true
+    }
+  ],
+  "limitations": [
+    "Historical GitHub observation. Verify live refs, PR heads and CI before resumption.",
+    "REUSE-02C.4A is a separate draft candidate. Device, production and runtime acceptance remain separate.",
+    "Issue #10 remains open for workspace visual acceptance and other unverified evidence.",
+    "DEV-01 is a completion proposal. Its branch is not represented as merged.",
+    "Automated reconciliation PR publication requires approved ROADMAP_SYNC_TOKEN; dashboard is offline and public hosting is deferred."
+  ],
+  "next_action": "Review corrected DEV-01 PR #21, verify exact-head hosted CI, then obtain merge approval. Reconcile existing concurrent PRs with the new roadmap and reservation policy."
 }

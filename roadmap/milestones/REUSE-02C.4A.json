@@ -1,0 +1,76 @@
+{
+  "id": "REUSE-02C.4A",
+  "title": "Write lifecycle and termination safety",
+  "track": "Reuse",
+  "phase": "proposed",
+  "counts": true,
+  "summary": "Draft PR #20 contains a bounded write/release and termination safety candidate.",
+  "dependencies": [
+    {
+      "id": "REUSE-02C.3",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify simulation-only write and release handling, bounded termination, outcomes and startup/lifecycle protections scoped by draft PR #20.",
+    "Require independent review and exact-head Required CI, dedicated tag checks and handoff before merge."
+  ],
+  "proposal": "PR #20 is a draft with exact-head hosted runs observed. Its engineering and review state remains separate.",
+  "prs": [
+    {
+      "number": 20,
+      "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+      "branch": "feat/reuse-02c4a-write-lifecycle",
+      "state": "draft",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45579765121,
+          "name": "Desktop CI",
+          "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45579764645,
+          "name": "Engineering handoff snapshot",
+          "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45579764379,
+          "name": "Tag engine CI",
+          "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+          "state": "completed",
+          "result": "success"
+        }
+      ]
+    }
+  ],
+  "parent": "REUSE-02C",
+  "completionPr": 20,
+  "requiredWorkflows": [
+    "Tag engine CI"
+  ],
+  "assignment": {
+    "owner": "ChatGPT",
+    "branch": "feat/reuse-02c4a-write-lifecycle",
+    "scope": [
+      "crates/hmi-engine/src/engine.rs",
+      "crates/hmi-engine/tests/write_lifecycle.rs"
+    ],
+    "observedAt": "2026-11-25T10:22:51Z"
+  },
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Reconciled legacy PR #20 with living roadmap main, preserved owner decisions D-02C4A-1 and D-02C4A-2 and reserved exact engine paths. New head requires fresh hosted CI and independent review.",
+      "record": "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
+    }
+  ],
+  "docs": [
+    "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
+  ]
+}

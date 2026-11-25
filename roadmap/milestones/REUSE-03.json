@@ -1,0 +1,26 @@
+{
+  "id": "REUSE-03",
+  "title": "Legacy import and canonical model v2",
+  "track": "Reuse",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Proposed RUST-05A mapping.",
+  "dependencies": [
+    {
+      "id": "REUSE-01",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Resolve O-3 model additions, O-4 expressions and O-1 fixture rights. Freeze model v2 before decoder/mapping integration.",
+    "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
+  ],
+  "blockers": [
+    "Confirm owner decisions and fixture rights before implementation."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "parent": "RUST-05",
+  "claimGroup": "RUST-05"
+}

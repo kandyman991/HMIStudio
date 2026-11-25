@@ -30,10 +30,10 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-06](#reuse-06) Migration acceptance and retirement | Reuse | Planned | [REUSE-02](#reuse-02) (merged), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged), [REUSE-05](#reuse-05) (merged) |
 | [RUST-00](#rust-00) Repository foundation | Engineering | Merged | — |
 | [RUST-01](#rust-01) Desktop shell | Engineering | Merged | — |
-| [RUST-02](#rust-02) Workspace and desktop acceptance | Engineering | Merged | [RUST-01](#rust-01) (merged) |
+| [RUST-02](#rust-02) Workspace and desktop acceptance | Engineering | Accepted | [RUST-01](#rust-01) (merged) |
 | [RUST-03A](#rust-03a) Project model | Engineering | Merged | — |
 | [RUST-03B](#rust-03b) Engineering operations | Engineering | Merged | [RUST-03A](#rust-03a) (merged) |
-| [RUST-04](#rust-04) Semantic layout editor | Engineering | In progress | [RUST-02](#rust-02) (accepted), [RUST-03B](#rust-03b) (merged) |
+| [RUST-04](#rust-04) Semantic layout editor | Engineering | Accepted | [RUST-02](#rust-02) (accepted), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | Merged | [RUST-04B](#rust-04b) (merged) |
 | [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Merged | [RUST-04A](#rust-04a) (merged) |
@@ -160,21 +160,19 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md)
 <a id="rust-02"></a>
 ### RUST-02 — Workspace and desktop acceptance
 
-**Merged** · RUST-02A/B/C merged. The owner reported Windows 9/9 and scoped the Linux evidence exception. Issue #10 remains open for visual comparison and remaining acceptance evidence.
+**Accepted** · Workspace acceptance: owner-reported Windows 9/9, existing scoped Linux CI and X11 launch/close evidence, and deferred visual comparison passed in RUST-04 on a707bf5. Detailed unperformed manual cases remain documented in issue #10; no claim they passed.
 
 **Acceptance criteria**
 
 - Verify menus, docking, shortcuts, screen tabs and persistent project/workspace behavior.
 - Apply issue #10’s RUST-02 exception: owner-reported Windows functional checks, exact-head Linux CI, and actual Linux X11 launch/clean close satisfy the duplicate Linux functional checklist.
-- Record remaining detailed evidence and visual workspace acceptance, including prototype comparison or approved deviation, in issue #10.
+- Deferred visual workspace acceptance satisfied by owner-reported prototype fidelity PASS in RUST-04; retain issue #10 as historical evidence and tracking of unperformed detailed cases.
 
 **Dependencies**
 
 - [RUST-01](#rust-01) (merged)
 
-**Blockers**
-
-- Issue #10 remains open for visual acceptance and any required unverified detail. Owner-authorized RUST-04 engineering continuation is separate.
+**Acceptance** · Workspace acceptance: owner-reported Windows 9/9, existing scoped Linux CI and X11 launch/close evidence, and deferred visual comparison passed in RUST-04 on a707bf5. Detailed unperformed manual cases remain documented in issue #10; no claim they passed. (2026-11-25, [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md), [commit](https://github.com/kandyman991/HMIStudio/commit/a204ba08926ce4bc27a742d90602c27d5a7c4ab3))
 
 [PR #5](https://github.com/kandyman991/HMIStudio/pull/5) · merged · head [ee79956](https://github.com/kandyman991/HMIStudio/commit/ee7995608a9a254ce32a8bb634f288c5569b0cfa) · merged [d17f299](https://github.com/kandyman991/HMIStudio/commit/d17f299c4173f55e67bb30f0c9492f6c72039bf7) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45410721032](https://github.com/kandyman991/HMIStudio/actions/runs/45410721032) success, [Engineering handoff snapshot #45410721077](https://github.com/kandyman991/HMIStudio/actions/runs/45410721077) success
 
@@ -189,6 +187,7 @@ Records · [docs/WORKSPACE\_IMPLEMENTATION.md](WORKSPACE_IMPLEMENTATION.md) · [
 **History**
 
 - 2026-11-24 · note · Issue #10 records owner-reported Windows 9/9, an exception for duplicate manual Linux functional tests, and Linux X11 launch and clean-close smoke. Linux package-manager install, Wayland and some detailed Windows cases remain unverified. The owner authorized RUST-04 engineering continuation while visual acceptance remains open. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
+- 2026-11-25 · accepted · Workspace acceptance: owner-reported Windows 9/9, existing scoped Linux CI and X11 launch/close evidence, and deferred visual comparison passed in RUST-04 on a707bf5. Detailed unperformed manual cases remain documented in issue #10; no claim they passed. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-03a"></a>
 ### RUST-03A — Project model
@@ -224,22 +223,19 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 <a id="rust-04"></a>
 ### RUST-04 — Semantic layout editor
 
-**In progress** · Windows owner checklist: eight original passes on a707bf5 plus both targeted retest passes on the reported corrected installer; latest build a204ba0 verified. Linux manual evidence and final milestone acceptance remain open.
+**Accepted** · Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.
 
 **Acceptance criteria**
 
-- Verify visual component operations, nested constraints, alignment and responsive preview.
-- Complete manual desktop designer acceptance.
+- Verify supported visual component operations, nested flow constraints, alignment and documented preview limitations.
+- Manual Windows designer acceptance plus successful hosted Linux CI and DEB packaging; Linux installation and duplicate native designer interaction tests deferred by scoped owner decision on 2026-11-25.
 
 **Dependencies**
 
 - [RUST-02](#rust-02) (accepted) — Issue #10 covers desktop workspace acceptance.
 - [RUST-03B](#rust-03b) (merged)
 
-**Blockers**
-
-- Linux native designer acceptance or explicit scoped owner decision remains outstanding; RUST-02 Linux waiver does not extend to RUST-04.
-- Responsive/non-flow limitations remain explicit; formal acceptance must respect supported scope. Installed Windows binary not independently inspected.
+**Acceptance** · Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate. (2026-11-25, [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md), [commit](https://github.com/kandyman991/HMIStudio/commit/a204ba08926ce4bc27a742d90602c27d5a7c4ab3))
 
 [PR #13](https://github.com/kandyman991/HMIStudio/pull/13) · merged · head [f92a3af](https://github.com/kandyman991/HMIStudio/commit/f92a3af62d86df2eed15a8631d3a6d2bf7cb667b) · merged [0a74f65](https://github.com/kandyman991/HMIStudio/commit/0a74f65558392ce7e8cfb67202244057d7d3a2d9) · snapshot 2026-11-25T13:29:16Z · [Desktop CI #45619875538](https://github.com/kandyman991/HMIStudio/actions/runs/45619875538) success, [Engineering handoff snapshot #45619875565](https://github.com/kandyman991/HMIStudio/actions/runs/45619875565) success
 
@@ -255,6 +251,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · note · Verified PR #26 merged at dfd18a07a9c9 after independent review and exact-head Desktop CI and handoff. RUST-04C claim released; next action is native RUST-04 designer validation, not acceptance by inference. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · note · Owner Windows acceptance on a707bf568c9d71ade77fd3e6a9d457ef03f6f713, installer run 45640095067: 8 passed, 2 failed. Visual fidelity passed; drag/reorder and nested reparent failed. RUST-04 remains in progress; no acceptance inferred. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · note · Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · accepted · Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04a"></a>
 ### RUST-04A — Nested editing foundation

@@ -2,9 +2,9 @@
   "id": "RUST-04",
   "title": "Semantic layout editor",
   "track": "Engineering",
-  "phase": "in_progress",
+  "phase": "accepted",
   "counts": false,
-  "summary": "Windows owner checklist: eight original passes on a707bf5 plus both targeted retest passes on the reported corrected installer; latest build a204ba0 verified. Linux manual evidence and final milestone acceptance remain open.",
+  "summary": "Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.",
   "dependencies": [
     {
       "id": "RUST-02",
@@ -17,8 +17,8 @@
     }
   ],
   "criteria": [
-    "Verify visual component operations, nested constraints, alignment and responsive preview.",
-    "Complete manual desktop designer acceptance."
+    "Verify supported visual component operations, nested flow constraints, alignment and documented preview limitations.",
+    "Manual Windows designer acceptance plus successful hosted Linux CI and DEB packaging; Linux installation and duplicate native designer interaction tests deferred by scoped owner decision on 2026-11-25."
   ],
   "prs": [
     {
@@ -94,10 +94,18 @@
       "type": "note",
       "summary": "Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "accepted",
+      "summary": "Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
-  "blockers": [
-    "Linux native designer acceptance or explicit scoped owner decision remains outstanding; RUST-02 Linux waiver does not extend to RUST-04.",
-    "Responsive/non-flow limitations remain explicit; formal acceptance must respect supported scope. Installed Windows binary not independently inspected."
-  ]
+  "acceptance": {
+    "commit": "a204ba08926ce4bc27a742d90602c27d5a7c4ab3",
+    "date": "2026-11-25",
+    "summary": "Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.",
+    "record": "docs/LAYOUT_DESIGNER.md"
+  }
 }

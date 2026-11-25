@@ -2,9 +2,9 @@
   "id": "RUST-02",
   "title": "Workspace and desktop acceptance",
   "track": "Engineering",
-  "phase": "merged",
+  "phase": "accepted",
   "counts": true,
-  "summary": "RUST-02A/B/C merged. The owner reported Windows 9/9 and scoped the Linux evidence exception. Issue #10 remains open for visual comparison and remaining acceptance evidence.",
+  "summary": "Workspace acceptance: owner-reported Windows 9/9, existing scoped Linux CI and X11 launch/close evidence, and deferred visual comparison passed in RUST-04 on a707bf5. Detailed unperformed manual cases remain documented in issue #10; no claim they passed.",
   "dependencies": [
     {
       "id": "RUST-01",
@@ -14,7 +14,7 @@
   "criteria": [
     "Verify menus, docking, shortcuts, screen tabs and persistent project/workspace behavior.",
     "Apply issue #10’s RUST-02 exception: owner-reported Windows functional checks, exact-head Linux CI, and actual Linux X11 launch/clean close satisfy the duplicate Linux functional checklist.",
-    "Record remaining detailed evidence and visual workspace acceptance, including prototype comparison or approved deviation, in issue #10."
+    "Deferred visual workspace acceptance satisfied by owner-reported prototype fidelity PASS in RUST-04; retain issue #10 as historical evidence and tracking of unperformed detailed cases."
   ],
   "prs": [
     {
@@ -105,9 +105,6 @@
       "observedAt": "2026-11-25T09:01:59Z"
     }
   ],
-  "blockers": [
-    "Issue #10 remains open for visual acceptance and any required unverified detail. Owner-authorized RUST-04 engineering continuation is separate."
-  ],
   "docs": [
     "docs/WORKSPACE_IMPLEMENTATION.md",
     "docs/NATIVE_PERSISTENCE.md"
@@ -118,6 +115,18 @@
       "type": "note",
       "summary": "Issue #10 records owner-reported Windows 9/9, an exception for duplicate manual Linux functional tests, and Linux X11 launch and clean-close smoke. Linux package-manager install, Wayland and some detailed Windows cases remain unverified. The owner authorized RUST-04 engineering continuation while visual acceptance remains open.",
       "record": "CHAT_HANDOFF.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "accepted",
+      "summary": "Workspace acceptance: owner-reported Windows 9/9, existing scoped Linux CI and X11 launch/close evidence, and deferred visual comparison passed in RUST-04 on a707bf5. Detailed unperformed manual cases remain documented in issue #10; no claim they passed.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
-  ]
+  ],
+  "acceptance": {
+    "commit": "a204ba08926ce4bc27a742d90602c27d5a7c4ab3",
+    "date": "2026-11-25",
+    "summary": "Workspace acceptance: owner-reported Windows 9/9, existing scoped Linux CI and X11 launch/close evidence, and deferred visual comparison passed in RUST-04 on a707bf5. Detailed unperformed manual cases remain documented in issue #10; no claim they passed.",
+    "record": "docs/LAYOUT_DESIGNER.md"
+  }
 }

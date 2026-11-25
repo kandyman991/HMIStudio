@@ -253,3 +253,7 @@ Append or supersede entries when milestone state changes. Include date, source S
 
 - PR #27 merged at 3ab9d4644e2479bf6d9ede948e2a14ff1643f831 with exact-head Required CI and handoff successful. Reserved DEV-02 from that main. Fixed roadmap validator tests that depended on the mutable REUSE-02C.4A and RUST-01 records and live reservation context; synthetic fixtures retain rejection checks and explicitly test reservation eligibility.
 - Live synchronization verified PR #20 exact-head Desktop CI, Tag engine CI and handoff and merge ancestry; updated REUSE-02C.4A to merged and removed stale CI blocker. PR #24 remains conflicting; supersede only after corrected reconciliation is integrated. No acceptance or application changes.
+
+## RUST-04 native Windows acceptance — 2026-11-25
+
+- Owner tested Windows MSI from main a707bf568c9d71ade77fd3e6a9d457ef03f6f713, Desktop CI run 45640095067. Eight of ten checks passed, including original HTML visual fidelity; drag/reorder and nested reparent failed. Full checklist in docs/LAYOUT_DESIGNER.md. RUST-04 remains in progress and blocked; register RUST-04C.1, reserve exact scope after this record integrates, correct and retest. No overall acceptance or Linux acceptance inferred.

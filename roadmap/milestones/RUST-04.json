@@ -4,7 +4,7 @@
   "track": "Engineering",
   "phase": "in_progress",
   "counts": false,
-  "summary": "Original HTML reference, workspace alignment and supported direct semantic manipulation are integrated (PRs #13, #12, #25, #26). Combined native designer acceptance remains open.",
+  "summary": "Windows native acceptance on a707bf5: eight checks passed, two graphical move checks failed. Visual reference fidelity passed; overall acceptance remains blocked.",
   "dependencies": [
     {
       "id": "RUST-02",
@@ -49,7 +49,7 @@
   "issues": [
     {
       "number": 10,
-      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "label": "RUST-02 \u2014 Windows/Linux desktop milestone acceptance",
       "state": "open",
       "observedAt": "2026-11-25T09:01:59Z"
     }
@@ -82,9 +82,16 @@
       "type": "note",
       "summary": "Verified PR #26 merged at dfd18a07a9c9 after independent review and exact-head Desktop CI and handoff. RUST-04C claim released; next action is native RUST-04 designer validation, not acceptance by inference.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Owner Windows acceptance on a707bf568c9d71ade77fd3e6a9d457ef03f6f713, installer run 45640095067: 8 passed, 2 failed. Visual fidelity passed; drag/reorder and nested reparent failed. RUST-04 remains in progress; no acceptance inferred.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "blockers": [
-    "Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 and RUST-04C evidence. Responsive/non-flow limitations remain explicit."
+    "Windows component selection/drag/reorder and moving between nested containers failed on a707bf5. Correct in RUST-04C.1 and retest; overall native acceptance remains open.",
+    "Responsive/non-flow limitations remain explicit; remaining platform evidence must satisfy the RUST-04 acceptance gate."
   ]
 }

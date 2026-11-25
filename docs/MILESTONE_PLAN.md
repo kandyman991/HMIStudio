@@ -37,6 +37,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | Merged | [RUST-04B](#rust-04b) (merged) |
 | [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Merged | [RUST-04A](#rust-04a) (merged) |
+| [RUST-04C.1](#rust-04c.1) Native graphical manipulation corrections | Engineering | Planned | [RUST-04C](#rust-04c) (merged) |
 | [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | Merged | [RUST-04B.1](#rust-04b.1) (merged) |
 | [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged) |
 | [RUST-06](#rust-06) Engineering systems | Engineering | In progress | [RUST-03B](#rust-03b) (merged) |
@@ -223,7 +224,7 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 <a id="rust-04"></a>
 ### RUST-04 — Semantic layout editor
 
-**In progress** · Original HTML reference, workspace alignment and supported direct semantic manipulation are integrated (PRs #13, #12, #25, #26). Combined native designer acceptance remains open.
+**In progress** · Windows native acceptance on a707bf5: eight checks passed, two graphical move checks failed. Visual reference fidelity passed; overall acceptance remains blocked.
 
 **Acceptance criteria**
 
@@ -237,7 +238,8 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 
 **Blockers**
 
-- Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 and RUST-04C evidence. Responsive/non-flow limitations remain explicit.
+- Windows component selection/drag/reorder and moving between nested containers failed on a707bf5. Correct in RUST-04C.1 and retest; overall native acceptance remains open.
+- Responsive/non-flow limitations remain explicit; remaining platform evidence must satisfy the RUST-04 acceptance gate.
 
 [PR #13](https://github.com/kandyman991/HMIStudio/pull/13) · merged · head [f92a3af](https://github.com/kandyman991/HMIStudio/commit/f92a3af62d86df2eed15a8631d3a6d2bf7cb667b) · merged [0a74f65](https://github.com/kandyman991/HMIStudio/commit/0a74f65558392ce7e8cfb67202244057d7d3a2d9) · snapshot 2026-11-25T13:29:16Z · [Desktop CI #45619875538](https://github.com/kandyman991/HMIStudio/actions/runs/45619875538) success, [Engineering handoff snapshot #45619875565](https://github.com/kandyman991/HMIStudio/actions/runs/45619875565) success
 
@@ -251,6 +253,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · note · Verified PR #13 merged and its exact-head Desktop CI and handoff succeeded. Former reference reservation released; RUST-04B has its own active claim in the same group. Parent visual acceptance remains open. · [docs/reference/README.md](reference/README.md)
 - 2026-11-25 · note · PR #25 engineering integration verified; native visual comparison remains deferred to this parent milestone under D-008. Continue RUST-04C without claiming acceptance. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · note · Verified PR #26 merged at dfd18a07a9c9 after independent review and exact-head Desktop CI and handoff. RUST-04C claim released; next action is native RUST-04 designer validation, not acceptance by inference. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · note · Owner Windows acceptance on a707bf568c9d71ade77fd3e6a9d457ef03f6f713, installer run 45640095067: 8 passed, 2 failed. Visual fidelity passed; drag/reorder and nested reparent failed. RUST-04 remains in progress; no acceptance inferred. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04a"></a>
 ### RUST-04A — Nested editing foundation
@@ -341,6 +344,29 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · started · Reserved RUST-04B and reconciled predecessor 1dd36b5 with main 0a74f65 (original visual reference merged in PR #13). · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · completion proposed · Corrected preview numeric parsing, wrap alignment, hidden interaction, unsupported semantics, compact reference-based workspace and bounded fit/zoom. Local frontend and isolated browser validation passed; fresh hosted CI required. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · merged · Verified PR #12 merged at 9f20def9 and both exact-head hosted workflows succeeded. Visual acceptance remains separate.
+
+<a id="rust-04c.1"></a>
+### RUST-04C.1 — Native graphical manipulation corrections
+
+**Planned** · Correct Windows acceptance failures in semantic flow selection, drag/reorder and nested reparenting while preserving the accepted workspace appearance.
+
+**Acceptance criteria**
+
+- Reproduce and correct supported flow drag/reorder and nested reparenting; cover actual pointer/drop behavior, empty destinations, zoom and cancellation with regression tests.
+- Preserve validated model transactions, undo/redo and persistence; verify exact-head hosted CI and independent review.
+- Generate a corrected Windows installer and retest the failed interactions at the parent RUST-04 acceptance gate.
+
+**Dependencies**
+
+- [RUST-04C](#rust-04c) (merged)
+
+**Parent** · RUST-04
+
+Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+
+**History**
+
+- 2026-11-25 · note · Registered correction scope after owner reported two failures on native Windows build a707bf5; eight other checks including visual fidelity passed. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04c"></a>
 ### RUST-04C — Direct graphical manipulation

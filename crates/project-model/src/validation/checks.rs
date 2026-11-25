@@ -218,7 +218,7 @@ impl<'p> Validator<'p> {
 
     // ------------------------------------------------------------ identifiers
 
-    fn collect_ids(&self) -> Vec<(String, String)> {
+    pub(super) fn collect_ids(&self) -> Vec<(String, String)> {
         let p = self.p;
         let mut ids: Vec<(String, String)> = Vec::new();
         let mut push = |id: &str, path: String| ids.push((id.to_owned(), path));

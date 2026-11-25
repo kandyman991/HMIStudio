@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A started: O-3/O-4 and synthetic fixture scope approved; canonical model v2 contract and compatibility baseline first, then typed additions and migration.",
+  "summary": "REUSE-03A in progress: owner decisions and compatibility baseline; typed industrial/security declarations and staged semantic validation implemented. Current schema remains v1.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Schema v2 additions, typed commands, expression contract vectors and downstream validation are not implemented/frozen yet. Decoder mapping waits for the frozen schema."
+    "Canonical v2 integration, typed commands, action/enumeration/component and expression contracts, migration and downstream validation remain open. Decoder mapping waits for frozen schema."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -44,6 +44,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "First compatibility test and schema contract slice; v1 remains current until complete v2 implementation. Existing SiemensS7 declaration retained. No private source or fixtures transferred.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Implemented staged industrial/security declarations and deterministic validation, retaining v1 schema. Exact integer limits, command type/access, reference uniqueness, safe loopback and default false commissioning/write confirmation tested with seven synthetic cases. No runtime or policy enforcement claimed.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

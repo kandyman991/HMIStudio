@@ -10,6 +10,7 @@ pub mod industrial;
 pub mod layout;
 pub mod project;
 pub mod style;
+pub mod v2;
 
 pub use crate::id::*;
 pub use common::{Extensions, LocalizedText, TextKeyRef, ValueRange};

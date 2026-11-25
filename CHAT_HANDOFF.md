@@ -277,3 +277,7 @@ Owner approved lightweight independent consistency review for documentation/road
 ## REUSE-03A started — 2026-11-25
 
 Owner approved O-3, O-4 and synthetic-only O-1 fixture scope. Reserved REUSE-03 in RUST-05 group from main f86f433; initial compatibility tests and proposed model contract in docs/reuse/REUSE_03A_MODEL_V2.md. Keep schema v1 active until v2 is complete. No private transfer, decoder or runtime work. Next exact action: typed industrial/security additions and validated commands, then expression/action/catalog contracts and migration freeze.
+
+## REUSE-03A industrial/security declarations — 2026-11-25
+
+Typed candidate model and deterministic validation added; existing v1 serialization and behavior unchanged. Seven new synthetic regressions cover command and limit validation, loopback isolation and permission references. Conservative float32 narrowing refusal is a candidate engineering default, not production enforcement. Next exact action: complete typed engineering integration and remaining action/enumeration/component/expression contracts before schema activation. PR #35 remains draft.

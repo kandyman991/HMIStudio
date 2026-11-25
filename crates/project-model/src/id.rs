@@ -195,6 +195,15 @@ define_id!(
     NavigationItemId
 );
 
+define_id!(
+    /// Identifies a declared permission (candidate schema v2).
+    PermissionId
+);
+define_id!(
+    /// Identifies a declared role (candidate schema v2).
+    RoleId
+);
+
 /// Deterministic allocator for new identifiers.
 ///
 /// Editors use it to create identifiers for new objects. It produces

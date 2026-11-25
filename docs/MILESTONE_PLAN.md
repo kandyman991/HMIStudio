@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · REUSE-03A started: O-3/O-4 and synthetic fixture scope approved; canonical model v2 contract and compatibility baseline first, then typed additions and migration.
+**In progress** · REUSE-03A in progress: owner decisions and compatibility baseline; typed industrial/security declarations and staged semantic validation implemented. Current schema remains v1.
 
 **Acceptance criteria**
 
@@ -748,7 +748,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Schema v2 additions, typed commands, expression contract vectors and downstream validation are not implemented/frozen yet. Decoder mapping waits for the frozen schema.
+- Canonical v2 integration, typed commands, action/enumeration/component and expression contracts, migration and downstream validation remain open. Decoder mapping waits for frozen schema.
 
 **Assignment** · ChatGPT, feat/reuse-03a-canonical-v2 (recorded 2026-11-25T18:38:11Z)
 
@@ -758,6 +758,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 - 2026-11-25 · started · Owner approved O-3 model v2, O-4 expression contract 1, and O-1 synthetic-only initial fixtures. Reserved RUST-05 claim group for project-model/engineering-core on verified main f86f433. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 - 2026-11-25 · handoff · First compatibility test and schema contract slice; v1 remains current until complete v2 implementation. Existing SiemensS7 declaration retained. No private source or fixtures transferred. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Implemented staged industrial/security declarations and deterministic validation, retaining v1 schema. Exact integer limits, command type/access, reference uniqueness, safe loopback and default false commissioning/write confirmation tested with seven synthetic cases. No runtime or policy enforcement claimed. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

@@ -14,7 +14,9 @@
 
 mod checks;
 mod layout;
+mod v2;
 mod values;
+pub use v2::validate_v2_declarations;
 
 use serde::Serialize;
 

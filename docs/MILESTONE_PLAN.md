@@ -835,7 +835,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 ## Shared reservation snapshot
 
-- REUSE-03 · ChatGPT · feat/reuse-03a-canonical-v2 · 2026-11-25T19:25:37Z
+- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-25T20:55:06Z
 
 ## Engineering decisions
 

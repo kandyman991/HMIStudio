@@ -519,24 +519,82 @@ fn text(v: &Value) -> String {
             if n.fract() == 0.0 && n.abs() < 1e15 {
                 return (*n as i64).to_string();
             }
-            if n.abs() >= 1e7 || (n.abs() < 1e-3 && *n != 0.0) {
-                let s = format!("{n:e}");
-                if let Some((m, e)) = s.split_once('e') {
-                    return format!(
-                        "{}E{e}",
-                        if m.contains('.') {
-                            m.into()
-                        } else {
-                            format!("{m}.0")
-                        }
-                    );
-                }
-                s
+            // JVM Double.toString selects the nearest shortest decimal,
+            // with at least two significant digits for scientific notation.
+            // Rust's default shortest formatting differs at ties and at
+            // the smallest subnormal values. Select the first nearest
+            // rounded decimal that round-trips to the original binary64.
+            let scientific = shortest_jvm_decimal(*n);
+            let Some((mantissa, exponent)) = scientific.split_once('e') else {
+                return scientific;
+            };
+            if n.abs() >= 1e7 || n.abs() < 1e-3 {
+                return format!("{mantissa}E{exponent}");
+            }
+            // For the JVM plain-decimal interval, shift the decimal point
+            // without reparsing or re-rounding the selected digits.
+            let exponent = exponent.parse::<i32>().unwrap_or(0);
+            let unsigned = mantissa.trim_start_matches('-');
+            let digits = unsigned.replace('.', "");
+            let point = 1 + exponent;
+            let mut out = if point <= 0 {
+                format!("0.{}{digits}", "0".repeat((-point) as usize))
+            } else if point as usize >= digits.len() {
+                format!("{digits}{}", "0".repeat(point as usize - digits.len()))
             } else {
-                n.to_string()
+                let (left, right) = digits.split_at(point as usize);
+                format!("{left}.{right}")
+            };
+            if out.contains('.') {
+                out = out.trim_end_matches('0').trim_end_matches('.').to_owned();
+            }
+            if n.is_sign_negative() {
+                out.insert(0, '-');
+            }
+            out
+        }
+    }
+}
+/// Select the shortest round-tripping decimal, then the nearest candidate
+/// at that precision. At a binary power-of-two boundary the rounding
+/// interval is asymmetric, so the nearest rounded decimal can be outside
+/// the interval while its immediate decimal neighbor is inside.
+fn shortest_jvm_decimal(n: f64) -> String {
+    let matches = |s: &str| s.parse::<f64>().is_ok_and(|v| v.to_bits() == n.to_bits());
+    for precision in 1..=16 {
+        let nearest = format!("{n:.precision$e}");
+        if matches(&nearest) {
+            return nearest;
+        }
+        let Some((m, exp)) = nearest.split_once('e') else {
+            continue;
+        };
+        let Ok(exponent) = exp.parse::<i32>() else {
+            continue;
+        };
+        let negative = m.starts_with('-');
+        let Ok(significand) = m.trim_start_matches('-').replace('.', "").parse::<u64>() else {
+            continue;
+        };
+        for adjacent in [significand.saturating_sub(1), significand + 1] {
+            if adjacent == 0 {
+                continue;
+            }
+            let digits = adjacent.to_string();
+            let adjusted_exp = exponent + digits.len() as i32 - (precision as i32 + 1);
+            let fraction = &digits[1..];
+            let candidate = format!(
+                "{}{}.{}e{adjusted_exp}",
+                if negative { "-" } else { "" },
+                &digits[..1],
+                if fraction.is_empty() { "0" } else { fraction }
+            );
+            if matches(&candidate) {
+                return candidate;
             }
         }
     }
+    format!("{n:.16e}")
 }
 fn equal(a: &Value, b: &Value) -> bool {
     match (a, b) {

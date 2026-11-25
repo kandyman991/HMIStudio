@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A in progress: canonical v2 model, migration, placement and remapping; desktop valid-v2 admission, typed component editing, static preview and persistence regressions implemented.",
+  "summary": "REUSE-03A model-v2 review candidate: canonical model, migration, placement/remapping and desktop typed engineering preview implemented; measured Kotlin/JVM contract-1 conformance 12,664/12,664.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Cross-runtime expression conformance, exact-head hosted CI and independent review before schema freeze. Native visual acceptance and full renderer/instance, project-level declaration UI and runtime parity remain outstanding; cross-definition remap still restricted."
+    "Independent technical review of full final-head PR #35 and successful exact-head hosted CI before schema freeze. Explicit limitations: reusable-instance expression parameters, cross-definition reparenting, full project-level declaration UI and runtime capability integration. Legacy decoder mapping waits for frozen schema."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -84,6 +84,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Enabled valid v2 desktop admission, five static component previews, typed inspector/insert/duplicate operations and precise single-contract edits. Native host and frontend preflight validated locally using isolated harnesses; runtime capability refusal preserved. Native visual acceptance and conformance pending.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Compared actual pinned Kotlin/JVM contract-1 evaluator with Rust on 12,664 original synthetic vectors; fixed shortest decimal and asymmetric rounding-boundary formatting differences. All tested observations match; reproducible corpus and oracle harness retained, no private source transferred. Exact-head hosted CI and independent review required before schema freeze.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

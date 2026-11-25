@@ -301,3 +301,7 @@ Five typed leaf kinds now occupy canonical nodes with one matching contract. ins
 ## REUSE-03A desktop v2 engineering integration — 2026-11-25
 
 Valid v2 open/save/recovery, static five-component preview, typed inspector and insert/duplicate operations now integrated. Single-contract edits avoid full JS project round trip; deletion removes intrinsic contracts only. Runtime activation refusal unchanged. Frontend 23 tests via temporary transpilation and isolated native host 10 tests passed; full native Tauri/visual acceptance not claimed. Scope extended to src/ and tests/. Next exact action: cross-runtime expression conformance and exact-head hosted CI/technical review before schema freeze. PR #35 remains draft.
+
+## REUSE-03A expression conformance — 2026-11-25
+
+Pinned actual private Kotlin/JVM contract-1 oracle 92a612d compiled separately; 12,664 original synthetic vectors match Rust after numeric text formatting fixes. Public fixture replay is automated; no private source or project fixture transfer. Exact-head hosted CI and independent full technical review remain prerequisites for schema freeze; no runtime or Android parity claim. Next exact action: independently review final PR #35, correct any findings, verify exact-head checks, record freeze and merge only when gates satisfied. Reservation active.

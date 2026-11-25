@@ -493,6 +493,23 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
         }
 
         // --------------------------------------------------- definitions
+        Command::CreateIndustrialSymbol { kind } => {
+            let definition = hmi_project_model::symbols::build_symbol(*kind, &mut cx.alloc)
+                .map_err(|e| CommandError::InvalidArgument {
+                    message: format!("cannot allocate symbol: {e}"),
+                })?;
+            let id = definition.id.to_string();
+            cx.allocated
+                .insert(format!("{}:definition", cx.index), id.clone());
+            cx.changes.push(K::Added, E::ComponentDefinition, Some(id));
+            definition.root.walk(&mut |n| {
+                let id = n.id.to_string();
+                cx.allocated
+                    .insert(format!("{}:node:{id}", cx.index), id.clone());
+                cx.changes.push(K::Added, E::Node, Some(id));
+            });
+            p.components.push(definition);
+        }
         Command::CreateComponentDefinition { definition } => {
             let mut all = vec![definition.id.to_string()];
             all.extend(subtree_ids(&definition.root));

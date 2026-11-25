@@ -285,3 +285,7 @@ Typed candidate model and deterministic validation added; existing v1 serializat
 ## REUSE-03A expression/enumeration candidate — 2026-11-25
 
 Added staged typed Rust expression parser/type checker/snapshot evaluator and discrete enum mappings; eight new original synthetic test groups pass. Contract-1 numerical behavior is f64; refuse lossy canonical integer input. No Kotlin transfer or runtime binding; cross-runtime edge parity remains unverified. Next exact action: action/component contracts, canonical typed engineering integration and v1-to-v2 migration. PR #35 stays draft and reservation remains active.
+
+## REUSE-03A components/actions — 2026-11-25
+
+Added nine passive reusable symbol definitions and staged line/arrow/polygon/text-input/dropdown contracts, faceplate classification/arguments, ordered actions and dynamic startup resolution. Initial createIndustrialSymbol typed session command integrates allocation, undo/redo and atomic rollback using v1-compatible data. Classification/placement and remaining typed commands still need canonical integration; schema stays v1. Next exact action: canonical integration, reference/remap/transaction tests and strict migration activation. PR #35 remains draft; reservation active.

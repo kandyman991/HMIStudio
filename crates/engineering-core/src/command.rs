@@ -246,6 +246,11 @@ pub enum Command {
     },
 
     // ------------------------------------------------------ definitions
+    /// Creates an original passive industrial symbol using the shared typed model library.
+    #[serde(rename_all = "camelCase")]
+    CreateIndustrialSymbol {
+        kind: hmi_project_model::model::v2_components::IndustrialSymbolKind,
+    },
     /// Creates a reusable component definition.
     #[serde(rename_all = "camelCase")]
     CreateComponentDefinition {
@@ -349,6 +354,7 @@ impl Command {
             Command::DeleteTag { .. } => "deleteTag",
             Command::UpsertStyle { .. } => "upsertStyle",
             Command::DeleteStyle { .. } => "deleteStyle",
+            Command::CreateIndustrialSymbol { .. } => "createIndustrialSymbol",
             Command::CreateComponentDefinition { .. } => "createComponentDefinition",
             Command::UpdateComponentDefinitionInfo { .. } => "updateComponentDefinitionInfo",
             Command::SetComponentParameters { .. } => "setComponentParameters",

@@ -576,3 +576,46 @@ fn insert_with_assign_new_ids_never_collides() {
         }
     ));
 }
+
+#[test]
+fn industrial_symbol_command_uses_atomic_session_and_retired_ids() {
+    use hmi_project_model::model::v2_components::IndustrialSymbolKind;
+    let mut s = session(minimal());
+    let original = canonical(s.project());
+    let command: Command =
+        serde_json::from_value(json!({"op":"createIndustrialSymbol","kind":"motor"})).unwrap();
+    assert_eq!(
+        command,
+        Command::CreateIndustrialSymbol {
+            kind: IndustrialSymbolKind::Motor
+        }
+    );
+    let result = run(&mut s, vec![command.clone()]);
+    let first = result.allocated_ids["0:definition"].clone();
+    assert_eq!(s.project().components.last().unwrap().id.as_str(), first);
+    assert!(result
+        .changes
+        .contains(ChangeKind::Added, EntityKind::ComponentDefinition, &first));
+    assert!(validate(s.project()).is_valid());
+    assert_unique_ids(s.project());
+    let with_symbol = canonical(s.project());
+    s.undo(None).unwrap().unwrap();
+    assert_eq!(canonical(s.project()), original);
+    s.redo(None).unwrap().unwrap();
+    assert_eq!(canonical(s.project()), with_symbol);
+    s.undo(None).unwrap().unwrap();
+    let result = run(&mut s, vec![command]);
+    assert_ne!(result.allocated_ids["0:definition"], first);
+    assert_unique_ids(s.project());
+    let before = canonical(s.project());
+    let bad = Transaction::new(vec![
+        Command::CreateIndustrialSymbol {
+            kind: IndustrialSymbolKind::Pump,
+        },
+        Command::DeleteScreen {
+            screen: sid("missing-screen"),
+        },
+    ]);
+    assert!(s.execute(bad).is_err());
+    assert_eq!(canonical(s.project()), before);
+}

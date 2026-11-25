@@ -25,6 +25,7 @@ pub mod migration;
 pub mod model;
 pub mod schema;
 pub mod serialization;
+pub mod symbols;
 pub mod validation;
 
 pub use migration::{Migration, MigrationError, MigrationRegistry};

@@ -1010,7 +1010,12 @@ impl<'p> Validator<'p> {
         }
     }
 
-    fn check_action(&mut self, a: &Action, path: &str, def: Option<&ComponentDefinition>) {
+    pub(super) fn check_action(
+        &mut self,
+        a: &Action,
+        path: &str,
+        def: Option<&ComponentDefinition>,
+    ) {
         match a {
             Action::Navigate { screen } => {
                 self.check_screen_ref(

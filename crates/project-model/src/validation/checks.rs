@@ -310,7 +310,7 @@ impl<'p> Validator<'p> {
 
     // ------------------------------------------------------------------ index
 
-    fn build_index(&mut self) {
+    pub(super) fn build_index(&mut self) {
         let p = self.p;
         let ix = &mut self.ix;
         for s in &p.screens {

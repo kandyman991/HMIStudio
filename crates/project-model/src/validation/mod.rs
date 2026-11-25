@@ -16,7 +16,9 @@ mod checks;
 mod layout;
 mod v2;
 mod v2_bindings;
+mod v2_components;
 pub use v2_bindings::validate_v2_bindings;
+pub use v2_components::validate_v2_components;
 mod values;
 pub use v2::validate_v2_declarations;
 

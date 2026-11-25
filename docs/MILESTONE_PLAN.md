@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · REUSE-03A in progress: compatibility baseline, staged industrial/security declarations and read-only expression/enumeration candidate with validation implemented. Active schema remains v1.
+**In progress** · REUSE-03A in progress: compatibility baseline, staged industrial/security, expression/enumeration and component/action contracts; nine reusable symbol definitions and initial typed createIndustrialSymbol command implemented. Active schema remains v1.
 
 **Acceptance criteria**
 
@@ -748,7 +748,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Canonical v2 integration, typed commands, remaining action/component contracts, migration, downstream validation and cross-runtime expression parity remain open. Decoder mapping waits for frozen schema.
+- Canonical v2 integration, remaining typed commands, placement/reference/remapping semantics, migration, downstream validation and cross-runtime expression parity remain open. Decoder mapping waits for frozen schema.
 
 **Assignment** · ChatGPT, feat/reuse-03a-canonical-v2 (recorded 2026-11-25T18:38:11Z)
 
@@ -760,6 +760,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-25 · handoff · First compatibility test and schema contract slice; v1 remains current until complete v2 implementation. Existing SiemensS7 declaration retained. No private source or fixtures transferred. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 - 2026-11-25 · handoff · Implemented staged industrial/security declarations and deterministic validation, retaining v1 schema. Exact integer limits, command type/access, reference uniqueness, safe loopback and default false commissioning/write confirmation tested with seven synthetic cases. No runtime or policy enforcement claimed. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 - 2026-11-25 · handoff · Added bounded Rust expression contract-1 candidate, exact integer scalar admission, typed localized discrete enumeration definitions and reference/target validation; eight original synthetic test groups passed. Cross-runtime parity and canonical integration remain open. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Added nine original passive reusable symbol definitions, staged shape/input/faceplate/startup/action contracts and initial typed createIndustrialSymbol session command. Six component/action and one command regression groups passed. Canonical integration and activation remain open. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

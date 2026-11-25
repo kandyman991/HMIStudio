@@ -221,3 +221,8 @@ Append or supersede entries when milestone state changes. Include date, source S
 - PR #12 predecessor 1dd36b5 reconciled with main 0a74f65 (PR #13 original HTML reference merged). Scope reserved as RUST-04B under RUST-04. Corrected visual baseline, fit/zoom, hidden interaction and preview limits; no Rust/IPC/dependency changes.
 - Local 13 frontend tests, TypeScript, Vite and isolated Chromium fixture passed; details in docs/LAYOUT_DESIGNER.md. Original reference hash verified. No native visual acceptance, runtime parity or PLC operation claimed.
 - Fresh exact-head hosted Required CI and handoff required; previous passing runs do not carry over. Keep reservation until merge or explicit abandonment. RUST-04B.1 then RUST-04C planned in canonical roadmap.
+
+## RUST-04B.1 workspace alignment candidate — 2026-11-25
+- Verified main 9f20def9 (PR #12 merged; exact-head Desktop CI 45624121728 and handoff 45624121871 successful). PR #24 is conflicting with failed Required CI; leave separate. RUST-04B.1 scoped reservation recorded; canonical RUST-04B predecessor reconciled.
+- Reference menu hierarchy, dock/catalog/inspector chrome, command search, grid and minimum-height layout refined; no Rust/IPC/model/dependency changes. 14 frontend and 9 roadmap tests passed, TypeScript/Vite and isolated Chromium screenshot/interaction checks passed. See docs/LAYOUT_DESIGNER.md for metrics and limitations.
+- Actual native screenshot comparison still required (no local WebKitGTK development prerequisites or Xvfb); do not mark completion or owner acceptance. Submit draft, verify exact-head hosted CI and independent review, obtain native visual comparison, then integrate before RUST-04C.

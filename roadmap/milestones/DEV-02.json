@@ -1,0 +1,26 @@
+{
+  "id": "DEV-02",
+  "title": "Roadmap reconciliation regression fix",
+  "track": "Developer workflow",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.",
+  "dependencies": [
+    {
+      "id": "DEV-01",
+      "gate": "accepted"
+    }
+  ],
+  "criteria": [
+    "Replace the live proposal fixture with a deterministic synthetic proposal while preserving checks that reject false merge and acceptance claims.",
+    "Reconcile verified PR #20 evidence, remove stale blockers, regenerate both views, and pass roadmap regressions and exact-head hosted CI."
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Reconciliation after PR #26 found roadmap test 6 fails when REUSE-02C.4A moves from proposed to verified merged. Register a scoped follow-up before editing the executable test; leave the original observation unchanged until the fix merges.",
+      "record": "CHAT_HANDOFF.md"
+    }
+  ]
+}

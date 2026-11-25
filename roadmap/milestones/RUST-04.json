@@ -4,7 +4,7 @@
   "track": "Engineering",
   "phase": "in_progress",
   "counts": false,
-  "summary": "Original HTML reference and workspace alignment are integrated (PRs #13, #12, #25). Direct semantic manipulation is under development; combined native designer acceptance remains open.",
+  "summary": "Original HTML reference, workspace alignment and supported direct semantic manipulation are integrated (PRs #13, #12, #25, #26). Combined native designer acceptance remains open.",
   "dependencies": [
     {
       "id": "RUST-02",
@@ -76,9 +76,15 @@
       "type": "note",
       "summary": "PR #25 engineering integration verified; native visual comparison remains deferred to this parent milestone under D-008. Continue RUST-04C without claiming acceptance.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Verified PR #26 merged at dfd18a07a9c9 after independent review and exact-head Desktop CI and handoff. RUST-04C claim released; next action is native RUST-04 designer validation, not acceptance by inference.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "blockers": [
-    "Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 evidence."
+    "Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 and RUST-04C evidence. Responsive/non-flow limitations remain explicit."
   ]
 }

@@ -242,3 +242,4 @@ Append or supersede entries when milestone state changes. Include date, source S
 - Draft PR #26 opened at e59e154 as the supported base-flow completion candidate. Verify the latest head after the roadmap snapshot commit; do not treat this predecessor SHA as final CI evidence. Keep reservation until merge.
 
 - Independent PR #26 review of c7f384c against bfd81fc corrected nested resize grip hit-testing, low-zoom grip extent, stale viewport/source geometry detection and layout-affecting feedback. Fresh isolated frontend build and synthetic Chromium regression passed; see docs/LAYOUT_DESIGNER.md. Predecessor hosted CI passed but does not cover this correction. Require corrected-head CI before merge; native RUST-04 acceptance remains open.
+- Follow-up final diff review explicitly made the resize grip border-box, repeated the frontend build and browser fixture, and retained the exact-head CI gate.

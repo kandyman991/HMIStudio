@@ -62,6 +62,12 @@
       "type": "handoff",
       "summary": "Independent review of c7f384c corrected nested resize grip hit-testing, stale viewport/source geometry detection and layout-affecting feedback. Isolated frontend build and synthetic browser regression passed; corrected-head CI remains required.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Final diff review of 0c52d8d made the 12 dp grip border-box; frontend build and browser regression repeated, including computed-style assertion.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "proposal": "Supported base semantic flow manipulation candidate: pointer selection, reorder/reparent, constrained fixed-dp resize/snap, scroll pan and cross-axis alignment. Local tests pass; independent review and exact-head CI required. Native comparison remains at RUST-04 acceptance.",

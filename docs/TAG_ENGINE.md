@@ -24,7 +24,7 @@ convert to and from the same JSON value form used in project documents
 `crates/project-model` or `crates/engineering-core`.
 
 ```
-Project (RUST-03A) ──▶ TagEngine::new ──▶ value store (RwLock) ──▶ subscribers (mpsc)
+Project (RUST-03A) ──▶ TagEngine::new ──▶ value store (RwLock) ──▶ bounded subscribers
                               │                 ▲
                               ▼                 │ poll / write
                        per-connection runtime: Mutex<Box<dyn Driver>>, scan groups, status
@@ -40,7 +40,7 @@ Project (RUST-03A) ──▶ TagEngine::new ──▶ value store (RwLock) ─�
 | `TagEngine::new(&Project, &DriverRegistry, Arc<dyn Clock>, EngineConfig) -> (TagEngine, InitReport)` | Deterministic initialization (project order); configuration problems reported, never fatal. |
 | `read`, `read_member`, `read_device` | Cached value (with quality, timestamp, sequence), member of it, or a fresh grouped device read. |
 | `write`, `write_json`, `write_member`, `write_many` | Typed writes; access, type and range checks; grouped per connection. |
-| `subscribe(Option<&[TagId]>) -> (Subscription, Receiver<TagEvent>)` | Initial snapshot + ordered change events; RAII unsubscribe. |
+| `subscribe(Option<&[TagId]>) -> (Subscription, EventReceiver)` | Initial snapshot + ordered change events; RAII unsubscribe. |
 | `poll_due`, `poll_all` | Drive scan groups (manual mode) or force a refresh. |
 | `connection_status`, `capabilities` | Connection state and driver capabilities. |
 | `shutdown` (also on `Drop`) | Idempotent, deterministic stop. |
@@ -78,12 +78,10 @@ Project (RUST-03A) ──▶ TagEngine::new ──▶ value store (RwLock) ─�
 
 ## Subscriptions
 
-- On subscribe, the receiver gets one `changed` event per subscribed readable tag
-  (project order). After that come changes in global `sequence` order, and finally
-  `closed` at shutdown, after which the channel ends.
-- Unfiltered subscriptions also receive `connection` status events.
-- Dropping the `Subscription` or the `Receiver` unsubscribes.
-- Channels are unbounded `std::sync::mpsc` (see limitations).
+- Initial readable tag snapshots (project order), current connection status for unfiltered subscriptions, then a BaselineComplete generation marker. Pending updates retain sequence order; repeated changes to the same tag coalesce within an uninterrupted change segment.
+- Connection and lifecycle events are ordering barriers. Shutdown sends Closed when delivery remains valid. Dropping a subscription discards its backlog.
+- Bounds: 64 live subscriptions, 256 pending events and 4 MiB serialized payload per mailbox. Initial admission fails when a complete baseline cannot fit. Overflow discards pending events, emits ResyncRequired and disconnects; discard the invalid generation and resubscribe for a complete new baseline.
+- Latest-state delivery is not lossless history for alarms, audit or trending. See reuse/REUSE_02C2_BRIDGE_DISPATCH.md.
 
 ## Concurrency model
 
@@ -148,8 +146,7 @@ conflicting edits.
 
 - No physical drivers; `opcUa`, `siemensS7`, `modbusTcp` and `custom` connections are
   `unavailable` until a factory is registered.
-- Unbounded subscriber channels: a consumer that never reads grows memory. A bounded
-  or coalescing delivery policy is needed before UI integration (see validation gaps).
+- Bounded subscription limits are initial defaults; high-volume projects need sizing and load validation. Oversized initial snapshots are refused, not silently truncated.
 - Device writes are not transactional across items or connections.
 - No deadband or change filtering for analog values; every changed value notifies.
 - No alarm evaluation, recipe execution, action execution, history/trending or tag
@@ -185,4 +182,4 @@ conflicting edits.
 
 ### Review follow-up (PR #7)
 
-The reconciled implementation compares integer ranges and map keys exactly, refuses unsafe wide-integer linear transforms/inverses, checks operator property bounds, closes shutdown admission races, and preflights default value allocation against a conservative 100,000 expanded-node limit. See TAG_ENGINE_VALIDATION.md for evidence and remaining limits. This is a simulation-only foundation; no UI or physical-driver integration until subscriber back-pressure and bridge supervision are implemented.
+The reconciled implementation compares integer ranges and map keys exactly, refuses unsafe wide-integer linear transforms/inverses, checks operator property bounds, closes shutdown admission races, and preflights default value allocation against a conservative 100,000 expanded-node limit. See TAG_ENGINE_VALIDATION.md for evidence and remaining limits. This is a simulation-only foundation; no UI or physical-driver integration claimed. REUSE-02C.2 adds bounded delivery and isolated loopback recovery; general EngineDriver and UI integration remain separate.

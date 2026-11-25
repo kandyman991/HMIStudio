@@ -57,3 +57,10 @@ pub mod bridge_supervisor;
 
 /// Typed protocol-3 reply correlation and bounded event delivery.
 pub mod bridge_dispatch;
+
+/// Bounded latest-state subscription delivery.
+pub mod subscription;
+pub use subscription::EventReceiver;
+
+/// Isolated simulation bridge and generation-scoped recovery.
+pub mod bridge_simulation;

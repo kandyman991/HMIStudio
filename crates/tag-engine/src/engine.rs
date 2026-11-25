@@ -12,15 +12,14 @@
 //! 4. the subscriber table.
 //!
 //! Value updates and their notifications happen under the store's write
-//! lock, so every subscriber observes changes in the same global order
-//! (`sequence`), and a new subscriber's initial snapshot can never miss or
-//! duplicate a change. A poisoned lock (a panic in another thread) is
-//! recovered: every update is computed before it is assigned, so the
+//! lock, so retained changes stay in global sequence order. Pending values
+//! may be coalesced; overflow terminates delivery with a resync marker.
+//! A poisoned lock (a panic in another thread) is recovered: every update is computed before it is assigned, so the
 //! protected data is never half-written.
 
+use crate::subscription::{self, EventReceiver, Sender, MAX_PENDING, MAX_SUBSCRIPTIONS};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -123,6 +122,10 @@ pub enum TagEvent {
     },
     /// The engine shut down; no further events follow.
     Closed,
+    /// Complete initial snapshot boundary for this subscription generation.
+    BaselineComplete { generation: u64 },
+    /// Mailbox overflow; discard cached state and subscribe again.
+    ResyncRequired,
 }
 
 /// Tag operation error.
@@ -195,6 +198,9 @@ pub enum TagError {
         /// Details.
         message: String,
     },
+    /// Subscription count or initial snapshot exceeds the delivery budget.
+    #[error("subscription capacity exceeded")]
+    SubscriptionCapacity,
     /// Engine shut down.
     #[error("tag engine is shut down")]
     ShutDown,
@@ -271,7 +277,7 @@ struct ConnRt {
 
 struct Subscriber {
     filter: Option<BTreeSet<TagId>>,
-    tx: Sender<TagEvent>,
+    tx: Sender,
 }
 
 struct Inner {
@@ -321,7 +327,9 @@ impl Subscription {
 impl Drop for Subscription {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.upgrade() {
-            lock(&inner.subs).remove(&self.id);
+            if let Some(sub) = lock(&inner.subs).remove(&self.id) {
+                sub.tx.cancel();
+            }
         }
     }
 }
@@ -846,12 +854,15 @@ impl TagEngine {
 
     /// Subscribes to changes of `tags` (`None` = every tag and connection).
     /// The receiver first gets one `changed` event per subscribed tag with
-    /// its current state, then changes in global order, and finally
-    /// `closed` at shutdown. Write-only tags are never reported.
+    /// its current state, current connection statuses (unfiltered only),
+    /// and a BaselineComplete marker, then retained changes in global order. Pending
+    /// changes to the same tag can coalesce. Overflow emits ResyncRequired
+    /// and disconnects; resubscribe for a fresh atomic baseline.
+    /// Write-only tags are never reported.
     pub fn subscribe(
         &self,
         tags: Option<&[TagId]>,
-    ) -> Result<(Subscription, Receiver<TagEvent>), TagError> {
+    ) -> Result<(Subscription, EventReceiver), TagError> {
         self.inner.ensure_running()?;
         let filter = match tags {
             None => None,
@@ -866,16 +877,37 @@ impl TagEngine {
                         });
                     }
                     set.insert(t.clone());
+                    if set.len() >= MAX_PENDING {
+                        return Err(TagError::SubscriptionCapacity);
+                    }
                 }
                 Some(set)
             }
         };
-        let (tx, rx) = mpsc::channel();
-        let id = self.inner.next_sub.fetch_add(1, Ordering::SeqCst);
+        let (tx, rx) = subscription::channel();
+        let id = self
+            .inner
+            .next_sub
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_add(1))
+            .map_err(|_| TagError::SubscriptionCapacity)?;
+        // Lock status before values and subscriber table, following the global lock
+        // order. Hold through admission so status notifications cannot overtake baseline.
+        if filter.is_none() && self.inner.conns.len() >= MAX_PENDING {
+            return Err(TagError::SubscriptionCapacity);
+        }
+        let statuses: Vec<_> = if filter.is_none() {
+            self.inner.conns.iter().map(|c| lock(&c.status)).collect()
+        } else {
+            Vec::new()
+        };
         // Values read lock, then subscriber lock: no update can interleave.
         let values = read(&self.inner.values);
         let mut subs = lock(&self.inner.subs);
         self.inner.ensure_running()?;
+        subs.retain(|_, sub| !sub.tx.receiver_gone());
+        if subs.len() >= MAX_SUBSCRIPTIONS {
+            return Err(TagError::SubscriptionCapacity);
+        }
         for t in &self.inner.order {
             let readable = self
                 .inner
@@ -884,12 +916,22 @@ impl TagEngine {
                 .is_some_and(|d| d.tag.access.readable());
             if readable && filter.as_ref().is_none_or(|f| f.contains(t)) {
                 if let Some(s) = values.get(t) {
-                    let _ = tx.send(TagEvent::Changed {
+                    tx.send(TagEvent::Changed {
                         snapshot: Inner::snap(t, s),
-                    });
+                    })
+                    .map_err(|_| TagError::SubscriptionCapacity)?;
                 }
             }
         }
+        for (c, status) in self.inner.conns.iter().zip(statuses.iter()) {
+            tx.send(TagEvent::Connection {
+                connection: c.id.clone(),
+                status: (**status).clone(),
+            })
+            .map_err(|_| TagError::SubscriptionCapacity)?;
+        }
+        tx.send(TagEvent::BaselineComplete { generation: id })
+            .map_err(|_| TagError::SubscriptionCapacity)?;
         subs.insert(id, Subscriber { filter, tx });
         drop(subs);
         drop(values);
@@ -1062,13 +1104,13 @@ impl Inner {
     }
 
     fn set_status(&self, c: &ConnRt, status: ConnectionStatus) {
-        {
-            let mut st = lock(&c.status);
-            if *st == status {
-                return;
-            }
-            *st = status.clone();
+        let mut st = lock(&c.status);
+        if *st == status {
+            return;
         }
+        *st = status.clone();
+        // Keep the status guard until notifications are enqueued, so an initial
+        // snapshot cannot observe the new status before an older notification.
         let mut subs = lock(&self.subs);
         subs.retain(|_, s| {
             if s.filter.is_some() {

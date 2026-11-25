@@ -176,8 +176,48 @@ impl Supervisor {
         result
     }
 
+    // Only the isolated loopback wrapper may configure/start. No arbitrary endpoint,
+    // credentials or write operation is exposed through this API.
+    pub(crate) fn start_loopback(
+        &mut self,
+        points: &[crate::bridge_simulation::SimPoint],
+        deadline: Instant,
+    ) -> io::Result<()> {
+        let remaining = || {
+            deadline
+                .checked_duration_since(Instant::now())
+                .filter(|d| !d.is_zero())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "baseline timeout"))
+        };
+        let config_points: Vec<_> = points
+            .iter()
+            .map(|p| {
+                json!({
+                    "mappingId": p.id, "variableId": p.id, "sourceId": "isolated-loopback",
+                    "address": p.id, "valueType": p.kind, "access": "READ", "writeConfirmed": false
+                })
+            })
+            .collect();
+        let config = json!({"type":"configure","config":{"version":1,
+            "sources":[{"id":"isolated-loopback","driver":"loopback","settings":{}}],
+            "points":config_points}});
+        if !matches!(
+            self.exchange(config, ReplyKind::Ok, remaining()?)?,
+            Message::Ok { .. }
+        ) || !matches!(
+            self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?)?,
+            Message::Ok { .. }
+        ) {
+            self.invalidate()?;
+            return Err(io::Error::other(
+                "isolated loopback configuration/start rejected",
+            ));
+        }
+        Ok(())
+    }
+
     /// Read-only protocol operation, for isolated fixture testing. The supervisor does
-    /// not expose configure/start or write commands in this slice.
+    /// not expose arbitrary configure/start or write commands.
     pub fn browse(
         &mut self,
         source_id: &str,

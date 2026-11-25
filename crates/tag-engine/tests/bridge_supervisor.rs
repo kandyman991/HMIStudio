@@ -166,3 +166,37 @@ fn closed_stdout_invalidates_even_if_child_remains_alive() -> io::Result<()> {
     assert!(!s.is_alive()?);
     Ok(())
 }
+
+#[test]
+fn incomplete_simulation_baseline_times_out_without_publication() -> io::Result<()> {
+    use hmi_tag_engine::bridge_dispatch::ValueType;
+    use hmi_tag_engine::bridge_simulation::{SimPoint, SimulationBridge};
+    let fixture = Fixture::new(&format!(
+        r#"{HELLO}; read -r line; printf '%s\n' '{{"type":"ok","id":2}}'; read -r line; printf '%s\n' '{{"type":"ok","id":3}}' '{{"type":"sourceState","sourceId":"isolated-loopback","state":"CONNECTED"}}' '{{"type":"values","values":[{{"variableId":"a","quality":"GOOD","value":{{"type":"long","value":7}}}}]}}'; exec sleep 60"#
+    ))?;
+    let mut bridge = SimulationBridge::default();
+    let points = [
+        SimPoint {
+            id: "a".into(),
+            kind: ValueType::Long,
+        },
+        SimPoint {
+            id: "b".into(),
+            kind: ValueType::Bool,
+        },
+    ];
+    let mut attempts = 0;
+    let err = loop {
+        match bridge.resynchronize(&fixture.path(), &points, Duration::from_millis(500)) {
+            Err(e) if e.kind() == io::ErrorKind::ExecutableFileBusy && attempts < 50 => {
+                attempts += 1;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(e) => break e,
+            Ok(_) => return Err(io::Error::other("incomplete baseline was published")),
+        }
+    };
+    assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+    assert!(bridge.refresh().is_err());
+    Ok(())
+}

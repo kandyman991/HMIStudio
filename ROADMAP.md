@@ -33,4 +33,4 @@ REUSE-02A merged in #15 (`5173d9a`), legacy fixture #57 merged. REUSE-02B is a s
 
 REUSE-02B merged in PR #16 at `78f3a64`, exact-head CI and advisory gate passed. REUSE-02C requires PR #7, bounded subscriptions and supervised protocol bridge; no hardware acceptance yet.
 
-REUSE-02C.1 merged in PR #17 (`dbdeeb2`), including bounded bridge supervision and independent pulse-starvation correction. RUST-06A tag foundation merged in PR #7. REUSE-02C.2 typed dispatch foundation candidate; bounded/coalesced tag subscriptions and full resync remain open. See docs/reuse/REUSE_02C2_BRIDGE_DISPATCH.md. No physical PLC acceptance.
+REUSE-02C.1 merged in PR #17 (`dbdeeb2`), including bounded bridge supervision and independent pulse-starvation correction. RUST-06A tag foundation merged in PR #7. REUSE-02C.2 PR #18 completion candidate: bounded/coalesced subscriptions and generation-scoped isolated loopback resync implemented and locally tested; exact-head hosted CI and independent review pending. General EngineDriver and physical-source integration remain separate. See docs/reuse/REUSE_02C2_BRIDGE_DISPATCH.md. No physical PLC acceptance.

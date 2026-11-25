@@ -88,7 +88,14 @@ fn concurrent_reads_and_writes_never_observe_torn_values() {
         seqs.windows(2).all(|w| w[0] < w[1]),
         "notifications in global order"
     );
-    assert!(seqs.len() > 1000, "{}", seqs.len());
+    // The consumer deliberately did not drain during the burst. Latest-state
+    // delivery keeps one final value per tag, not a historical audit log.
+    assert_eq!(seqs.len(), 2);
+    for e in ev {
+        if let TagEvent::Changed { snapshot } = e {
+            assert_eq!(snapshot, r.engine.read(&snapshot.tag).unwrap());
+        }
+    }
 }
 
 #[test]

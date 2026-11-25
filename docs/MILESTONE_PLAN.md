@@ -13,7 +13,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | --- | --- | --- | --- |
 | [CI-02](#ci-02) Change-aware CI | Developer workflow | Merged | — |
 | [DEV-01](#dev-01) Living development roadmap | Developer workflow | Accepted | — |
-| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | Proposed completion | [DEV-01](#dev-01) (accepted) |
+| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | Merged | [DEV-01](#dev-01) (accepted) |
 | [REUSE-01](#reuse-01) Inventory and compatibility audit | Reuse | Merged | — |
 | [REUSE-02](#reuse-02) Engine bridge and delivery | Reuse | In progress | [REUSE-01](#reuse-01) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02A](#reuse-02a) Pinned engine preflight | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
@@ -94,7 +94,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 <a id="dev-02"></a>
 ### DEV-02 — Roadmap reconciliation regression fix
 
-**Proposed completion** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
+**Merged** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
 
 **Acceptance criteria**
 
@@ -105,11 +105,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 
 - [DEV-01](#dev-01) (accepted)
 
-**Assignment** · ChatGPT, fix/dev-02-roadmap-regression (recorded 2026-11-25T14:23:35Z)
-
-**Proposal** · Corrected regression fixtures and verified PR #20 reconciliation candidate; 10 JavaScript and 9 Python roadmap tests passed, exact-head hosted CI and independent review pending.
-
-[PR #28](https://github.com/kandyman991/HMIStudio/pull/28) · draft · head [8f970ff](https://github.com/kandyman991/HMIStudio/commit/8f970ff9a63a74232a033385847e213687e309a7) · snapshot 2026-11-25T14:24:31Z · CI unrecorded
+[PR #28](https://github.com/kandyman991/HMIStudio/pull/28) · merged · head [445f0cf](https://github.com/kandyman991/HMIStudio/commit/445f0cf2e4471a983eb301e3126c6dc43b50680c) · merged [8cf75d3](https://github.com/kandyman991/HMIStudio/commit/8cf75d3f710e271d2855dd52deaf1382e58da1f3) · snapshot 2026-11-25T14:54:12Z · [Desktop CI #45633744927](https://github.com/kandyman991/HMIStudio/actions/runs/45633744927) success, [Engineering handoff snapshot #45633745156](https://github.com/kandyman991/HMIStudio/actions/runs/45633745156) success
 
 **History**
 
@@ -117,6 +113,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 - 2026-11-25 · started · Reserved exact roadmap test scope from verified main 3ab9d46; reproduced mutable proposal regression and identified additional live reservation dependence in validator fixtures. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 - 2026-11-25 · handoff · Replaced mutable milestone fixtures with synthetic proposal and merge evidence, isolated fixture validation from live claims, added explicit reservation regression and reconciled verified PR #20. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 - 2026-11-25 · completion proposed · Draft PR #28 opened after all local roadmap regressions passed. Verify final-head hosted CI and independent review before integration. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
+- 2026-11-25 · merged · GitHub verified designated completion PR #28 merged at 8cf75d3f710e with successful recorded exact-head workflows. Acceptance remains separate.
 
 ## Engineering
 
@@ -789,10 +786,6 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Parent** · RUST-08
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
-
-## Shared reservation snapshot
-
-- DEV-02 · ChatGPT · fix/dev-02-roadmap-regression · 2026-11-25T14:23:35Z
 
 ## Engineering decisions
 

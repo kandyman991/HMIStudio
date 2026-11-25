@@ -261,3 +261,15 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## RUST-04C.1 correction candidate — 2026-11-25
 
 - PR #30 merged at 55b3f04; reserved RUST-04C.1 on fix/rust-04c1-native-drag. Reproduced compact center drag misclassified as resize and zero-area empty flow target in predecessor frontend. Corrected grip geometry, empty auto-flow editor target, main-axis background insertion and capture/focus handling. Local 20 frontend tests, TypeScript/Vite and rendered synthetic browser pointer and prior resize regression passed. See docs/LAYOUT_DESIGNER.md for evidence and retest steps. Independent review and exact-head hosted CI required; native Windows retest remains outstanding and RUST-04 blocked.
+
+## RUST-04C.1 Windows retest — 2026-11-25
+
+- Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred. See docs/LAYOUT_DESIGNER.md. RUST-04 remains in progress; next action resolve remaining Linux native evidence or scoped owner decision, then formal acceptance under D-008.
+
+## RUST-04 scoped acceptance — 2026-11-25
+
+- Owner directed skipping Linux installation and removing it as an acceptance prerequisite. RUST-04 accepted for supported designer scope on cumulative owner Windows 10/10 and verified successful build a204ba0 (run 45652237283); Linux installation/manual interactions deferred, not passed. RUST-02 deferred visual fidelity gate satisfied by prior Windows visual PASS; retain historical issue #10 limitations. RUST-05 acceptance dependency on RUST-04 is satisfied; remaining reuse prerequisites unchanged. See D-008 follow-up and docs/LAYOUT_DESIGNER.md.
+
+## Review depth decision — 2026-11-25
+
+Owner approved lightweight independent consistency review for documentation/roadmap-only PRs; full technical review remains required for implementation or control changes. Both retain exact-head Required CI, handoff and applicable gates. Apply to PR #34 evidence with explicit scrutiny of its owner-approved policy changes; do not self-exempt.

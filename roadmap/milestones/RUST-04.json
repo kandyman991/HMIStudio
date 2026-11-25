@@ -2,9 +2,9 @@
   "id": "RUST-04",
   "title": "Semantic layout editor",
   "track": "Engineering",
-  "phase": "in_progress",
+  "phase": "accepted",
   "counts": false,
-  "summary": "Windows native acceptance on a707bf5: eight checks passed, two graphical move checks failed. Visual reference fidelity passed; overall acceptance remains blocked.",
+  "summary": "Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.",
   "dependencies": [
     {
       "id": "RUST-02",
@@ -17,8 +17,8 @@
     }
   ],
   "criteria": [
-    "Verify visual component operations, nested constraints, alignment and responsive preview.",
-    "Complete manual desktop designer acceptance."
+    "Verify supported visual component operations, nested flow constraints, alignment and documented preview limitations.",
+    "Manual Windows designer acceptance plus successful hosted Linux CI and DEB packaging; Linux installation and duplicate native designer interaction tests deferred by scoped owner decision on 2026-11-25."
   ],
   "prs": [
     {
@@ -49,7 +49,7 @@
   "issues": [
     {
       "number": 10,
-      "label": "RUST-02 \u2014 Windows/Linux desktop milestone acceptance",
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
       "state": "open",
       "observedAt": "2026-11-25T09:01:59Z"
     }
@@ -88,10 +88,24 @@
       "type": "note",
       "summary": "Owner Windows acceptance on a707bf568c9d71ade77fd3e6a9d457ef03f6f713, installer run 45640095067: 8 passed, 2 failed. Visual fidelity passed; drag/reorder and nested reparent failed. RUST-04 remains in progress; no acceptance inferred.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "accepted",
+      "summary": "Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
-  "blockers": [
-    "Windows component selection/drag/reorder and moving between nested containers failed on a707bf5. Correct in RUST-04C.1 and retest; overall native acceptance remains open.",
-    "Responsive/non-flow limitations remain explicit; remaining platform evidence must satisfy the RUST-04 acceptance gate."
-  ]
+  "acceptance": {
+    "commit": "a204ba08926ce4bc27a742d90602c27d5a7c4ab3",
+    "date": "2026-11-25",
+    "summary": "Accepted for the supported designer scope: cumulative owner-reported Windows 10/10 across original and targeted retest sessions; latest corrected installer provenance verified, installed binary not independently inspected. Owner explicitly deferred Linux installation and manual designer acceptance as a milestone gate; Linux CI and DEB build passed. Unsupported layout/runtime parity and later platform acceptance remain separate.",
+    "record": "docs/LAYOUT_DESIGNER.md"
+  }
 }

@@ -4,6 +4,7 @@ use hmi_project_model::{model::Project, serialization::load_project};
 mod graphics;
 mod industrial;
 mod navigation;
+mod primitives;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -146,6 +147,7 @@ struct Mapping {
     findings: BTreeMap<String, Finding>,
     ids: BTreeMap<String, String>,
     used: BTreeSet<String>,
+    contracts: Vec<Value>,
 }
 impl Mapping {
     fn mark(&mut self, p: &str, t: &str) {
@@ -239,6 +241,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         findings: BTreeMap::new(),
         ids: BTreeMap::new(),
         used: BTreeSet::from([project_id.clone()]),
+        contracts: Vec::new(),
     };
     if !leaves(&v, "", &mut m.findings) {
         return stop(report, "leaf-or-path-limit");
@@ -462,6 +465,9 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
     industrial::map(v, &mut doc, m)?;
     graphics::finish(v, &mut doc, m)?;
     navigation::map(v, &mut doc, m)?;
+    if !m.contracts.is_empty() {
+        doc["v2"]["components"]["components"] = json!(m.contracts);
+    }
     doc["extensions"]["hmiforge.idMap"] = json!(m.ids);
     load_project(&doc.to_string()).ok().map(|x| x.project)
 }

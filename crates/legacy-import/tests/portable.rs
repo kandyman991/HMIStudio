@@ -529,3 +529,56 @@ fn ordered_navigation_declarations_and_reference_remapping() {
             .is_none());
     }
 }
+
+#[test]
+fn fixed_frame_primitives_and_refusals() {
+    let mut f = fixture(7);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("line");
+    c["properties"] = json!({"points":"0,50 100,50","strokeColor":"#123456","strokeWidth":"2","strokeStyle":"SOLID"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let contract = &d["v2"]["components"]["components"][0]["contract"];
+    assert_eq!(contract["start"]["x"], 1.0);
+    assert_eq!(contract["end"]["x"], 99.0);
+    assert_eq!(contract["start"]["y"], 10.0);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("polygon");
+    c["properties"]["points"] = json!("0,0 100,0 50,100");
+    c["properties"]["fillColor"] = json!("#FFFFFF");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["strokeStyle"] = json!("DASHED");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+
+#[test]
+fn passive_symbol_and_single_column_grid() {
+    let mut f = fixture(7);
+    f["variables"]["label-a"]["type"] = json!("BOOL");
+    f["variables"]["fault"] = json!({"id":"fault","path":"Fault","type":"BOOL"});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("motor");
+    c["properties"] = json!({});
+    c["bindings"] = json!({"running":"label-a","fault":"fault"});
+    f["screens"]["screen/a"]["layout"] = json!({"root":{"node":"stack","id":"outer","direction":"GRID","columns":1,"children":[{"node":"component","componentId":"label-a"}]}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(d["screens"][0]["root"]["element"]["type"], "column");
+    assert_eq!(
+        d["v2"]["components"]["definitions"][0]["classification"]["symbol"],
+        "motor"
+    );
+    assert_eq!(
+        d["screens"][0]["root"]["children"][0]["element"]["definition"],
+        d["components"][0]["id"]
+    );
+    f["screens"]["screen/a"]["components"]["label-a"]["bindings"]["start"] = json!("fault");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

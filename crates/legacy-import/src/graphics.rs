@@ -32,6 +32,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "numericField" => "numericDisplay",
         "indicator" => "indicator",
         "composite" => "instance",
+        "line" => "line",
+        "polygon" => "polygon",
+        "motor" | "conveyor" | "valve" | "pump" => "instance",
         _ => return refuse(m, &path(p, "type"), "component-kind-not-mapped"),
     };
     let id = m.id(&path(p, "id"), key, "node");
@@ -70,6 +73,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         mark(m, p, "geometry", t, "layout");
     }
     let mut props = json!({});
+    if matches!(kind, "line" | "polygon") {
+        super::primitives::shape(v, p, &id, geo[2] as f32, geo[3] as f32, m)?;
+    }
     if let Some(x) = v.get("properties") {
         let o = x.as_object()?;
         if o.is_empty() {
@@ -172,6 +178,8 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     // Instance definition is resolved in the second pass.
     let element = if kind == "composite" {
         json!({"type":"instance","definition":v.get("componentDefinitionId")?.as_str()?})
+    } else if super::primitives::symbol_kind(kind).is_some() {
+        json!({"type":"instance","definition":"pending-symbol"})
     } else {
         json!({"type":"component","kind":canonical})
     };
@@ -241,6 +249,9 @@ impl Layout<'_> {
                 let row = match dir {
                     "ROW" => true,
                     "COLUMN" => false,
+                    "GRID" if self.ver >= 3 && v.get("columns").and_then(Value::as_u64) == Some(1) => {
+                        false
+                    }
                     _ => {
                         return refuse(
                             m,
@@ -259,10 +270,10 @@ impl Layout<'_> {
                 mark(m, p, "gapDp", &format!("{t}/element"), "spacing");
                 mark(m, p, "paddingDp", &format!("{t}/layout"), "padding");
                 if let Some(x) = v.get("columns") {
-                    if x.as_i64() != Some(0) {
+                    if x.as_i64() != Some(0) && !(dir == "GRID" && x.as_i64() == Some(1)) {
                         return None;
                     }
-                    mark(m, p, "columns", t, "element");
+                    approximate(m, &path(p, "columns"), &format!("{t}/element"));
                 }
                 let children = v.get("children")?.as_array()?;
                 let mut out = Vec::new();
@@ -295,6 +306,9 @@ impl Layout<'_> {
                 })?;
                 let source = self.source.get(key)?;
                 let np = path(&self.p, key);
+                if matches!(source["type"].as_str(), Some("line" | "polygon")) {
+                    return refuse(m, &np, "relative-primitive-layout-not-representable");
+                }
                 if source.get("visible").and_then(Value::as_bool) == Some(false)
                     || source
                         .get("bindings")
@@ -729,6 +743,9 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
+                    if super::primitives::symbol_kind(e["type"].as_str()?).is_some() {
+                        return refuse(m, &ep, "nested-industrial-symbol-not-mapped");
+                    }
                     let mut n = component(e, key, &ep, &et, m)?;
                     resolve_instance(e, &mut n, &ep, &et, m, &def_ids)?;
                     parameter_bindings(e, &mut n, &ep, &et, m, &param_types)?;
@@ -753,7 +770,8 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         .iter()
         .map(|d| Some((d["id"].as_str()?.to_owned(), d["parameters"].clone())))
         .collect::<Option<_>>()?;
-    doc["components"] = json!(definitions);
+    let mut symbol_defs = Vec::new();
+    let mut classifications = Vec::new();
     for (i, s) in doc["screens"].as_array_mut()?.iter_mut().enumerate() {
         let (key, source) = v["screens"].as_object()?.iter().find(|(k, _)| {
             m.ids
@@ -779,6 +797,11 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                         def_params.get(n["element"]["definition"].as_str()?)?,
                         &ids,
                     )?;
+                } else if let Some(kind) = super::primitives::symbol_kind(c["type"].as_str()?) {
+                    let index = definitions.len() + symbol_defs.len();
+                    let (def, class) = super::primitives::symbol(c, n, &cp, &nt, kind, &ids, index, m)?;
+                    symbol_defs.push(def);
+                    classifications.push(class);
                 } else {
                     bindings(
                         c,
@@ -838,6 +861,11 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
             }
             enums.push(json!({"id":id,"name":name,"dataType":"int64","entries":entries}));
         }
+    }
+    definitions.extend(symbol_defs);
+    doc["components"] = json!(definitions);
+    if !classifications.is_empty() {
+        doc["v2"]["components"]["definitions"] = json!(classifications);
     }
     doc["v2"]["bindings"] = json!({"expressions":expr,"enumerations":enums});
     Some(())

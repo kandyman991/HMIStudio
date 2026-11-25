@@ -269,12 +269,15 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 **Assignment** · ChatGPT, feat/rust-04b1-workspace-alignment (recorded 2026-11-25T13:44:30Z)
 
+[PR #25](https://github.com/kandyman991/HMIStudio/pull/25) · draft · head [35451c5](https://github.com/kandyman991/HMIStudio/commit/35451c5567ab1fc3bd0f7b9357b7e8f2d4776621) · snapshot 2026-11-25T13:48:37Z · CI unrecorded
+
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/README.md](reference/README.md)
 
 **History**
 
 - 2026-11-25 · started · Reserved RUST-04B.1 from verified main 9f20def9; PR #24 is conflicting and has failing checks; reconcile the verified prerequisite locally. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Implemented reference-aligned menus, workspace chrome, catalog/action search and responsive minimum-height correction. Frontend and roadmap tests and isolated browser fixture passed; native comparison pending. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · handoff · Draft PR #25 opened for the implementation candidate; native screenshot comparison, final exact-head CI and independent review are outstanding. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04b"></a>
 ### RUST-04B — Model-driven layout rendering

@@ -46,10 +46,26 @@
       "type": "handoff",
       "summary": "Implemented reference-aligned menus, workspace chrome, catalog/action search and responsive minimum-height correction. Frontend and roadmap tests and isolated browser fixture passed; native comparison pending.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Draft PR #25 opened for the implementation candidate; native screenshot comparison, final exact-head CI and independent review are outstanding.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "blockers": [
     "Actual native desktop screenshot/interaction comparison remains pending; browser fixture is not native evidence.",
     "Exact-head hosted CI and independent review pending."
+  ],
+  "prs": [
+    {
+      "number": 25,
+      "head": "35451c5567ab1fc3bd0f7b9357b7e8f2d4776621",
+      "branch": "feat/rust-04b1-workspace-alignment",
+      "state": "draft",
+      "observedAt": "2026-11-25T13:48:37Z",
+      "runs": []
+    }
   ]
 }

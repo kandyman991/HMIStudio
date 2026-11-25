@@ -257,3 +257,7 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## RUST-04 native Windows acceptance — 2026-11-25
 
 - Owner tested Windows MSI from main a707bf568c9d71ade77fd3e6a9d457ef03f6f713, Desktop CI run 45640095067. Eight of ten checks passed, including original HTML visual fidelity; drag/reorder and nested reparent failed. Full checklist in docs/LAYOUT_DESIGNER.md. RUST-04 remains in progress and blocked; register RUST-04C.1, reserve exact scope after this record integrates, correct and retest. No overall acceptance or Linux acceptance inferred.
+
+## RUST-04C.1 correction candidate — 2026-11-25
+
+- PR #30 merged at 55b3f04; reserved RUST-04C.1 on fix/rust-04c1-native-drag. Reproduced compact center drag misclassified as resize and zero-area empty flow target in predecessor frontend. Corrected grip geometry, empty auto-flow editor target, main-axis background insertion and capture/focus handling. Local 20 frontend tests, TypeScript/Vite and rendered synthetic browser pointer and prior resize regression passed. See docs/LAYOUT_DESIGNER.md for evidence and retest steps. Independent review and exact-head hosted CI required; native Windows retest remains outstanding and RUST-04 blocked.

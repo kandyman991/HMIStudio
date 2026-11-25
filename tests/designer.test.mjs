@@ -51,3 +51,39 @@ test("gesture identity includes screen, revision, native session and zoom",()=>{
   assert.equal(sameGestureContext(a,{...a}),true);
   for(const b of [{revision:5},{generation:2},{screen:"s"},{zoom:1}])assert.equal(sameGestureContext(a,{...a,...b}),false);
 });
+
+import {flowGapDrop,emptyFlowMin} from "../src/designer.ts";
+test("flow background drops use visible midpoints and preserve semantic indices",()=>{
+  const root={id:"root",element:{type:"column"},children:[
+    leaf("a"),{...leaf("hidden"),layout:{visibility:"hidden"}},leaf("b"),leaf("c"),
+    {id:"empty",element:{type:"row"},children:[]}
+  ]};
+  const centers=[{id:"a",center:10},{id:"hidden",center:20},{id:"b",center:40},{id:"c",center:80},{id:"empty",center:120}];
+  assert.deepEqual(flowGapDrop(root,"a","root",60,centers),{id:"c",zone:"before",command:{op:"moveNode",node:"a",parent:"root",index:2}});
+  assert.deepEqual(flowGapDrop(root,"a","root",140,centers)?.command,{op:"moveNode",node:"a",parent:"root",index:4});
+  assert.deepEqual(flowGapDrop(root,"c","empty",12,[])?.command,{op:"moveNode",node:"c",parent:"empty",index:0});
+  assert.equal(flowGapDrop(root,"empty","empty",12,[])?.command,undefined);
+  assert.equal(flowGapDrop(root,"a","b",12,[]),undefined);
+  assert.equal(flowGapDrop(root,"a","root",NaN,centers),undefined);
+});
+test("empty auto flow has bounded editor-only target; nonempty and fixed dimensions stay unchanged",()=>{
+  const empty={id:"empty",element:{type:"column"},children:[]};
+  assert.deepEqual(emptyFlowMin(empty),{minWidth:48,minHeight:48});
+  assert.deepEqual(emptyFlowMin({...empty,layout:{width:{mode:"fixed"},minHeight:60,maxHeight:70}}),{minWidth:undefined,minHeight:60});
+  assert.deepEqual(emptyFlowMin({...empty,layout:{maxWidth:20,maxHeight:0}}),{minWidth:20,minHeight:0});
+  assert.deepEqual(emptyFlowMin({...empty,children:[leaf("a")]}),{});
+  assert.deepEqual(emptyFlowMin({...empty,element:{type:"row",wrap:true}}),{});
+  assert.deepEqual(emptyFlowMin({...empty,layout:{visibility:"hidden"}}),{});
+});
+
+import {resizeGripHit} from "../src/designer.ts";
+test("compact components retain a draggable center and only their visible corner resizes",()=>{
+  const compact={width:4.32,height:9.36,right:450.08,bottom:242.8};
+  assert.equal(resizeGripHit(compact,447.92,238.12,.52),false);
+  assert.equal(resizeGripHit(compact,449.7,242,.52),true);
+  const normal={width:120,height:90,right:150,bottom:100};
+  assert.equal(resizeGripHit(normal,139,89,1),true);
+  assert.equal(resizeGripHit(normal,137,89,1),false);
+  assert.equal(resizeGripHit(normal,151,99,1),false);
+  assert.equal(resizeGripHit(normal,149,99,0),false);
+});

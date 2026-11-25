@@ -66,11 +66,41 @@ export function planDrop(root:LayoutNode,id:string,target:string,zone:DropZone):
   if(parent.id===source.parent!.id&&index===children.findIndex(n=>n.id===id))return;
   return {op:"moveNode",node:id,parent:parent.id,index};
 }
+// Background/gap drops follow the container's main axis and the actual
+// visible child midpoints. The semantic index still includes hidden siblings.
+export type FlowChildCenter={id:string;center:number};
+export type FlowDropTarget={id:string;zone:DropZone;command:DropPlan|undefined};
+export function flowGapDrop(root:LayoutNode,id:string,container:string,position:number,centers:FlowChildCenter[]):FlowDropTarget|undefined {
+  const parent=locate(root,container)?.node;
+  if(!parent||!flowTarget(parent)||!Number.isFinite(position)||!editablePath(root,container))return;
+  const geometry=new Map(centers.filter(c=>Number.isFinite(c.center)).map(c=>[c.id,c.center]));
+  const children=(parent.children??[]).filter(n=>n.id!==id&&visible(n)&&geometry.has(n.id));
+  const next=children.find(n=>position<geometry.get(n.id)!);
+  const target=next?{id:next.id,zone:"before" as const}:{id:container,zone:"inside" as const};
+  return {...target,command:planDrop(root,id,target.id,target.zone)};
+}
+
+// Empty auto-sized flows otherwise collapse to a zero-area, unreachable drop
+// destination. The minimum is editor-only and honors explicit model limits.
+export function emptyFlowMin(n:LayoutNode):{minWidth?:number;minHeight?:number} {
+  if(!flowTarget(n)||n.children?.length)return {};
+  const l=n.layout??{};
+  const axis=(size:{mode:string}|undefined,min:number|undefined,max:number|undefined)=>!size||size.mode==="auto"?Math.min(max??Infinity,Math.max(min??0,48)):undefined;
+  return {minWidth:axis(l.width,l.minWidth,l.maxWidth),minHeight:axis(l.height,l.minHeight,l.maxHeight)};
+}
 export function canResize(root:LayoutNode,id:string):boolean {
   const n=locate(root,id)?.node,l=n?.layout;
   return !!n&&canDrag(root,id)&&!l?.weight&&!l?.aspectRatio&&l?.width?.mode!=="fill"&&l?.height?.mode!=="fill";
 }
 export type Dimensions={width:number;height:number};
+// Keep the visible corner grip out of the center of compact auto-sized
+// components. Match the CSS grip's 12 dp maximum and 35% axis cap.
+export function resizeGripHit(rect:{width:number;height:number;right:number;bottom:number},x:number,y:number,zoom:number):boolean {
+  if(![rect.width,rect.height,rect.right,rect.bottom,x,y,zoom].every(Number.isFinite)||zoom<=0||rect.width<=0||rect.height<=0)return false;
+  const w=Math.min(12*zoom,rect.width*.35),h=Math.min(12*zoom,rect.height*.35);
+  return x>=rect.right-w&&x<=rect.right&&y>=rect.bottom-h&&y<=rect.bottom;
+}
+
 export function resizeDimensions(start:Dimensions,dx:number,dy:number,zoom:number,snap:boolean,limits:LayoutNode["layout"]):Dimensions|undefined {
   if(![start.width,start.height,dx,dy,zoom].every(Number.isFinite)||zoom<=0||start.width<0||start.height<0)return;
   const axis=(n:number,min:number|undefined,max:number|undefined)=>Math.min(max??Number.MAX_SAFE_INTEGER,Math.max(min??0,Math.round(n/(snap?10:1))*(snap?10:1)));

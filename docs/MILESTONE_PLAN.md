@@ -24,7 +24,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-02C.4A](#reuse-02c.4a) Write lifecycle and termination safety | Reuse | Merged | [REUSE-02C.3](#reuse-02c.3) (merged) |
 | [REUSE-02C.4B](#reuse-02c.4b) Write-capable EngineDriver integration | Reuse | Planned | [REUSE-02C.4A](#reuse-02c.4a) (merged) |
 | [REUSE-02C](#reuse-02c) Supervised bridge | Reuse | In progress | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
-| [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | Planned | [REUSE-01](#reuse-01) (merged) |
+| [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | In progress | [REUSE-01](#reuse-01) (merged) |
 | [REUSE-04](#reuse-04) Runtime compatibility | Reuse | Planned | [REUSE-03](#reuse-03) (merged) |
 | [REUSE-05](#reuse-05) Deployment Modes A and B | Reuse | Planned | [REUSE-04](#reuse-04) (merged) |
 | [REUSE-06](#reuse-06) Migration acceptance and retirement | Reuse | Planned | [REUSE-02](#reuse-02) (merged), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged), [REUSE-05](#reuse-05) (merged) |
@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**Planned** · Proposed RUST-05A mapping.
+**In progress** · REUSE-03A schema-v2 freeze candidate: canonical model and desktop preview, 12,664/12,664 oracle vectors replayed; review corrected canonical diagnostic paths.
 
 **Acceptance criteria**
 
@@ -748,9 +748,24 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Confirm owner decisions and fixture rights before implementation.
+- Complete independent technical review and exact corrected-head hosted CI for PR #35 before formal schema freeze and merge. Retain documented runtime and editor limitations; legacy decoder mapping waits for verified freeze.
 
-Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+**Assignment** · ChatGPT, feat/reuse-03a-canonical-v2 (recorded 2026-11-25T19:25:37Z)
+
+Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+
+**History**
+
+- 2026-11-25 · started · Owner approved O-3 model v2, O-4 expression contract 1, and O-1 synthetic-only initial fixtures. Reserved RUST-05 claim group for project-model/engineering-core on verified main f86f433. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · First compatibility test and schema contract slice; v1 remains current until complete v2 implementation. Existing SiemensS7 declaration retained. No private source or fixtures transferred. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Implemented staged industrial/security declarations and deterministic validation, retaining v1 schema. Exact integer limits, command type/access, reference uniqueness, safe loopback and default false commissioning/write confirmation tested with seven synthetic cases. No runtime or policy enforcement claimed. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Added bounded Rust expression contract-1 candidate, exact integer scalar admission, typed localized discrete enumeration definitions and reference/target validation; eight original synthetic test groups passed. Cross-runtime parity and canonical integration remain open. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Added nine original passive reusable symbol definitions, staged shape/input/faceplate/startup/action contracts and initial typed createIndustrialSymbol session command. Six component/action and one command regression groups passed. Canonical integration and activation remain open. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Integrated typed v2 sections and group commands; added strict v1 admission/migration, generated v2 schema, persisted transaction regression and consumer capability refusal. Candidate remains draft, placement/remap/native validation outstanding. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Integrated five typed leaf kinds and atomic placement, symbol classification, reference-aware duplication, inherited permission preservation and strict v1 kind admission. Existing consumers refuse unsupported v2 features; downstream compatibility and parity remain open. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Enabled valid v2 desktop admission, five static component previews, typed inspector/insert/duplicate operations and precise single-contract edits. Native host and frontend preflight validated locally using isolated harnesses; runtime capability refusal preserved. Native visual acceptance and conformance pending. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Compared actual pinned Kotlin/JVM contract-1 evaluator with Rust on 12,664 original synthetic vectors; fixed shortest decimal and asymmetric rounding-boundary formatting differences. All tested observations match; reproducible corpus and oracle harness retained, no private source transferred. Exact-head hosted CI and independent review required before schema freeze. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Independent review verified predecessor hosted CI and schema/corpus hashes; corrected staged diagnostic pointers to canonical v2 groups, 104 locked offline model tests passed. Formal freeze proposal recorded; final technical review and corrected-head CI remain required. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
@@ -817,6 +832,10 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Parent** · RUST-08
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+
+## Shared reservation snapshot
+
+- REUSE-03 · ChatGPT · feat/reuse-03a-canonical-v2 · 2026-11-25T19:25:37Z
 
 ## Engineering decisions
 

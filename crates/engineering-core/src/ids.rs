@@ -36,6 +36,21 @@ pub fn collect_ids(p: &Project) -> Vec<String> {
         out.push(s.id.to_string());
         collect_node_ids(&s.root, &mut out);
     }
+    out.extend(
+        p.v2.industrial
+            .security
+            .permissions
+            .iter()
+            .map(|x| x.id.to_string()),
+    );
+    out.extend(
+        p.v2.industrial
+            .security
+            .roles
+            .iter()
+            .map(|x| x.id.to_string()),
+    );
+    out.extend(p.v2.bindings.enumerations.iter().map(|x| x.id.to_string()));
     out
 }
 
@@ -139,4 +154,122 @@ pub fn remap_definition_refs(
         }
     }
     count
+}
+
+/// Copy normalized v2 declarations for a freshly allocated subtree. Global
+/// definitions (tags, enumerations, permissions and roles) stay shared.
+/// Only self references to a copied screen/definition change.
+pub(crate) fn duplicate_v2(
+    p: &mut Project,
+    nodes: &BTreeMap<String, String>,
+    screen: Option<(&ScreenId, &ScreenId)>,
+    definition: Option<(&ComponentDefinitionId, &ComponentDefinitionId)>,
+) {
+    use hmi_project_model::model::v2_components::{CandidateAction, EventOrigin, NewAction};
+    let v = &mut p.v2;
+    let mapped_node = |id: &NodeId| {
+        nodes
+            .get(id.as_str())
+            .map(|s| NodeId::new_unchecked(s.clone()))
+    };
+    let copies: Vec<_> = v
+        .industrial
+        .nodes
+        .iter()
+        .filter_map(|old| {
+            let mut new = old.clone();
+            new.node = mapped_node(&old.node)?;
+            Some(new)
+        })
+        .collect();
+    v.industrial.nodes.extend(copies);
+    let copies: Vec<_> = v
+        .bindings
+        .expressions
+        .iter()
+        .filter_map(|old| {
+            let mut new = old.clone();
+            new.node = mapped_node(&old.node)?;
+            Some(new)
+        })
+        .collect();
+    v.bindings.expressions.extend(copies);
+    let copies: Vec<_> = v
+        .components
+        .components
+        .iter()
+        .filter_map(|old| {
+            let mut new = old.clone();
+            new.id = mapped_node(&old.id)?;
+            Some(new)
+        })
+        .collect();
+    v.components.components.extend(copies);
+    if let Some((from, to)) = screen {
+        let copies: Vec<_> = v
+            .industrial
+            .screens
+            .iter()
+            .filter(|x| &x.screen == from)
+            .cloned()
+            .map(|mut x| {
+                x.screen = to.clone();
+                x
+            })
+            .collect();
+        v.industrial.screens.extend(copies);
+    }
+    if let Some((from, to)) = definition {
+        let copies: Vec<_> = v
+            .components
+            .definitions
+            .iter()
+            .filter(|x| &x.definition == from)
+            .cloned()
+            .map(|mut x| {
+                x.definition = to.clone();
+                x
+            })
+            .collect();
+        v.components.definitions.extend(copies);
+    }
+    let copies: Vec<_> = v
+        .components
+        .handlers
+        .iter()
+        .filter_map(|old| {
+            let mut new = old.clone();
+            new.origin = match &old.origin {
+                EventOrigin::Node(id) => EventOrigin::Node(mapped_node(id)?),
+                EventOrigin::Screen(id) => {
+                    let (from, to) = screen?;
+                    if id != from {
+                        return None;
+                    }
+                    EventOrigin::Screen(to.clone())
+                }
+            };
+            for action in &mut new.actions {
+                match action {
+                    CandidateAction::Existing(a) => {
+                        if let Some((from, to)) = screen {
+                            remap_actions(std::slice::from_mut(a), from, to);
+                        }
+                    }
+                    CandidateAction::New(NewAction::OpenFaceplate {
+                        definition: target, ..
+                    }) => {
+                        if let Some((from, to)) = definition {
+                            if target == from {
+                                *target = to.clone();
+                            }
+                        }
+                    }
+                    CandidateAction::New(NewAction::NavigateStartup {}) => {}
+                }
+            }
+            Some(new)
+        })
+        .collect();
+    v.components.handlers.extend(copies);
 }

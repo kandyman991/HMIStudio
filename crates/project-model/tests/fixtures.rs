@@ -36,7 +36,8 @@ fn valid_fixtures_load_and_validate_cleanly() {
             path.display(),
             loaded.report
         );
-        assert!(loaded.migrations.is_empty());
+        assert_eq!(loaded.migrations.len(), 1);
+        assert_eq!((loaded.migrations[0].from, loaded.migrations[0].to), (1, 2));
     }
 }
 

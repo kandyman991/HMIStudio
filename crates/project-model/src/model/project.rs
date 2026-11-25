@@ -78,12 +78,41 @@ pub struct Project {
     pub components: Vec<ComponentDefinition>,
     /// Screens and popups.
     pub screens: Vec<Screen>,
+    /// Typed version-2 declarations, normalized by stable project identifiers.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub v2: super::v2_project::V2Declarations,
     /// Extensible engineering metadata.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub extensions: Extensions,
 }
 
 impl Project {
+    /// Detect v2-only data even in an invalid project with a missing contract.
+    pub fn has_v2_features(&self) -> bool {
+        if !self.v2.is_empty()
+            || self.styles.iter().any(|s| {
+                s.target
+                    .is_some_and(super::ComponentKind::requires_v2_contract)
+            })
+        {
+            return true;
+        }
+        let mut found = false;
+        for root in self
+            .screens
+            .iter()
+            .map(|s| &s.root)
+            .chain(self.components.iter().map(|c| &c.root))
+        {
+            root.walk(&mut |n| {
+                if matches!(n.element, super::Element::Component { kind } if kind.requires_v2_contract()) {
+                    found = true;
+                }
+            });
+        }
+        found
+    }
+
     /// Creates an empty current-version project with one empty page.
     pub fn new(id: ProjectId, name: impl Into<String>, start_screen: Screen) -> Self {
         Self {
@@ -113,6 +142,7 @@ impl Project {
             recipes: Vec::new(),
             components: Vec::new(),
             screens: vec![start_screen],
+            v2: super::v2_project::V2Declarations::default(),
             extensions: Extensions::new(),
         }
     }

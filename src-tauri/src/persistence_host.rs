@@ -254,6 +254,9 @@ impl Host {
             &MigrationRegistry::builtin(),
         )
         .map_err(err)?;
+        if opened.session.project().has_v2_features() && opened.report.has_errors() {
+            return Err("Invalid v2 project; original data preserved".into());
+        }
         self.session = opened.session;
         self.generation += 1;
         self.pending_untitled = false;
@@ -310,6 +313,9 @@ impl Host {
             )
         }
         .map_err(err)?;
+        if opened.session.project().has_v2_features() && opened.report.has_errors() {
+            return Err("Invalid v2 project; original data preserved".into());
+        }
         if has_recovery && !recover {
             fs::remove_file(dir.join(RECOVERY)).map_err(err)?;
         }
@@ -466,6 +472,47 @@ mod tests {
                 name: name.into(),
             }))
             .unwrap();
+    }
+
+    #[test]
+    fn v2_project_opens_edits_saves_and_recovers_without_losing_declarations() {
+        let t = Temp::new();
+        let path = t.0.join("v2.hmi.json");
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let mut project = host.session.project().clone();
+        project.v2.industrial.security.auto_logout_seconds = Some(30);
+        project
+            .extensions
+            .insert("synthetic.exact".into(), serde_json::json!(u64::MAX));
+        let original = hmi_project_model::save_project(&project).unwrap();
+        fs::write(&path, &original).unwrap();
+        assert!(host.open_with(&path, false, |_| Ok(Some(false))).unwrap());
+        let command: Command = serde_json::from_value(serde_json::json!({
+            "op":"insertV2Component","parent":"n-root","id":"n-line",
+            "contract":{"kind":"line","start":{"x":0,"y":0},"end":{"x":12,"y":5},"strokeColor":"#000000","strokeWidth":1}
+        })).unwrap();
+        host.session.execute(Transaction::single(command)).unwrap();
+        host.save().unwrap();
+        let saved = host.session.project().clone();
+        assert_eq!(saved.v2.industrial, project.v2.industrial);
+        assert_eq!(saved.extensions, project.extensions);
+        edit(&mut host, "Recovered v2");
+        host.autosave();
+        drop(host);
+        let mut reopened = Host::new(&t.0.join("app-b")).unwrap();
+        assert!(reopened
+            .open_with(&path, false, |_| Ok(Some(true)))
+            .unwrap());
+        assert_eq!(reopened.session.project().v2, saved.v2);
+        assert_eq!(reopened.session.project().extensions, saved.extensions);
+        assert_eq!(reopened.session.project().screens[0].name, "Recovered v2");
+        reopened.save().unwrap();
+        assert_eq!(
+            hmi_project_model::load_project(&fs::read_to_string(&path).unwrap())
+                .unwrap()
+                .project,
+            *reopened.session.project()
+        );
     }
 
     #[test]

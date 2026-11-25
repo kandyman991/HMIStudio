@@ -218,7 +218,7 @@ impl<'p> Validator<'p> {
 
     // ------------------------------------------------------------ identifiers
 
-    fn collect_ids(&self) -> Vec<(String, String)> {
+    pub(super) fn collect_ids(&self) -> Vec<(String, String)> {
         let p = self.p;
         let mut ids: Vec<(String, String)> = Vec::new();
         let mut push = |id: &str, path: String| ids.push((id.to_owned(), path));
@@ -310,7 +310,7 @@ impl<'p> Validator<'p> {
 
     // ------------------------------------------------------------------ index
 
-    fn build_index(&mut self) {
+    pub(super) fn build_index(&mut self) {
         let p = self.p;
         let ix = &mut self.ix;
         for s in &p.screens {

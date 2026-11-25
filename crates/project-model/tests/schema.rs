@@ -49,7 +49,7 @@ fn schema_identity_and_root_requirements() {
     ] {
         assert!(required.contains(&r), "{r} not required");
     }
-    assert_eq!(s["properties"]["schemaVersion"]["const"], 1);
+    assert_eq!(s["properties"]["schemaVersion"]["const"], 2);
 }
 
 #[test]
@@ -79,13 +79,17 @@ fn every_ref_resolves() {
 fn fixtures_conform_to_the_committed_schema() {
     let schema = committed_schema();
     for path in fixture_files("valid") {
-        let doc: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let mut doc: Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        doc["schemaVersion"] = json!(2);
         let mut errors = Vec::new();
         check(&schema, &doc, &schema, "", &mut errors);
         assert!(errors.is_empty(), "{}: {errors:#?}", path.display());
     }
     let mut errors = Vec::new();
-    check(&schema, &base(), &schema, "", &mut errors);
+    let mut current = base();
+    current["schemaVersion"] = json!(2);
+    check(&schema, &current, &schema, "", &mut errors);
     assert!(errors.is_empty(), "base: {errors:#?}");
 }
 

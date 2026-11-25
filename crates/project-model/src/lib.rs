@@ -19,11 +19,13 @@
 //! `docs/PROJECT_MODEL_VALIDATION.md`.
 
 pub mod catalog;
+pub mod expression;
 pub mod id;
 pub mod migration;
 pub mod model;
 pub mod schema;
 pub mod serialization;
+pub mod symbols;
 pub mod validation;
 
 pub use migration::{Migration, MigrationError, MigrationRegistry};
@@ -38,7 +40,7 @@ pub use validation::{validate, Diagnostic, DiagnosticCode, Severity, ValidationR
 pub const FORMAT_ID: &str = "hmi-studio.project";
 
 /// Schema version written by this crate.
-pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
 /// Maximum nesting depth of a layout tree (root = depth 1). Bounded so that
 /// recursive processing on every platform (including Android) stays far

@@ -273,3 +273,39 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## Review depth decision — 2026-11-25
 
 Owner approved lightweight independent consistency review for documentation/roadmap-only PRs; full technical review remains required for implementation or control changes. Both retain exact-head Required CI, handoff and applicable gates. Apply to PR #34 evidence with explicit scrutiny of its owner-approved policy changes; do not self-exempt.
+
+## REUSE-03A started — 2026-11-25
+
+Owner approved O-3, O-4 and synthetic-only O-1 fixture scope. Reserved REUSE-03 in RUST-05 group from main f86f433; initial compatibility tests and proposed model contract in docs/reuse/REUSE_03A_MODEL_V2.md. Keep schema v1 active until v2 is complete. No private transfer, decoder or runtime work. Next exact action: typed industrial/security additions and validated commands, then expression/action/catalog contracts and migration freeze.
+
+## REUSE-03A industrial/security declarations — 2026-11-25
+
+Typed candidate model and deterministic validation added; existing v1 serialization and behavior unchanged. Seven new synthetic regressions cover command and limit validation, loopback isolation and permission references. Conservative float32 narrowing refusal is a candidate engineering default, not production enforcement. Next exact action: complete typed engineering integration and remaining action/enumeration/component/expression contracts before schema activation. PR #35 remains draft.
+
+## REUSE-03A expression/enumeration candidate — 2026-11-25
+
+Added staged typed Rust expression parser/type checker/snapshot evaluator and discrete enum mappings; eight new original synthetic test groups pass. Contract-1 numerical behavior is f64; refuse lossy canonical integer input. No Kotlin transfer or runtime binding; cross-runtime edge parity remains unverified. Next exact action: action/component contracts, canonical typed engineering integration and v1-to-v2 migration. PR #35 stays draft and reservation remains active.
+
+## REUSE-03A components/actions — 2026-11-25
+
+Added nine passive reusable symbol definitions and staged line/arrow/polygon/text-input/dropdown contracts, faceplate classification/arguments, ordered actions and dynamic startup resolution. Initial createIndustrialSymbol typed session command integrates allocation, undo/redo and atomic rollback using v1-compatible data. Classification/placement and remaining typed commands still need canonical integration; schema stays v1. Next exact action: canonical integration, reference/remap/transaction tests and strict migration activation. PR #35 remains draft; reservation active.
+
+## REUSE-03A canonical v2 candidate — 2026-11-25
+
+Draft branch now writes schema 2; v1 fixtures/schema immutable, additive strict migration and typed project groups integrated. Group replacement commands use strict validation, normalized references and existing persistence/undo; duplicate operations refused on nonempty v2 until remap is complete. Unsupported desktop and tag-engine consumers refuse nonempty v2; native Tauri offline dependency unavailable. Scope extended atomically to consumer paths. Next exact action: finish canonical component placement, copy/remap, consumer validation and cross-runtime parity before freezing v2. PR #35 remains draft.
+
+## REUSE-03A canonical placement and copying — 2026-11-25
+
+Five typed leaf kinds now occupy canonical nodes with one matching contract. insertV2Component is atomic; classified symbol creation persists metadata. Screen/node/definition copies preserve and remap declarations; inherited permissions cannot be lost on move/copy. Cross-definition reparenting remains refused and reference-bearing deletion requires explicit cleanup. Existing desktop/tag consumers reject unsupported features. Next exact action: downstream compatibility and expression conformance before freeze. PR #35 remains draft; reservation active.
+
+## REUSE-03A desktop v2 engineering integration — 2026-11-25
+
+Valid v2 open/save/recovery, static five-component preview, typed inspector and insert/duplicate operations now integrated. Single-contract edits avoid full JS project round trip; deletion removes intrinsic contracts only. Runtime activation refusal unchanged. Frontend 23 tests via temporary transpilation and isolated native host 10 tests passed; full native Tauri/visual acceptance not claimed. Scope extended to src/ and tests/. Next exact action: cross-runtime expression conformance and exact-head hosted CI/technical review before schema freeze. PR #35 remains draft.
+
+## REUSE-03A expression conformance — 2026-11-25
+
+Pinned actual private Kotlin/JVM contract-1 oracle 92a612d compiled separately; 12,664 original synthetic vectors match Rust after numeric text formatting fixes. Public fixture replay is automated; no private source or project fixture transfer. Exact-head hosted CI and independent full technical review remain prerequisites for schema freeze; no runtime or Android parity claim. Next exact action: independently review final PR #35, correct any findings, verify exact-head checks, record freeze and merge only when gates satisfied. Reservation active.
+
+## REUSE-03A independent review correction — 2026-11-25
+- PR #35 predecessor d0c68d14018dca7a3d0ba3e68e031ad90a9bef11 passed Desktop CI 45686447457, Tag engine CI 45686447214 and handoff 45686446711. Corrected canonical v2 diagnostic paths; 104 local locked offline model tests passed (including corpus replay and schema checks). V1 schema bytes unchanged and v2 hash recorded.
+- Formal freeze proposal in docs/reuse/REUSE_03A_MODEL_V2.md; do not certify freeze or merge before completing independent technical review and exact corrected-head hosted checks. REUSE-03 remains in progress; no runtime, device or visual acceptance.

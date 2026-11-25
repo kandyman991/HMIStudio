@@ -231,7 +231,7 @@ pub fn detect_version_value(value: &Value) -> Result<u32, LoadError> {
         .ok_or(LoadError::MissingVersion)?;
     u32::try_from(version).map_err(|_| LoadError::UnsupportedVersion {
         found: version,
-        oldest_supported: CURRENT_SCHEMA_VERSION,
+        oldest_supported: MigrationRegistry::builtin().oldest_supported(CURRENT_SCHEMA_VERSION),
         newest_supported: CURRENT_SCHEMA_VERSION,
     })
 }

@@ -1,4 +1,4 @@
-//! Writes the JSON Schema to `schema/hmi-project.v1.schema.json`
+//! Writes the JSON Schema to `schema/hmi-project.v2.schema.json`
 //! (or to the path given as the first argument).
 //!
 //! ```text

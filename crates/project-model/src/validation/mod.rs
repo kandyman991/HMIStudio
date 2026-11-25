@@ -14,7 +14,13 @@
 
 mod checks;
 mod layout;
+mod v2;
+mod v2_bindings;
+mod v2_components;
+pub use v2_bindings::validate_v2_bindings;
+pub use v2_components::validate_v2_components;
 mod values;
+pub use v2::validate_v2_declarations;
 
 use serde::Serialize;
 
@@ -182,6 +188,64 @@ impl std::fmt::Display for ValidationReport {
 
 /// Validates a project. See the module documentation.
 pub fn validate(project: &Project) -> ValidationReport {
+    if !project.has_v2_features() {
+        return validate_base(project);
+    }
+    let mut report = validate_v2_components(
+        project,
+        &project.v2.industrial,
+        &project.v2.bindings,
+        &project.v2.components,
+    );
+    use crate::model::Element;
+    use std::collections::BTreeMap;
+    let contracts: BTreeMap<_, _> = project
+        .v2
+        .components
+        .components
+        .iter()
+        .map(|c| (c.id.as_str(), c.contract.kind()))
+        .collect();
+    let mut placed = BTreeMap::new();
+    for root in project
+        .screens
+        .iter()
+        .map(|s| &s.root)
+        .chain(project.components.iter().map(|c| &c.root))
+    {
+        root.walk(&mut |n| {
+            if let Element::Component { kind } = n.element {
+                if kind.requires_v2_contract() {
+                    placed.insert(n.id.as_str(), kind);
+                    if contracts.get(n.id.as_str()) != Some(&kind) {
+                        report.diagnostics.push(Diagnostic {
+                            severity: Severity::Error,
+                            code: DiagnosticCode::InvalidHierarchy,
+                            path: "/v2/components/components".into(),
+                            message: format!(
+                                "node {} requires a matching component contract",
+                                n.id
+                            ),
+                        });
+                    }
+                }
+            }
+        });
+    }
+    for (i, c) in project.v2.components.components.iter().enumerate() {
+        if placed.get(c.id.as_str()) != Some(&c.contract.kind()) {
+            report.diagnostics.push(Diagnostic {
+                severity: Severity::Error,
+                code: DiagnosticCode::InvalidHierarchy,
+                path: format!("/v2/components/components/{i}/id"),
+                message: "contract requires a matching placed node".into(),
+            });
+        }
+    }
+    report
+}
+
+pub(super) fn validate_base(project: &Project) -> ValidationReport {
     let mut v = checks::Validator::new(project);
     v.run();
     ValidationReport {

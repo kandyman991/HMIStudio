@@ -43,11 +43,16 @@ pub enum ComponentKind {
     ProgressBar,
     /// Decorated surface that may host one child layout.
     Container,
+    Line,
+    Arrow,
+    Polygon,
+    TextInput,
+    DropDown,
 }
 
 impl ComponentKind {
     /// All kinds in declaration order.
-    pub const ALL: [ComponentKind; 13] = [
+    pub const ALL: [ComponentKind; 18] = [
         ComponentKind::Button,
         ComponentKind::Text,
         ComponentKind::Image,
@@ -61,6 +66,11 @@ impl ComponentKind {
         ComponentKind::Switch,
         ComponentKind::ProgressBar,
         ComponentKind::Container,
+        ComponentKind::Line,
+        ComponentKind::Arrow,
+        ComponentKind::Polygon,
+        ComponentKind::TextInput,
+        ComponentKind::DropDown,
     ];
 
     /// JSON name of the kind.
@@ -79,9 +89,21 @@ impl ComponentKind {
             ComponentKind::Switch => "switch",
             ComponentKind::ProgressBar => "progressBar",
             ComponentKind::Container => "container",
+            ComponentKind::Line => "line",
+            ComponentKind::Arrow => "arrow",
+            ComponentKind::Polygon => "polygon",
+            ComponentKind::TextInput => "textInput",
+            ComponentKind::DropDown => "dropDown",
         }
     }
 
+    /// New kinds require a matching typed v2 contract.
+    pub fn requires_v2_contract(self) -> bool {
+        matches!(
+            self,
+            Self::Line | Self::Arrow | Self::Polygon | Self::TextInput | Self::DropDown
+        )
+    }
     /// Maximum number of children this kind accepts.
     pub fn max_children(self) -> usize {
         match self {

@@ -118,3 +118,7 @@ The owner directed skipping Linux installation for now and removing it as an acc
 ### D-008 follow-up — Scope-proportionate independent review (owner direction, 2026-11-25)
 
 Owner approved distinguishing documentation/roadmap PRs from implementation PRs: use lightweight evidence and consistency review for documentation-only changes, and full technical review for application code or executable/control changes. Preserve independent review, exact-head Required CI and handoff, applicable checks and explicit owner acceptance. Verify actual scope and escalate mixed or uncertain changes; a policy/control change must be scrutinized under the existing rules, not self-exempted. No change to Linux CI, release or production safeguards. See AGENTS.md and docs/CI_RUNNER_POLICY.md.
+
+### D-009 follow-up — REUSE-03 owner decisions (2026-11-25)
+
+Owner approved O-3 canonical model v2 additions, O-4 HMI Forge expression contract 1 in validated Rust, and the O-1 fixture approach of newly authored synthetic fixtures only initially. No private demo/customer projects, private code, secrets or signing material may be transferred under this approval. Preserve a single canonical editable Rust model; v1 migration must preserve semantics and never grant physical write or trust authorization. Separate actual fixture transfers require documented exact rights and review. See docs/reuse/REUSE_03A_MODEL_V2.md.

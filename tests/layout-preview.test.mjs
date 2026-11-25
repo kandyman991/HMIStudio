@@ -41,3 +41,38 @@ test("fit and zoom are bounded presentation scaling, not logical size changes",(
 test("unresolved style, events and localized text cannot masquerade as runtime preview",()=>{
   assert.deepEqual(previewLimit({element:{type:"component",kind:"text"},style:"s",events:[{}],properties:{text:{key:"greeting"}}}),["Named style not applied","Events not executed","Localized or nonliteral text not resolved"]);
 });
+
+import {contractFor,defaultContract,defaultLayout,geometry,localizedLabel,parseCoordinate,parsePoints,enumPairs} from "../src/v2.ts";
+test("v2 palette admits only compatible writable string and discrete enum targets",()=>{
+ const project={tags:[{id:"str",name:"Text",dataType:"string",access:"readWrite"},{id:"ro",name:"Read",dataType:"string"},{id:"word",name:"Word",dataType:"uint64",access:"readWrite"},{id:"wo",name:"Write",dataType:"uint64",access:"write"}],v2:{bindings:{enumerations:[{id:"enum",name:"Exact",dataType:"uint64",entries:[{label:"Max",value:18446744073709551615n}]}]}}};
+ assert.deepEqual(defaultContract("textInput",project),{kind:"textInput",tag:"str",maxLength:80});
+ assert.deepEqual(defaultContract("dropDown",project),{kind:"dropDown",tag:"word",enumeration:"enum"});
+ assert.equal(enumPairs(project).length,1);
+ assert.equal(defaultContract("textInput",{}),undefined);
+ assert.equal(defaultContract("dropDown",{}),undefined);
+ assert.deepEqual(defaultLayout("line").width,{mode:"fixed",value:120});
+ assert.equal(project.v2.bindings.enumerations[0].entries[0].value,18446744073709551615n);
+});
+test("v2 geometry and numeric edits are finite and reject malformed coordinates",()=>{
+ for(const v of [""," ","NaN","Infinity","0x10","1e999","1,2"])assert.equal(parseCoordinate(v),undefined);
+ assert.equal(parseCoordinate("-2.5"),-2.5);
+ assert.deepEqual(parsePoints("0,0\n4,0\n-2,6"),[{x:0,y:0},{x:4,y:0},{x:-2,y:6}]);
+ assert.equal(parsePoints("0,0\n1,2"),undefined);
+ assert.equal(parsePoints("0,0\n1,2\n,3"),undefined);
+ for(const k of ["line","arrow","polygon"]){
+   const c=defaultContract(k,{}),g=geometry(c);assert.ok(g);assert.ok(g.viewBox.split(" ").map(Number).every(Number.isFinite));
+   assert.equal(previewLimit({element:{type:"component",kind:k}}).length,0);
+   if(k==="arrow")assert.deepEqual(g.head[0],c.end);
+ }
+ assert.equal(geometry({kind:"arrow",start:{x:1,y:1},end:{x:1,y:1},strokeWidth:1,strokeColor:"#000000",headLength:1}),undefined);
+});
+test("v2 preview resolves labels by default locale and isolates contract lookup",()=>{
+ const contract=defaultContract("line",{}),p={localization:{defaultLocale:"it",strings:{hello:{it:"Ciao",en:"Hello"}}},v2:{components:{components:[{id:"n-line",contract}]}}};
+ assert.equal(contractFor(p,"n-line"),contract);
+ assert.equal(contractFor(p,"missing"),undefined);
+ assert.equal(localizedLabel({textKey:"hello"},p),"Ciao");
+ assert.equal(localizedLabel({textKey:"missing"},p),"[missing]");
+ assert.equal(localizedLabel("literal",p),"literal");
+ const style=nodeStyle({element:{type:"component",kind:"line"},layout:{position:{x:12,y:8}}},{type:"absolute"});
+ assert.equal(style.position,"absolute");assert.equal(style.left,12);assert.equal(style.top,8);
+});

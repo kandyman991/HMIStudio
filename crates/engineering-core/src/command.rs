@@ -84,6 +84,24 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         assign_new_ids: bool,
     },
+    /// Insert a new primitive/input together with its typed contract.
+    #[serde(rename_all = "camelCase")]
+    InsertV2Component {
+        parent: NodeId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<NodeId>,
+        #[serde(default)]
+        layout: LayoutParams,
+        contract: hmi_project_model::model::v2_components::ComponentContract,
+    },
+    /// Replace only one typed component contract, never the whole v2 group.
+    #[serde(rename_all = "camelCase")]
+    SetV2ComponentContract {
+        node: NodeId,
+        contract: hmi_project_model::model::v2_components::ComponentContract,
+    },
     /// Removes a node and its subtree. Roots cannot be removed.
     #[serde(rename_all = "camelCase")]
     RemoveNode {
@@ -246,6 +264,11 @@ pub enum Command {
     },
 
     // ------------------------------------------------------ definitions
+    /// Creates an original passive industrial symbol using the shared typed model library.
+    #[serde(rename_all = "camelCase")]
+    CreateIndustrialSymbol {
+        kind: hmi_project_model::model::v2_components::IndustrialSymbolKind,
+    },
     /// Creates a reusable component definition.
     #[serde(rename_all = "camelCase")]
     CreateComponentDefinition {
@@ -291,6 +314,21 @@ pub enum Command {
     },
 
     // --------------------------------------------------------- project
+    /// Atomically replace the typed industrial/security declarations.
+    #[serde(rename_all = "camelCase")]
+    SetIndustrialSecurity {
+        declarations: hmi_project_model::model::v2::IndustrialSecurityDeclarations,
+    },
+    /// Atomically replace typed expressions and enumeration declarations.
+    #[serde(rename_all = "camelCase")]
+    SetExpressionEnumerations {
+        declarations: hmi_project_model::model::v2_bindings::ExpressionEnumerationDeclarations,
+    },
+    /// Atomically replace component classifications and candidate action handlers.
+    #[serde(rename_all = "camelCase")]
+    SetComponentActions {
+        declarations: hmi_project_model::model::v2_components::ComponentActionDeclarations,
+    },
     /// Replaces project metadata.
     #[serde(rename_all = "camelCase")]
     SetMetadata {
@@ -330,6 +368,8 @@ impl Command {
             Command::DeleteScreen { .. } => "deleteScreen",
             Command::DuplicateScreen { .. } => "duplicateScreen",
             Command::InsertNode { .. } => "insertNode",
+            Command::InsertV2Component { .. } => "insertV2Component",
+            Command::SetV2ComponentContract { .. } => "setV2ComponentContract",
             Command::RemoveNode { .. } => "removeNode",
             Command::DuplicateNode { .. } => "duplicateNode",
             Command::MoveNode { .. } => "moveNode",
@@ -349,11 +389,15 @@ impl Command {
             Command::DeleteTag { .. } => "deleteTag",
             Command::UpsertStyle { .. } => "upsertStyle",
             Command::DeleteStyle { .. } => "deleteStyle",
+            Command::CreateIndustrialSymbol { .. } => "createIndustrialSymbol",
             Command::CreateComponentDefinition { .. } => "createComponentDefinition",
             Command::UpdateComponentDefinitionInfo { .. } => "updateComponentDefinitionInfo",
             Command::SetComponentParameters { .. } => "setComponentParameters",
             Command::DeleteComponentDefinition { .. } => "deleteComponentDefinition",
             Command::DuplicateComponentDefinition { .. } => "duplicateComponentDefinition",
+            Command::SetIndustrialSecurity { .. } => "setIndustrialSecurity",
+            Command::SetExpressionEnumerations { .. } => "setExpressionEnumerations",
+            Command::SetComponentActions { .. } => "setComponentActions",
             Command::SetMetadata { .. } => "setMetadata",
             Command::SetSettings { .. } => "setSettings",
             Command::SetNavigation { .. } => "setNavigation",

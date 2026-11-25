@@ -32,6 +32,14 @@ export function nodeStyle(n:PreviewNode,parent?:Element):CSSProperties{
     if(l.crossAlign)st.alignSelf=cross(l.crossAlign);
     if(positive(l.weight)){st.flexGrow=l.weight;st.flexBasis=0;st.flexShrink=1;}
   }
+  if(parent?.type==="absolute"){
+    const pos=l.position as {x?:unknown;y?:unknown}|undefined;
+    st.position="absolute";
+    st.left=typeof pos?.x==="number"&&Number.isFinite(pos.x)?pos.x:0;
+    st.top=typeof pos?.y==="number"&&Number.isFinite(pos.y)?pos.y:0;
+  }
+  if(e.type==="box"){st.display="grid";}
+  if(parent?.type==="box"){st.gridArea="1 / 1";}
   if(isFlow(e)){
     st.display="flex";st.flexDirection=e.type==="row"?"row":"column";
     st.flexWrap=e.wrap?"wrap":"nowrap";st.alignContent="flex-start";st.alignItems=cross(e.alignment);
@@ -42,8 +50,8 @@ export function nodeStyle(n:PreviewNode,parent?:Element):CSSProperties{
 }
 export function previewLimit(n:PreviewNode):string[]{
   const issues:string[]=[];
-  if(!isFlow(n.element)&&n.element.type!=="component")issues.push("Unsupported container / instance: "+n.element.type);
-  if(n.element.type==="component"&&!["text","button","gauge"].includes(n.element.kind??""))issues.push("Static placeholder: "+(n.element.kind??"component"));
+  if(!isFlow(n.element)&&n.element.type!=="component"&&n.element.type!=="absolute")issues.push("Unsupported container / instance: "+n.element.type);
+  if(n.element.type==="component"&&!["text","button","gauge","line","arrow","polygon","textInput","dropDown"].includes(n.element.kind??""))issues.push("Static placeholder: "+(n.element.kind??"component"));
   if(n.responsive?.length)issues.push("Responsive overrides not applied");
   if(n.bindings?.length)issues.push("Live bindings not evaluated");
   if(n.style)issues.push("Named style not applied");

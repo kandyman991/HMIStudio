@@ -5,7 +5,7 @@
 //! transaction engine discards it, so the session's project is never
 //! partially modified.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use hmi_project_model::id::IdAllocator;
 use hmi_project_model::model::*;
@@ -36,18 +36,18 @@ impl Ctx<'_> {
         Ok(id)
     }
 
-    fn reassign(&mut self, root: &mut Node) -> Result<(), CommandError> {
+    fn reassign(&mut self, root: &mut Node) -> Result<BTreeMap<String, String>, CommandError> {
         let map = ids::reassign_node_ids(root, &mut self.alloc).map_err(|e| {
             CommandError::InvalidArgument {
                 message: format!("cannot allocate identifier: {e}"),
             }
         })?;
-        for (old, new) in map {
+        for (old, new) in &map {
             self.allocated
                 .insert(format!("{}:node:{old}", self.index), new.clone());
-            self.changes.push(K::Added, E::Node, Some(new));
+            self.changes.push(K::Added, E::Node, Some(new.clone()));
         }
-        Ok(())
+        Ok(map)
     }
 }
 
@@ -224,7 +224,8 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
             let i = screen_index(p, screen)?;
             let mut copy = p.screens[i].clone();
             let new_id = ScreenId::new_unchecked(cx.allocate(screen.as_str(), "screen")?);
-            cx.reassign(&mut copy.root)?;
+            let map = cx.reassign(&mut copy.root)?;
+            ids::duplicate_v2(p, &map, Some((screen, &new_id)), None);
             ids::remap_screen_refs(&mut copy.root, screen, &new_id);
             for h in &mut copy.events {
                 ids::remap_actions(&mut h.actions, screen, &new_id);
@@ -247,6 +248,13 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
         } => {
             let mut node = node.clone();
             if *assign_new_ids {
+                if p.has_v2_features()
+                    && subtree_ids(&node)
+                        .iter()
+                        .any(|id| locate::find(p, &NodeId::new_unchecked(id.clone())).is_some())
+                {
+                    return Err(CommandError::InvalidArgument { message: "existing v2 subtree must be copied with duplicateNode to preserve declarations".into() });
+                }
                 cx.reassign(&mut node)?;
             } else {
                 let all = subtree_ids(&node);
@@ -259,6 +267,58 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
             cx.changes
                 .push(K::Modified, E::Node, Some(parent.to_string()));
         }
+        Command::InsertV2Component {
+            parent,
+            index,
+            id,
+            layout,
+            contract,
+        } => {
+            let id = match id {
+                Some(id) => {
+                    ensure_new_ids(p, &[id.to_string()])?;
+                    id.clone()
+                }
+                None => NodeId::new_unchecked(cx.allocate("v2-node", "node")?),
+            };
+            let mut node = Node::new(
+                id.clone(),
+                Element::Component {
+                    kind: contract.kind(),
+                },
+            );
+            node.layout = layout.clone();
+            insert_child(p, parent, *index, node)?;
+            p.v2.components.components.push(
+                hmi_project_model::model::v2_components::ComponentCandidate {
+                    id: id.clone(),
+                    contract: contract.clone(),
+                },
+            );
+            cx.changes.push(K::Added, E::Node, Some(id.to_string()));
+            cx.changes
+                .push(K::Modified, E::Node, Some(parent.to_string()));
+            cx.changes.push(K::Modified, E::Project, None);
+        }
+        Command::SetV2ComponentContract { node, contract } => {
+            let loc = locate(p, node)?;
+            let existing = locate::get(p, &loc).ok_or_else(|| not_found("node", node))?;
+            if !matches!(existing.element, Element::Component { kind } if kind == contract.kind()) {
+                return Err(CommandError::InvalidArgument {
+                    message: "contract kind must match the existing node".into(),
+                });
+            }
+            let entry =
+                p.v2.components
+                    .components
+                    .iter_mut()
+                    .find(|c| &c.id == node)
+                    .ok_or_else(|| not_found("component contract", node))?;
+            entry.contract = contract.clone();
+            cx.changes
+                .push(K::Modified, E::Node, Some(node.to_string()));
+            cx.changes.push(K::Modified, E::Project, None);
+        }
         Command::RemoveNode { node } => {
             let loc = locate(p, node)?;
             if loc.is_root() {
@@ -268,7 +328,18 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
                 });
             }
             let removed = detach(p, &loc)?;
-            for id in subtree_ids(&removed) {
+            let removed_ids = subtree_ids(&removed);
+            let removed_set: BTreeSet<_> = removed_ids.iter().map(String::as_str).collect();
+            let count = p.v2.components.components.len();
+            p.v2.components
+                .components
+                .retain(|c| !removed_set.contains(c.id.as_str()));
+            if count != p.v2.components.components.len() {
+                cx.changes.push(K::Modified, E::Project, None);
+            }
+            // Other declarations are independent engineering references:
+            // strict validation refuses dangling permissions/bindings/actions.
+            for id in removed_ids {
                 cx.changes.push(K::Removed, E::Node, Some(id));
             }
             if let Some(parent) = locate::get(p, &parent_loc(&loc)) {
@@ -300,7 +371,10 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
                     (parent.id.clone(), Some(pos))
                 }
             };
-            cx.reassign(&mut copy)?;
+            let target_loc = locate(p, &target)?;
+            check_reparent_v2(p, &loc, &target_loc)?;
+            let map = cx.reassign(&mut copy)?;
+            ids::duplicate_v2(p, &map, None, None);
             insert_child(p, &target, index.or(default_index), copy)?;
             cx.changes
                 .push(K::Modified, E::Node, Some(target.to_string()));
@@ -318,6 +392,7 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
                 });
             }
             let ploc = locate(p, parent)?;
+            check_reparent_v2(p, &loc, &ploc)?;
             if ploc.is_within(&loc) {
                 return Err(CommandError::CircularHierarchy {
                     node: node.to_string(),
@@ -493,6 +568,33 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
         }
 
         // --------------------------------------------------- definitions
+        Command::CreateIndustrialSymbol { kind } => {
+            let definition = hmi_project_model::symbols::build_symbol(*kind, &mut cx.alloc)
+                .map_err(|e| CommandError::InvalidArgument {
+                    message: format!("cannot allocate symbol: {e}"),
+                })?;
+            let id = definition.id.to_string();
+            cx.allocated
+                .insert(format!("{}:definition", cx.index), id.clone());
+            cx.changes.push(K::Added, E::ComponentDefinition, Some(id));
+            definition.root.walk(&mut |n| {
+                let id = n.id.to_string();
+                cx.allocated
+                    .insert(format!("{}:node:{id}", cx.index), id.clone());
+                cx.changes.push(K::Added, E::Node, Some(id));
+            });
+            p.v2.components.definitions.push(
+                hmi_project_model::model::v2_components::DefinitionClassification {
+                    definition: definition.id.clone(),
+                    classification:
+                        hmi_project_model::model::v2_components::DefinitionKind::IndustrialSymbol {
+                            symbol: *kind,
+                        },
+                },
+            );
+            p.components.push(definition);
+            cx.changes.push(K::Modified, E::Project, None);
+        }
         Command::CreateComponentDefinition { definition } => {
             let mut all = vec![definition.id.to_string()];
             all.extend(subtree_ids(&definition.root));
@@ -548,7 +650,8 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
             let new_id = ComponentDefinitionId::new_unchecked(
                 cx.allocate(definition.as_str(), "definition")?,
             );
-            cx.reassign(&mut copy.root)?;
+            let map = cx.reassign(&mut copy.root)?;
+            ids::duplicate_v2(p, &map, None, Some((definition, &new_id)));
             ids::remap_definition_refs(&mut copy.root, definition, &new_id);
             copy.name = name
                 .clone()
@@ -560,6 +663,18 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
         }
 
         // ------------------------------------------------------- project
+        Command::SetIndustrialSecurity { declarations } => {
+            p.v2.industrial = declarations.clone();
+            cx.changes.push(K::Modified, E::Project, None);
+        }
+        Command::SetExpressionEnumerations { declarations } => {
+            p.v2.bindings = declarations.clone();
+            cx.changes.push(K::Modified, E::Project, None);
+        }
+        Command::SetComponentActions { declarations } => {
+            p.v2.components = declarations.clone();
+            cx.changes.push(K::Modified, E::Project, None);
+        }
         Command::SetMetadata { metadata } => {
             p.metadata = metadata.clone();
             cx.changes.push(K::Modified, E::Metadata, None);
@@ -586,6 +701,67 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
             cx.changes
                 .push(K::Modified, E::Extensions, Some(key.clone()));
         }
+    }
+    Ok(())
+}
+
+fn inherited_permissions(
+    p: &Project,
+    loc: &NodeLocation,
+    include_node: bool,
+) -> BTreeSet<PermissionId> {
+    let mut result = BTreeSet::new();
+    if let locate::Tree::Screen(i) = loc.tree {
+        if let Some(s) = p.screens.get(i) {
+            result.extend(
+                p.v2.industrial
+                    .screens
+                    .iter()
+                    .filter(|x| x.screen == s.id)
+                    .map(|x| x.required_permission.clone()),
+            );
+        }
+    }
+    let count = loc.path.len() + usize::from(include_node);
+    for depth in 0..count {
+        let ancestor = NodeLocation {
+            tree: loc.tree,
+            path: loc.path[..depth].to_vec(),
+        };
+        if let Some(n) = locate::get(p, &ancestor) {
+            result.extend(
+                p.v2.industrial
+                    .nodes
+                    .iter()
+                    .filter(|x| x.node == n.id)
+                    .map(|x| x.required_permission.clone()),
+            );
+        }
+    }
+    result
+}
+
+fn check_reparent_v2(
+    p: &Project,
+    source: &NodeLocation,
+    target: &NodeLocation,
+) -> Result<(), CommandError> {
+    if !p.has_v2_features() {
+        return Ok(());
+    }
+    // Definition parameter and instance security contexts are not interchangeable.
+    if source.tree != target.tree
+        && (matches!(source.tree, locate::Tree::Definition(_))
+            || matches!(target.tree, locate::Tree::Definition(_)))
+    {
+        return Err(CommandError::InvalidArgument {
+            message: "cross-definition v2 reparenting requires explicit scope remapping".into(),
+        });
+    }
+    if !inherited_permissions(p, source, false).is_subset(&inherited_permissions(p, target, true)) {
+        return Err(CommandError::InvalidArgument {
+            message: "reparenting would lose an inherited permission requirement".into(),
+        });
     }
     Ok(())
 }

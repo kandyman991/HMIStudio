@@ -1,5 +1,9 @@
 # HMI Studio — curated engineering handoff
 
+## DEV-01 acceptance — 2026-11-25
+- Verified PR #21 merge, owner-configured synchronization credential, automatic PR #22 merge and successful no-change post-merge reconciliation. See docs/DEV_01_ACCEPTANCE.md for exact evidence. Formal acceptance recorded in canonical roadmap source; this acceptance PR still requires independent review and exact-head CI.
+- Next: reconcile legacy PRs #20, #13 and #12 with current main and applicable claims; preserve scope and review each independently.
+
 ## DEV-01 review corrections — 2026-11-25
 - PR #21 predecessor c08424c passed hosted Required CI and handoff. The corrected branch adds required scoped milestone changes and shared reservations, trusted GitHub reconciliation through reviewed PRs, explicit parent/related scopes and generated view consistency. No new application or installer work.
 - Reconciliation reads verified GitHub observations; publication requires an approved repository-scoped ROADMAP_SYNC_TOKEN. Offline dashboard remains supported; public hosting not authorized. Shared reservation race handling is conservative; coordinate legacy PRs #12, #13 and #20 before integration.
@@ -196,3 +200,7 @@ Append or supersede entries when milestone state changes. Include date, source S
   - tag-engine 86 passed (2 ignored) plus 2 real-child tests against the branch engine;
   - tag-engine and lockfiles unchanged.
 - Open: the block is per engine session (L-4, must be addressed before REUSE-02C.4B exposes writes); Kotlin not exercised. Next: corrected-head hosted CI and independent review before merge; REUSE-02C.4B only on separate authorization.
+
+## REUSE-02C.4A independent review and reconciliation — 2026-11-25
+- Verified PR #20 predecessor 7b0166c: all 17 hosted checks passed; main advanced to a4babf7 (DEV-01 acceptance). Reconciled generated dashboard conflict through canonical milestone inputs, preserving accepted DEV-01.
+- Integration remains blocked by static findings: ambiguous OPC UA pulse-start failures can skip release, queued requests can overtake connection loss, and startup/demand waits are not engine-bounded. See docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md §9 and canonical milestone blockers. Correct with scoped reservation and simulation regressions; require fresh exact-head CI and independent review. No physical connectivity or write-capable EngineDriver exposure.

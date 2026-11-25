@@ -209,3 +209,33 @@ its own exact-head hosted CI.
 1. Exact-head hosted Required CI, tag workflow and handoff on the corrected PR #20 head.
 2. Independent review of the corrected head, then merge only after both gates pass.
 3. REUSE-02C.4B only on separate authorization. It must honour D-02C4A-1/2 and L-4.
+
+## 9. Independent review — 2026-11-25 (integration blocked)
+
+Reviewed predecessor 7b0166cccd0657104a440fec0fb7c628170c364e against
+main a4babf7d7f8cfdbca4adfea3584ee0b7188bd6e6. GitHub reported all 17
+predecessor checks successful (Desktop CI 45594448967, Tag engine CI
+45594448963, handoff 45594448982). This does not verify the reconciled head.
+
+- **Blocking — uncertain OPC UA pulse start:** the OPC UA driver's five-second
+  write timeout returns an unprefixed DriverError; other transport errors are
+  also unclassified. Engine pulse cleanup depends on is_outcome_unknown(),
+  so a potentially transmitted TRUE can skip the compensating FALSE. Classify
+  pre-transmission, definite rejection and ambiguous post-transmission outcomes
+  conservatively and test the driver-to-engine behavior.
+- **Blocking — queued work vs. connection loss:** the engine's unbiased select
+  may choose a deferred/new request before an already queued source-state event.
+  The supervision loop does not consume driver events. A write can consequently
+  be dispatched using stale arming after a loss event is queued. Prioritize
+  loss processing at dispatch boundaries, address stale queued control requests
+  and test a loss during an active operation with queued work.
+- **Bounded lifecycle gap:** start_source awaits start and failure cleanup stop
+  directly; demand updates also await driver methods directly. Existing drivers
+  generally return promptly or have internal timeouts, but the stated
+  engine-enforced bound on every driver wait is not implemented for these
+  paths. Define and test the termination bound and correct the implementation
+  or explicitly scope the guarantee.
+
+No physical PLC testing or fresh engine test execution claimed by this review.
+Do not integrate until these findings are resolved, scope coordinated for any
+additional driver paths, and fresh exact-head checks and review are complete.

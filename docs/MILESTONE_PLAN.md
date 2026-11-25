@@ -538,9 +538,23 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 
 **Parent** · REUSE-02C
 
-**Proposal** · PR #20 is a draft with exact-head hosted runs observed. Its engineering and review state remains separate.
+**Blockers**
 
-[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [f06ed65](https://github.com/kandyman991/HMIStudio/commit/f06ed6591d1a0573d62d1c4ba32b447a2bcfad45) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45579765121](https://github.com/kandyman991/HMIStudio/actions/runs/45579765121) success, [Engineering handoff snapshot #45579764645](https://github.com/kandyman991/HMIStudio/actions/runs/45579764645) success, [Tag engine CI #45579764379](https://github.com/kandyman991/HMIStudio/actions/runs/45579764379) success
+- Exact-head hosted Required CI, Tag engine CI, handoff and final independent review required.
+
+**Assignment** · ChatGPT, feat/reuse-02c4a-write-lifecycle (recorded 2026-11-25T12:43:08Z)
+
+**Proposal** · PR #20 incorporates the three independent-review corrections; all 77 local locked test-server engine tests passed. Fresh hosted CI and final review are required on the corrected head.
+
+[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [2e9e995](https://github.com/kandyman991/HMIStudio/commit/2e9e9951f011a39d6e1d9bb943cb67883d27e830) · snapshot 2026-11-25T12:46:48Z · [Desktop CI #45615999970](https://github.com/kandyman991/HMIStudio/actions/runs/45615999970) success, [Tag engine CI #45615999960](https://github.com/kandyman991/HMIStudio/actions/runs/45615999960) success, [Engineering handoff snapshot #45616000143](https://github.com/kandyman991/HMIStudio/actions/runs/45616000143) success
+
+Records · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
+
+**History**
+
+- 2026-11-25 · handoff · Reconciled legacy PR #20 with living roadmap main, preserved owner decisions D-02C4A-1 and D-02C4A-2 and reserved exact engine paths. New head requires fresh hosted CI and independent review. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
+- 2026-11-25 · handoff · Reconciled with main a4babf7, preserving DEV-01 acceptance and regenerating both views. Verified all 17 predecessor checks on 7b0166c. Independent static review identified unresolved write classification, event ordering and bounded lifecycle gaps; integration blocked pending correction. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
+- 2026-11-25 · handoff · Extended the existing claim atomically to the OPC UA driver. Corrected ambiguous OPC UA replies, connection-loss dispatch and stale queued authorization, and bounded startup, failed-start cleanup and demand waits. Local locked test-server suite passed 77/77 including six added tests. Fresh hosted checks required. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 
 <a id="reuse-02c.4b"></a>
 ### REUSE-02C.4B — Write-capable EngineDriver integration

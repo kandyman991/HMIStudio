@@ -761,6 +761,44 @@ impl OpcUaDriver {
     }
 }
 
+// Once handed to the transport, a timeout, service error, malformed response or
+// ambiguous operation status does not prove the write failed. Only a definite
+// per-node refusal can rule out application. Good (exact) confirms application;
+// e.g. GoodCompletesAsynchronously does not.
+async fn await_write_reply<E: std::fmt::Display>(
+    timeout: Duration,
+    reply: impl std::future::Future<Output = Result<Vec<StatusCode>, E>>,
+) -> Result<(), DriverError> {
+    let results = tokio::time::timeout(timeout, reply)
+        .await
+        .map_err(|_| DriverError::outcome_unknown("the device did not answer the write in time"))?
+        .map_err(|e| DriverError::outcome_unknown(format!("write failed: {e}")))?;
+    match results.as_slice() {
+        [status] if *status == StatusCode::Good => Ok(()),
+        [status]
+            if matches!(
+                *status,
+                StatusCode::BadUserAccessDenied
+                    | StatusCode::BadNotWritable
+                    | StatusCode::BadTypeMismatch
+                    | StatusCode::BadNodeIdUnknown
+                    | StatusCode::BadAttributeIdInvalid
+                    | StatusCode::BadOutOfRange
+            ) =>
+        {
+            Err(DriverError(format!(
+                "the device rejected the write: {status}"
+            )))
+        }
+        [status] => Err(DriverError::outcome_unknown(format!(
+            "write returned ambiguous status: {status}"
+        ))),
+        _ => Err(DriverError::outcome_unknown(
+            "the device returned an unexpected number of write results",
+        )),
+    }
+}
+
 #[async_trait]
 impl Driver for OpcUaDriver {
     /// Validates the settings and starts the connection task. Returns at once: connecting,
@@ -777,7 +815,9 @@ impl Driver for OpcUaDriver {
     }
 
     async fn write(&mut self, point: &RuntimePoint, value: &Value) -> Result<(), DriverError> {
-        let session = self.current_session()?;
+        let session = self
+            .current_session()
+            .map_err(|e| DriverError::not_transmitted(e.to_string()))?;
         let node = self
             .shared
             .node_of
@@ -786,35 +826,19 @@ impl Driver for OpcUaDriver {
             .get(&point.mapping_id)
             .cloned()
             .ok_or_else(|| {
-                DriverError(
-                    "the address is not resolved on this server (unknown namespace?)".into(),
+                DriverError::not_transmitted(
+                    "the address is not resolved on this server (unknown namespace?)",
                 )
             })?;
         let kind = self.shared.kinds.lock().unwrap().get(&node).copied();
-        let variant = to_variant(value, kind).map_err(DriverError)?;
+        let variant = to_variant(value, kind).map_err(DriverError::not_transmitted)?;
         let request = WriteValue {
             node_id: node,
             attribute_id: AttributeId::Value as u32,
             index_range: NumericRange::None,
             value: DataValue::value_only(variant),
         };
-        let results = tokio::time::timeout(REQUEST_TIMEOUT, session.write(&[request]))
-            .await
-            .map_err(|_| {
-                DriverError(
-                    "the device did not answer the write in time; its outcome is unknown".into(),
-                )
-            })?
-            .map_err(|e| DriverError(format!("write failed: {e}")))?;
-        match results.first() {
-            Some(status) if status.is_good() => Ok(()),
-            Some(status) => Err(DriverError(format!(
-                "the device rejected the write: {status}"
-            ))),
-            None => Err(DriverError(
-                "the device returned no result for the write".into(),
-            )),
-        }
+        await_write_reply(REQUEST_TIMEOUT, session.write(&[request])).await
     }
 
     async fn set_demand(&mut self, demand: Option<&BTreeSet<String>>) {
@@ -978,6 +1002,45 @@ impl Driver for OpcUaDriver {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn write_replies_distinguish_definite_and_unknown_outcomes() {
+        let bound = Duration::from_millis(20);
+        for statuses in [
+            vec![],
+            vec![StatusCode::Good, StatusCode::Good],
+            vec![StatusCode::BadTimeout],
+            vec![StatusCode::GoodCompletesAsynchronously],
+        ] {
+            let error = await_write_reply(bound, async { Ok::<_, &str>(statuses) })
+                .await
+                .unwrap_err();
+            assert!(error.is_outcome_unknown(), "{error}");
+        }
+        let transport =
+            await_write_reply(bound, async { Err::<Vec<StatusCode>, _>("transport lost") })
+                .await
+                .unwrap_err();
+        assert!(transport.is_outcome_unknown());
+        let timeout = await_write_reply(
+            bound,
+            std::future::pending::<Result<Vec<StatusCode>, &str>>(),
+        )
+        .await
+        .unwrap_err();
+        assert!(timeout.is_outcome_unknown());
+        let refused = await_write_reply(bound, async {
+            Ok::<_, &str>(vec![StatusCode::BadUserAccessDenied])
+        })
+        .await
+        .unwrap_err();
+        assert!(!refused.is_outcome_unknown());
+        assert!(
+            await_write_reply(bound, async { Ok::<_, &str>(vec![StatusCode::Good]) })
+                .await
+                .is_ok()
+        );
+    }
 
     #[test]
     fn device_values_convert_only_when_they_fit() {

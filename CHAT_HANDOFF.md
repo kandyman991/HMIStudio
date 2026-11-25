@@ -162,3 +162,49 @@ Append or supersede entries when milestone state changes. Include date, source S
 - Linux locked/offline: 85 ordinary tag-engine tests, strict Clippy, rustdoc, fmt, lockfile/diff checks passed. Two explicit real-child smoke tests passed with an existing previously built engine binary; exact-source fresh binary tests required on hosted Windows/Linux. Next exact action: independent review and exact-head CI before merge; preserve simulation scope and follow up with general mapping/quality/write termination.
 
 - Independent static review of PR #19 predecessor 8a78179c5f7b3a702ecf68c979168e2c3bf47e69: found that a post-baseline wire-valid but out-of-range scalar was returned as an item TypeMismatch without invalidating the generation. Corrected to validate the complete decoded snapshot before returning any read results and disconnect on failure, returning ConnectionLost. Added a deterministic synthetic child regression (negative Long for UInt32, bad quality/fault, fresh changed baseline). New regression and corrected source require hosted validation; no local execution claimed by reviewer. No physical endpoints, writes, dependencies or protocol changes. Next: verify exact corrected head Required CI, tag CI (including fresh children on Windows/Linux and audit), handoff and complete independent review before guarded merge.
+
+## REUSE-02C.4A write lifecycle — draft candidate — 2026-11-25
+- Branch `feat/reuse-02c4a-write-lifecycle` starts from verified main `9dc343b052f456ad507dfc69e2a82fb28345f108` (PR #18 merge). PR #19 then merged as `d1571fc5cd801a2b7d65b63dd3de7d25bf531817`; reconciled by ordinary merge (shared-record conflicts only, both entries kept). Open PRs observed: #19 REUSE-02C.3 (`8a78179`, draft, under independent review, branch untouched), #12, #13. Only `crates/hmi-engine/` and docs changed; `crates/tag-engine/` EngineDriver untouched. Protocol 3, Kotlin message set, dependencies and `Cargo.lock` unchanged.
+- Added:
+  - engine-side `Limits`, with every driver wait bounded: write/pulse start/browse 10 s, each release 5 s, each driver stop 5 s;
+  - write and pulse-start timeouts reported as `DRIVER_ERROR`/`OUTCOME_UNKNOWN:`, with a timed-out pulse start released at once;
+  - connection loss releases that source's pulses and disarms, and reconnection never re-arms (D-02C4A-1, resolves F-1);
+  - failed or timed-out releases reported and marked unconfirmed, then blocked with `BUSY` until an explicit re-arm, never rewritten automatically (D-02C4A-2, mitigates F-2);
+  - bounded termination with hung drivers (resolves F-3 for the engine).
+  
+  Details are in docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md.
+- Local Linux results (rustc 1.97.0, `--locked`):
+  - fmt clean; strict Clippy (default and test-server) and rustdoc `-D warnings` clean;
+  - hmi-engine 67/67 with test-server, 49/49 with default features;
+  - 13 new deterministic simulated tests, repeated 10× green; 8/8 re-introduced defects caught;
+  - `cargo audit`: 0 vulnerabilities, one known chrono warning.
+  
+  Simulated and synthetic drivers only. No hosted CI claimed.
+- After the #19 merge, on the merged tree: hmi-engine 67/67; tag-engine 86 passed (2 ignored by design); both real-child tests passed against an engine freshly built from this branch; lockfiles unchanged.
+- Open: owner confirmation of D-02C4A-1/2; whether to add a protocol-4 explicit outcome code or "release now" request; PLC-side command watchdog before physical use; Kotlin not exercised against the new disarm/BUSY behaviour; F-4/F-6/F-7 unchanged. Next: verify exact-head Required CI and handoff, independent review (reconcile with #19 if it merges first), then REUSE-02C.4B write-capable EngineDriver integration in isolated simulation.
+
+## REUSE-02C.4A owner decisions applied — 2026-11-25
+- Owner decisions:
+  - D-02C4A-1 accepted: global disarm on connection loss under protocol 3; healthy-source monitoring kept; no automatic re-arming or stale replay; per-connection arming is a protocol-4 requirement.
+  - D-02C4A-2 accepted with modifications: bounded release attempts and explicit uncertain outcomes; only the affected momentary command is blocked. Ordinary re-arming must not clear it, because authorization and command recovery are separate. Protocol 3 has no recovery operation, so the block is retained for the engine session. An explicit outcome-unknown status and command-specific recovery are protocol-4 requirements. PLC-side watchdogs are still required for physical momentary commands.
+  
+  Both are recorded in docs/ENGINEERING_DECISIONS.md.
+- Correction on PR #20, from the first candidate `26910c1`, whose CI does not carry over:
+  - `armWrites` no longer clears unconfirmed commands; nothing in protocol 3 clears them;
+  - the refusal message is now `COMMAND_UNCONFIRMED:`.
+  
+  Tests now cover two sources (one healthy), a second momentary command, re-arm/disarm/stop/start/configure/reconnection not clearing the block, and only the affected command being blocked. The superseded clear-on-arm rule is caught by a regression test.
+- Local Linux results (rustc 1.97.0, `--locked`):
+  - hmi-engine 71/71 with test-server, 53/53 with default features; `write_lifecycle` 17 tests, repeated 10× green; 11/11 re-introduced defects caught;
+  - fmt, strict Clippy and rustdoc clean; `cargo audit` 0 vulnerabilities (chrono warning);
+  - tag-engine 86 passed (2 ignored) plus 2 real-child tests against the branch engine;
+  - tag-engine and lockfiles unchanged.
+- Open: the block is per engine session (L-4, must be addressed before REUSE-02C.4B exposes writes); Kotlin not exercised. Next: corrected-head hosted CI and independent review before merge; REUSE-02C.4B only on separate authorization.
+
+## REUSE-02C.4A independent review and reconciliation — 2026-11-25
+- Verified PR #20 predecessor 7b0166c: all 17 hosted checks passed; main advanced to a4babf7 (DEV-01 acceptance). Reconciled generated dashboard conflict through canonical milestone inputs, preserving accepted DEV-01.
+- Integration remains blocked by static findings: ambiguous OPC UA pulse-start failures can skip release, queued requests can overtake connection loss, and startup/demand waits are not engine-bounded. See docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md §9 and canonical milestone blockers. Correct with scoped reservation and simulation regressions; require fresh exact-head CI and independent review. No physical connectivity or write-capable EngineDriver exposure.
+
+## REUSE-02C.4A review corrections — 2026-11-25
+- Scope extension: retained the REUSE-02C.4A reservation and atomically added only crates/hmi-engine/src/driver/opcua.rs. Corrected the three §9 findings (OPC UA ambiguous response markers and compensation, bounded event drain and invalidation of stale queued control requests, cancellable start/demand and bounded failed-start cleanup). No protocol/dependency/tag-engine changes.
+- Local Linux isolated locked test-server engine suite: 77 passed, including 22 write lifecycle and 7 session safety; formatting passed. See docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md §10. Fresh hosted Required CI, Tag engine CI, handoff and final exact-head review before guarded merge. L-4 remains a blocker before write-capable EngineDriver integration. No physical PLC or production acceptance.

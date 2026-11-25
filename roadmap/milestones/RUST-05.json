@@ -1,0 +1,33 @@
+{
+  "id": "RUST-05",
+  "title": "Import and Compose interoperability",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": false,
+  "summary": "Import authorized projects and produce equivalent Compose rendering across target profiles.",
+  "dependencies": [
+    {
+      "id": "RUST-04",
+      "gate": "accepted"
+    },
+    {
+      "id": "REUSE-03",
+      "gate": "merged"
+    },
+    {
+      "id": "REUSE-04",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Use authorized import fixtures and verify equivalent Compose rendering across target profiles.",
+    "Complete manual interoperability acceptance. Evaluate REUSE-03/04 mapping and generated Kotlin/Compose separately."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "related": [
+    "REUSE-03",
+    "REUSE-04"
+  ]
+}

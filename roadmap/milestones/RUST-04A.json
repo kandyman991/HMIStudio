@@ -1,0 +1,60 @@
+{
+  "id": "RUST-04A",
+  "title": "Nested editing foundation",
+  "track": "Engineering",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Scoped nested flow insertion and sibling ordering merged in PR #11.",
+  "dependencies": [
+    {
+      "id": "RUST-02",
+      "gate": "merged"
+    },
+    {
+      "id": "RUST-03B",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify typed layout transactions for nested flow insertion and sibling reordering.",
+    "Retain the RUST-04 desktop and dependency acceptance gates."
+  ],
+  "prs": [
+    {
+      "number": 11,
+      "head": "6030fa387a3fee3bd2b13ae8779ff2c690db0db5",
+      "branch": "feat/rust-04a-semantic-editing",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45421552926,
+          "name": "Desktop CI",
+          "head": "6030fa387a3fee3bd2b13ae8779ff2c690db0db5",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45421552619,
+          "name": "Engineering handoff snapshot",
+          "head": "6030fa387a3fee3bd2b13ae8779ff2c690db0db5",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "58d83ca540463d9507c1cd76555d0bac5bb6378b"
+    }
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-24",
+      "type": "note",
+      "summary": "Draft preparation explicitly limited to nested flow insertion and sibling ordering."
+    }
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04"
+}

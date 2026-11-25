@@ -1,0 +1,69 @@
+{
+  "id": "CI-02",
+  "title": "Change-aware CI",
+  "track": "Developer workflow",
+  "phase": "merged",
+  "counts": true,
+  "summary": "PR #14 implemented change routing and installer opt-in. PR #9 demonstrated documentation-only routing with zero installer artifacts.",
+  "dependencies": [],
+  "criteria": [
+    "Verify classification tests, current required contexts, on-demand installer path and exact-head CI for workflow changes.",
+    "Require independent review. Keep handoff and applicable dependency validation mandatory."
+  ],
+  "prs": [
+    {
+      "number": 14,
+      "head": "de86b95bdea35f08e89963ec92cfefe002976a47",
+      "branch": "ci/change-aware-ci-02",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45440535709,
+          "name": "Desktop CI",
+          "head": "de86b95bdea35f08e89963ec92cfefe002976a47",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45440535863,
+          "name": "Engineering handoff snapshot",
+          "head": "de86b95bdea35f08e89963ec92cfefe002976a47",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "39eba35a90fdfa27bc613a14b15b9e0bb461c639"
+    },
+    {
+      "number": 9,
+      "head": "6d346ce6e2515e81edaade8925ed3f2424419463",
+      "branch": "docs/reuse-01-hmiforge-audit",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45445225707,
+          "name": "Desktop CI",
+          "head": "6d346ce6e2515e81edaade8925ed3f2424419463",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45445226131,
+          "name": "Engineering handoff snapshot",
+          "head": "6d346ce6e2515e81edaade8925ed3f2424419463",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "238fd18a4006ced60b5459a37ff18ac1471a6e2c"
+    }
+  ],
+  "blockers": [
+    "Independent manual Desktop CI dispatch remains outstanding."
+  ],
+  "docs": [
+    "docs/CI_RUNNER_POLICY.md"
+  ]
+}

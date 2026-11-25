@@ -1,0 +1,64 @@
+{
+  "id": "RUST-01",
+  "title": "Desktop shell",
+  "track": "Engineering",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Typed command boundary and development installers merged. D-008 deferred manual acceptance to RUST-02.",
+  "dependencies": [],
+  "criteria": [
+    "Verify locked npm/Cargo resolution, exact-head frontend build, native Rust tests, Windows MSI and Linux DEB generation.",
+    "Complete independent review and applicable security and license checks. Record prototype comparison or approved deviation, Windows/Linux install, launch and close at RUST-02.",
+    "Keep production capabilities and private source outside this foundation."
+  ],
+  "prs": [
+    {
+      "number": 1,
+      "head": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+      "branch": "feat/rust-00-01-foundation",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45395978746,
+          "name": "Desktop CI",
+          "head": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45395978594,
+          "name": "Engineering handoff snapshot",
+          "head": "1ec641d6b668e2343eb1ad187eb161c86b191d82",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "7a07d7e74cc156ed76238e89068ff320b84a5978"
+    }
+  ],
+  "issues": [
+    {
+      "number": 4,
+      "label": "Track foundation dependency advisories and third-party redistribution obligations",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    },
+    {
+      "number": 10,
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "docs": [
+    "docs/ENGINEERING_DECISIONS.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-24",
+      "type": "note",
+      "summary": "Owner directed deferral of manual desktop and prototype acceptance to RUST-02 under D-008."
+    }
+  ]
+}

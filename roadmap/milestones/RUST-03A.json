@@ -1,0 +1,48 @@
+{
+  "id": "RUST-03A",
+  "title": "Project model",
+  "track": "Engineering",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Framework-neutral project model merged in PR #2.",
+  "dependencies": [],
+  "criteria": [
+    "Provide versioned schema, deterministic serialization, portable model validation, fixtures and tests."
+  ],
+  "prs": [
+    {
+      "number": 2,
+      "head": "36943f5015363ac13cd471aeee6646d4d8f4d53e",
+      "branch": "feat/rust-03a-project-model",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45405558172,
+          "name": "Desktop CI",
+          "head": "36943f5015363ac13cd471aeee6646d4d8f4d53e",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45405558243,
+          "name": "Engineering handoff snapshot",
+          "head": "36943f5015363ac13cd471aeee6646d4d8f4d53e",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45405558411,
+          "name": "Project model CI",
+          "head": "36943f5015363ac13cd471aeee6646d4d8f4d53e",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "0ccf044d2a65cc86400e053647e95520fcfe98c1"
+    }
+  ],
+  "docs": [
+    "docs/PROJECT_MODEL_VALIDATION.md"
+  ]
+}

@@ -1,0 +1,529 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HMI Studio roadmap source files",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/context"
+    },
+    {
+      "$ref": "#/$defs/milestone"
+    }
+  ],
+  "$defs": {
+    "time": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "date": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Z]+-\\d{2}[A-Z]?(?:\\.[0-9]+[A-Z]?)?$"
+    },
+    "sha": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
+    "doc": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:docs/[A-Za-z0-9_./-]+\\.md|[A-Z_]+\\.md)(?:#[a-z0-9_-]+)?$"
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "gate"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "gate": {
+          "enum": [
+            "merged",
+            "accepted"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "branch",
+        "observedAt"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "$ref": "#/$defs/branch"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/time"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-][A-Za-z0-9_./-]*$"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "head",
+        "state",
+        "result"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head": {
+          "$ref": "#/$defs/sha"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "in_progress",
+            "completed"
+          ]
+        },
+        "result": {
+          "enum": [
+            "success",
+            "failure",
+            "cancelled",
+            "skipped",
+            "neutral",
+            "timed_out",
+            "action_required",
+            "stale",
+            "startup_failure",
+            "pending"
+          ]
+        }
+      }
+    },
+    "pr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "head",
+        "branch",
+        "state",
+        "observedAt",
+        "runs"
+      ],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "head": {
+          "$ref": "#/$defs/sha"
+        },
+        "branch": {
+          "$ref": "#/$defs/branch"
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "open",
+            "closed",
+            "merged"
+          ]
+        },
+        "observedAt": {
+          "$ref": "#/$defs/time"
+        },
+        "merge": {
+          "$ref": "#/$defs/sha"
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ci"
+          }
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "label",
+        "state",
+        "observedAt"
+      ],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "observedAt": {
+          "$ref": "#/$defs/time"
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "date",
+        "summary",
+        "record"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/sha"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record": {
+          "$ref": "#/$defs/doc"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "date",
+        "type",
+        "summary"
+      ],
+      "properties": {
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "type": {
+          "enum": [
+            "started",
+            "handoff",
+            "completion_proposed",
+            "merged",
+            "accepted",
+            "note"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record": {
+          "$ref": "#/$defs/doc"
+        }
+      }
+    },
+    "milestone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "track",
+        "phase",
+        "counts",
+        "summary",
+        "dependencies",
+        "criteria"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "track": {
+          "enum": [
+            "Engineering",
+            "Reuse",
+            "Developer workflow"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "planned",
+            "in_progress",
+            "proposed",
+            "merged",
+            "accepted"
+          ]
+        },
+        "counts": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        },
+        "criteria": {
+          "$ref": "#/$defs/lines"
+        },
+        "blockers": {
+          "$ref": "#/$defs/lines"
+        },
+        "assignment": {
+          "$ref": "#/$defs/assignment"
+        },
+        "proposal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pr"
+          },
+          "minItems": 1
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/issue"
+          },
+          "minItems": 1
+        },
+        "docs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/doc"
+          },
+          "minItems": 1
+        },
+        "acceptance": {
+          "$ref": "#/$defs/acceptance"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          },
+          "minItems": 1
+        },
+        "parent": {
+          "$ref": "#/$defs/id"
+        },
+        "claimGroup": {
+          "$ref": "#/$defs/id"
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1
+        },
+        "completionPr": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requiredWorkflows": {
+          "$ref": "#/$defs/lines"
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "title",
+        "text"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/doc"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "record"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record": {
+          "$ref": "#/$defs/doc"
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "repository",
+        "migrationBase",
+        "overview",
+        "decisions",
+        "archives"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "repository": {
+          "const": "kandyman991/HMIStudio"
+        },
+        "migrationBase": {
+          "$ref": "#/$defs/sha"
+        },
+        "overview": {
+          "$ref": "#/$defs/lines"
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/decision"
+          },
+          "minItems": 1
+        },
+        "archives": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/document"
+          },
+          "minItems": 1
+        },
+        "reservations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reservation"
+          }
+        }
+      }
+    },
+    "reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group",
+        "milestone",
+        "owner",
+        "branch",
+        "scope",
+        "observedAt"
+      ],
+      "properties": {
+        "group": {
+          "$ref": "#/$defs/id"
+        },
+        "milestone": {
+          "$ref": "#/$defs/id"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "$ref": "#/$defs/branch"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/time"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-][A-Za-z0-9_./-]*$"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  }
+}

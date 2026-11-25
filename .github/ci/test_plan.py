@@ -10,6 +10,17 @@ class PlanTests(unittest.TestCase):
     def test_docs(self):
         self.assert_flags(["AGENTS.md", "docs/reuse/AUDIT_SUMMARY.md", "handoff/state.json"], [])
 
+    def test_roadmap_and_routing_only(self):
+        self.assert_flags([
+            "roadmap/milestones/DEV-01.json", "roadmap/dashboard.html",
+            "roadmap/generate.mjs", "docs/MILESTONE_PLAN.md",
+            ".github/ci/plan.py", ".github/ci/test_plan.py", ".github/ci/test_roadmap.py",
+        ], [])
+        self.assert_flags(["roadmap/dashboard.html", "crates/hmi-engine/src/lib.rs"],
+                          ["frontend", "native", "crates"])
+        self.assert_flags(["roadmap/dashboard.html", "src-tauri/tauri.conf.json"],
+                          ["frontend", "native", "package"])
+
     def test_frontend(self):
         self.assert_flags(["src/app.tsx", "tests/workspace.test.mjs"], ["frontend"])
 
@@ -25,7 +36,7 @@ class PlanTests(unittest.TestCase):
             self.assert_flags([path], ["frontend", "native", "package"])
 
     def test_unknown_and_ci(self):
-        for path in [".github/workflows/ci.yml", ".github/ci/plan.py", "future-build.sh", "docs/reference.html"]:
+        for path in [".github/workflows/ci.yml", ".github/ci/check_engine_notices.py", "future-build.sh", "docs/reference.html"]:
             self.assert_flags([path], ["frontend", "native", "package", "crates"])
 
     def test_force_and_union(self):

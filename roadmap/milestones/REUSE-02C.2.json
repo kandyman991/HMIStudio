@@ -1,0 +1,63 @@
+{
+  "id": "REUSE-02C.2",
+  "title": "Typed dispatch and isolated resynchronization",
+  "track": "Reuse",
+  "phase": "merged",
+  "counts": true,
+  "summary": "PR #18 added coalesced subscriptions and authoritative generation-specific isolated loopback baselines.",
+  "dependencies": [
+    {
+      "id": "REUSE-02C.1",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify typed dispatch, bounded/coalesced subscriptions and fresh generation resynchronization.",
+    "Require exact-head real-child tests and independent review."
+  ],
+  "prs": [
+    {
+      "number": 18,
+      "head": "8d81c149dffdd5c0112356de9a76dbc9f4c03e95",
+      "branch": "feat/reuse-02c2-bridge-dispatch",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45571815356,
+          "name": "Desktop CI",
+          "head": "8d81c149dffdd5c0112356de9a76dbc9f4c03e95",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45571815372,
+          "name": "Engineering handoff snapshot",
+          "head": "8d81c149dffdd5c0112356de9a76dbc9f4c03e95",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45571815369,
+          "name": "Tag engine CI",
+          "head": "8d81c149dffdd5c0112356de9a76dbc9f4c03e95",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "9dc343b052f456ad507dfc69e2a82fb28345f108"
+    }
+  ],
+  "docs": [
+    "docs/reuse/REUSE_02C2_BRIDGE_DISPATCH.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "PR #18 candidate recorded 81 local tests, including real-child evidence. It then merged following exact-head hosted checks and review.",
+      "record": "CHAT_HANDOFF.md"
+    }
+  ],
+  "parent": "REUSE-02C"
+}

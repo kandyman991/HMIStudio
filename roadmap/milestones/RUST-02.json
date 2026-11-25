@@ -1,0 +1,123 @@
+{
+  "id": "RUST-02",
+  "title": "Workspace and desktop acceptance",
+  "track": "Engineering",
+  "phase": "merged",
+  "counts": true,
+  "summary": "RUST-02A/B/C merged. The owner reported Windows 9/9 and scoped the Linux evidence exception. Issue #10 remains open for visual comparison and remaining acceptance evidence.",
+  "dependencies": [
+    {
+      "id": "RUST-01",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify menus, docking, shortcuts, screen tabs and persistent project/workspace behavior.",
+    "Apply issue #10’s RUST-02 exception: owner-reported Windows functional checks, exact-head Linux CI, and actual Linux X11 launch/clean close satisfy the duplicate Linux functional checklist.",
+    "Record remaining detailed evidence and visual workspace acceptance, including prototype comparison or approved deviation, in issue #10."
+  ],
+  "prs": [
+    {
+      "number": 5,
+      "head": "ee7995608a9a254ce32a8bb634f288c5569b0cfa",
+      "branch": "feat/rust-02a-session-workspace",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45410721032,
+          "name": "Desktop CI",
+          "head": "ee7995608a9a254ce32a8bb634f288c5569b0cfa",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45410721077,
+          "name": "Engineering handoff snapshot",
+          "head": "ee7995608a9a254ce32a8bb634f288c5569b0cfa",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "d17f299c4173f55e67bb30f0c9492f6c72039bf7"
+    },
+    {
+      "number": 6,
+      "head": "77d020fcf1876ff94a4d06315509f8c59df89d2a",
+      "branch": "feat/rust-02b-workspace",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45413654836,
+          "name": "Desktop CI",
+          "head": "77d020fcf1876ff94a4d06315509f8c59df89d2a",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45413654872,
+          "name": "Engineering handoff snapshot",
+          "head": "77d020fcf1876ff94a4d06315509f8c59df89d2a",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "264ace7e47d3c16c21c8415875fb64db1bf7c1d0"
+    },
+    {
+      "number": 8,
+      "head": "620c09cc347c859b9e9ad8431890fdcfcf55872c",
+      "branch": "feat/rust-02c-native-persistence",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45418769428,
+          "name": "Desktop CI",
+          "head": "620c09cc347c859b9e9ad8431890fdcfcf55872c",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45418769375,
+          "name": "Engineering handoff snapshot",
+          "head": "620c09cc347c859b9e9ad8431890fdcfcf55872c",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45418769365,
+          "name": "Engineering Core CI",
+          "head": "620c09cc347c859b9e9ad8431890fdcfcf55872c",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "4ca18a5973e0b624d06318c4767812989802c29b"
+    }
+  ],
+  "issues": [
+    {
+      "number": 10,
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "blockers": [
+    "Issue #10 remains open for visual acceptance and any required unverified detail. Owner-authorized RUST-04 engineering continuation is separate."
+  ],
+  "docs": [
+    "docs/WORKSPACE_IMPLEMENTATION.md",
+    "docs/NATIVE_PERSISTENCE.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-24",
+      "type": "note",
+      "summary": "Issue #10 records owner-reported Windows 9/9, an exception for duplicate manual Linux functional tests, and Linux X11 launch and clean-close smoke. Linux package-manager install, Wayland and some detailed Windows cases remain unverified. The owner authorized RUST-04 engineering continuation while visual acceptance remains open.",
+      "record": "CHAT_HANDOFF.md"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "id": "RUST-04",
+  "title": "Semantic layout editor",
+  "track": "Engineering",
+  "phase": "in_progress",
+  "counts": false,
+  "summary": "Initial nested editing merged. Model-backed layout is in draft review, and designer acceptance depends on RUST-02 acceptance.",
+  "dependencies": [
+    {
+      "id": "RUST-02",
+      "gate": "accepted",
+      "note": "Issue #10 covers desktop workspace acceptance."
+    },
+    {
+      "id": "RUST-03B",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify visual component operations, nested constraints, alignment and responsive preview.",
+    "Complete manual desktop designer acceptance."
+  ],
+  "prs": [
+    {
+      "number": 13,
+      "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+      "branch": "docs/original-visual-reference",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45431128554,
+          "name": "Desktop CI",
+          "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45431128532,
+          "name": "Engineering handoff snapshot",
+          "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+          "state": "completed",
+          "result": "success"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "number": 10,
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md"
+  ]
+}

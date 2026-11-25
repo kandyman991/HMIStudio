@@ -1,5 +1,10 @@
 # HMI Studio — curated engineering handoff
 
+## DEV-01 review corrections — 2026-11-25
+- PR #21 predecessor c08424c passed hosted Required CI and handoff. The corrected branch adds required scoped milestone changes and shared reservations, trusted GitHub reconciliation through reviewed PRs, explicit parent/related scopes and generated view consistency. No new application or installer work.
+- Reconciliation reads verified GitHub observations; publication requires an approved repository-scoped ROADMAP_SYNC_TOKEN. Offline dashboard remains supported; public hosting not authorized. Shared reservation race handling is conservative; coordinate legacy PRs #12, #13 and #20 before integration.
+- Next: independently inspect corrected head and exact-head CI, review synchronization permissions and activation. Do not claim a merge or acceptance before verified evidence.
+
 ## DEV-01 completion proposal — 2026-11-25
 - Based on observed main `d1571fc5cd801a2b7d65b63dd3de7d25bf531817`. REUSE-02C.3 merged in [PR #19](https://github.com/kandyman991/HMIStudio/pull/19). Its exact source `9560d35eaae751a5352cb40c78015931f448a8f2` passed Desktop CI 45575498171, tag CI 45575498358 and handoff 45575498315. [PR #20](https://github.com/kandyman991/HMIStudio/pull/20) remains a separate draft in the observed snapshot. Preserve its handoff and roadmap changes when reconciling. PRs #12 and #13 remain separate.
 - DEV-01 uses per-milestone structured records. Generate the detailed plan and offline dashboard with `node roadmap/generate.mjs`. Three original plans are preserved as exact migration inputs. The prior roadmap HTML was unavailable. See [roadmap/README.md](roadmap/README.md) and D-DEV-01.

@@ -3,12 +3,16 @@
   "title": "Deployment",
   "track": "Engineering",
   "phase": "planned",
-  "counts": true,
+  "counts": false,
   "summary": "Support standalone bundles and project-only publishing to paired runtimes.",
   "dependencies": [
     {
       "id": "RUST-05",
       "gate": "accepted"
+    },
+    {
+      "id": "REUSE-05",
+      "gate": "merged"
     }
   ],
   "criteria": [
@@ -20,5 +24,8 @@
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "related": [
+    "REUSE-05"
   ]
 }

@@ -42,7 +42,8 @@
     "Historical GitHub observation. Verify live refs, PR heads and CI before resumption.",
     "REUSE-02C.4A is a separate draft candidate. Device, production and runtime acceptance remain separate.",
     "Issue #10 remains open for workspace visual acceptance and other unverified evidence.",
-    "DEV-01 is a completion proposal. Its branch is not represented as merged."
+    "DEV-01 is a completion proposal. Its branch is not represented as merged.",
+    "Automated reconciliation PR publication requires approved ROADMAP_SYNC_TOKEN; dashboard is offline and public hosting is deferred."
   ],
-  "next_action": "Verify DEV-01 exact-head CI and independent review. When shared documentation changes land, reconcile the corresponding milestone records and regenerate."
+  "next_action": "Review corrected DEV-01 PR #21, verify exact-head hosted CI, then obtain merge approval. Reconcile existing concurrent PRs with the new roadmap and reservation policy."
 }

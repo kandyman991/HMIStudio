@@ -54,5 +54,7 @@
       "type": "note",
       "summary": "Draft preparation explicitly limited to nested flow insertion and sibling ordering."
     }
-  ]
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04"
 }

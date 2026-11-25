@@ -35,11 +35,11 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [RUST-04](#rust-04) Semantic layout editor | Engineering | In progress | [RUST-02](#rust-02) (accepted), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Proposed completion | [RUST-04A](#rust-04a) (merged) |
-| [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted) |
+| [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged) |
 | [RUST-06](#rust-06) Engineering systems | Engineering | In progress | [RUST-03B](#rust-03b) (merged) |
 | [RUST-06A](#rust-06a) Industrial tag foundation | Engineering | Merged | [RUST-03B](#rust-03b) (merged) |
-| [RUST-07](#rust-07) Deployment | Engineering | Planned | [RUST-05](#rust-05) (accepted) |
-| [RUST-08](#rust-08) Migration acceptance | Engineering | Planned | [RUST-07](#rust-07) (accepted) |
+| [RUST-07](#rust-07) Deployment | Engineering | Planned | [RUST-05](#rust-05) (accepted), [REUSE-05](#reuse-05) (merged) |
+| [RUST-08](#rust-08) Migration acceptance | Engineering | Planned | [RUST-07](#rust-07) (accepted), [REUSE-06](#reuse-06) (merged) |
 | [RUST-09](#rust-09) Advanced engineering | Engineering | Planned | — |
 
 ## Developer workflow
@@ -79,11 +79,14 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 
 **Proposal** · Completion proposal for the structured roadmap and its two generated views. Verify the PR head, hosted checks and independent review before integration.
 
+[PR #21](https://github.com/kandyman991/HMIStudio/pull/21) · open · head [c08424c](https://github.com/kandyman991/HMIStudio/commit/c08424c7669fa339e69a937aef5d7653af694c8f) · snapshot 2026-11-25T09:38:51Z · [Desktop CI #45584143534](https://github.com/kandyman991/HMIStudio/actions/runs/45584143534) success, [Engineering handoff snapshot #45584143470](https://github.com/kandyman991/HMIStudio/actions/runs/45584143470) success
+
 **History**
 
 - 2026-11-25 · started · Started DEV-01 from observed main d1571fc. Active PRs #12, #13 and #20 kept separate.
 - 2026-11-25 · handoff · Hand off the generated views, migration proof and privacy checks for independent review.
 - 2026-11-25 · completion proposed · Submitted DEV-01 as a scoped candidate for exact-head CI and review.
+- 2026-11-25 · handoff · Independent review identified enforcement, synchronization, reservation and scope accounting gaps; corrections in progress.
 
 ## Engineering
 
@@ -226,6 +229,8 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - [RUST-02](#rust-02) (merged)
 - [RUST-03B](#rust-03b) (merged)
 
+**Parent** · RUST-04
+
 [PR #11](https://github.com/kandyman991/HMIStudio/pull/11) · merged · head [6030fa3](https://github.com/kandyman991/HMIStudio/commit/6030fa387a3fee3bd2b13ae8779ff2c690db0db5) · merged [58d83ca](https://github.com/kandyman991/HMIStudio/commit/58d83ca540463d9507c1cd76555d0bac5bb6378b) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45421552926](https://github.com/kandyman991/HMIStudio/actions/runs/45421552926) success, [Engineering handoff snapshot #45421552619](https://github.com/kandyman991/HMIStudio/actions/runs/45421552619) success
 
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
@@ -249,6 +254,8 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 - [RUST-04A](#rust-04a) (merged)
 
+**Parent** · RUST-04
+
 **Proposal** · Draft PR #12 is a candidate for the layout-rendering slice. Visual acceptance remains open.
 
 [PR #12](https://github.com/kandyman991/HMIStudio/pull/12) · draft · head [1dd36b5](https://github.com/kandyman991/HMIStudio/commit/1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45434390655](https://github.com/kandyman991/HMIStudio/actions/runs/45434390655) success, [Engineering handoff snapshot #45434390848](https://github.com/kandyman991/HMIStudio/actions/runs/45434390848) success
@@ -270,6 +277,10 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 **Dependencies**
 
 - [RUST-04](#rust-04) (accepted)
+- [REUSE-03](#reuse-03) (merged)
+- [REUSE-04](#reuse-04) (merged)
+
+**Related scope** · REUSE-03, REUSE-04
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
@@ -303,6 +314,8 @@ Records · [docs/TAG\_ENGINE.md](TAG_ENGINE.md) · [docs/DEVELOPMENT\_SIMULATION
 
 - [RUST-03B](#rust-03b) (merged)
 
+**Parent** · RUST-06
+
 [PR #7](https://github.com/kandyman991/HMIStudio/pull/7) · merged · head [d41e6d0](https://github.com/kandyman991/HMIStudio/commit/d41e6d03e03d9684a6ce9cb799c337d2d3910aaf) · merged [5fa32af](https://github.com/kandyman991/HMIStudio/commit/5fa32afa14d2b5d765e6563bef9a840c4adf2b2a) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45461004666](https://github.com/kandyman991/HMIStudio/actions/runs/45461004666) success, [Engineering handoff snapshot #45461004699](https://github.com/kandyman991/HMIStudio/actions/runs/45461004699) success, [Tag engine CI #45461004678](https://github.com/kandyman991/HMIStudio/actions/runs/45461004678) success
 
 Records · [docs/TAG\_ENGINE\_VALIDATION.md](TAG_ENGINE_VALIDATION.md)
@@ -324,6 +337,9 @@ Records · [docs/TAG\_ENGINE\_VALIDATION.md](TAG_ENGINE_VALIDATION.md)
 **Dependencies**
 
 - [RUST-05](#rust-05) (accepted)
+- [REUSE-05](#reuse-05) (merged)
+
+**Related scope** · REUSE-05
 
 **Blockers**
 
@@ -344,6 +360,9 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Dependencies**
 
 - [RUST-07](#rust-07) (accepted)
+- [REUSE-06](#reuse-06) (merged)
+
+**Related scope** · REUSE-06
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
@@ -408,6 +427,8 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 - [REUSE-01](#reuse-01) (merged)
 
+**Parent** · REUSE-02
+
 [PR #15](https://github.com/kandyman991/HMIStudio/pull/15) · merged · head [700357f](https://github.com/kandyman991/HMIStudio/commit/700357f3c5ac07d520c4e4c926729713be75034c) · merged [5173d9a](https://github.com/kandyman991/HMIStudio/commit/5173d9a60ffb87b52edde1719043bfcbff4d3be5) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45449616282](https://github.com/kandyman991/HMIStudio/actions/runs/45449616282) success, [Engineering handoff snapshot #45449616387](https://github.com/kandyman991/HMIStudio/actions/runs/45449616387) success
 
 Records · [docs/reuse/REUSE\_02A\_PREFLIGHT.md](reuse/REUSE_02A_PREFLIGHT.md) · [docs/reuse/REUSE\_02A\_NOTICE\_REVIEW.md](reuse/REUSE_02A_NOTICE_REVIEW.md)
@@ -425,6 +446,8 @@ Records · [docs/reuse/REUSE\_02A\_PREFLIGHT.md](reuse/REUSE_02A_PREFLIGHT.md) �
 **Dependencies**
 
 - [REUSE-02A](#reuse-02a) (merged)
+
+**Parent** · REUSE-02
 
 [PR #16](https://github.com/kandyman991/HMIStudio/pull/16) · merged · head [5fe9dba](https://github.com/kandyman991/HMIStudio/commit/5fe9dbaa08e7fab3ca7f4270b987fbb42d406969) · merged [78f3a64](https://github.com/kandyman991/HMIStudio/commit/78f3a64c06d00afcc392edccad9da9fd757d0392) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45458106267](https://github.com/kandyman991/HMIStudio/actions/runs/45458106267) success, [Engineering handoff snapshot #45458106080](https://github.com/kandyman991/HMIStudio/actions/runs/45458106080) success
 
@@ -445,6 +468,8 @@ Records · [docs/reuse/REUSE\_02A\_IMPORT\_PLAN.md](reuse/REUSE_02A_IMPORT_PLAN.
 - [REUSE-02B](#reuse-02b) (merged)
 - [RUST-06A](#rust-06a) (merged)
 
+**Parent** · REUSE-02C
+
 [PR #17](https://github.com/kandyman991/HMIStudio/pull/17) · merged · head [8e900bc](https://github.com/kandyman991/HMIStudio/commit/8e900bc7c1883c0ad9fac3103e21cbb322915b97) · merged [dbdeeb2](https://github.com/kandyman991/HMIStudio/commit/dbdeeb2ea74555ba879380168e17c923a1c41da2) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45489970600](https://github.com/kandyman991/HMIStudio/actions/runs/45489970600) success, [Engineering handoff snapshot #45489970760](https://github.com/kandyman991/HMIStudio/actions/runs/45489970760) success, [Tag engine CI #45489971060](https://github.com/kandyman991/HMIStudio/actions/runs/45489971060) success
 
 Records · [docs/reuse/REUSE\_02C1\_BRIDGE\_SUPERVISION.md](reuse/REUSE_02C1_BRIDGE_SUPERVISION.md)
@@ -462,6 +487,8 @@ Records · [docs/reuse/REUSE\_02C1\_BRIDGE\_SUPERVISION.md](reuse/REUSE_02C1_BRI
 **Dependencies**
 
 - [REUSE-02C.1](#reuse-02c.1) (merged)
+
+**Parent** · REUSE-02C
 
 [PR #18](https://github.com/kandyman991/HMIStudio/pull/18) · merged · head [8d81c14](https://github.com/kandyman991/HMIStudio/commit/8d81c149dffdd5c0112356de9a76dbc9f4c03e95) · merged [9dc343b](https://github.com/kandyman991/HMIStudio/commit/9dc343b052f456ad507dfc69e2a82fb28345f108) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45571815356](https://github.com/kandyman991/HMIStudio/actions/runs/45571815356) success, [Engineering handoff snapshot #45571815372](https://github.com/kandyman991/HMIStudio/actions/runs/45571815372) success, [Tag engine CI #45571815369](https://github.com/kandyman991/HMIStudio/actions/runs/45571815369) success
 
@@ -485,6 +512,8 @@ Records · [docs/reuse/REUSE\_02C2\_BRIDGE\_DISPATCH.md](reuse/REUSE_02C2_BRIDGE
 
 - [REUSE-02C.2](#reuse-02c.2) (merged)
 
+**Parent** · REUSE-02C
+
 [PR #19](https://github.com/kandyman991/HMIStudio/pull/19) · merged · head [9560d35](https://github.com/kandyman991/HMIStudio/commit/9560d35eaae751a5352cb40c78015931f448a8f2) · merged [d1571fc](https://github.com/kandyman991/HMIStudio/commit/d1571fc5cd801a2b7d65b63dd3de7d25bf531817) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45575498171](https://github.com/kandyman991/HMIStudio/actions/runs/45575498171) success, [Engineering handoff snapshot #45575498315](https://github.com/kandyman991/HMIStudio/actions/runs/45575498315) success, [Tag engine CI #45575498358](https://github.com/kandyman991/HMIStudio/actions/runs/45575498358) success
 
 Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_DRIVER.md)
@@ -507,6 +536,8 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 
 - [REUSE-02C.3](#reuse-02c.3) (merged)
 
+**Parent** · REUSE-02C
+
 **Proposal** · PR #20 is a draft with exact-head hosted runs observed. Its engineering and review state remains separate.
 
 [PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [f06ed65](https://github.com/kandyman991/HMIStudio/commit/f06ed6591d1a0573d62d1c4ba32b447a2bcfad45) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45579765121](https://github.com/kandyman991/HMIStudio/actions/runs/45579765121) success, [Engineering handoff snapshot #45579764645](https://github.com/kandyman991/HMIStudio/actions/runs/45579764645) success, [Tag engine CI #45579764379](https://github.com/kandyman991/HMIStudio/actions/runs/45579764379) success
@@ -524,6 +555,8 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 **Dependencies**
 
 - [REUSE-02C.4A](#reuse-02c.4a) (merged)
+
+**Parent** · REUSE-02C
 
 **Blockers**
 
@@ -544,6 +577,8 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 - [REUSE-02B](#reuse-02b) (merged)
 - [RUST-06A](#rust-06a) (merged)
 
+**Parent** · REUSE-02
+
 Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 <a id="reuse-03"></a>
@@ -559,6 +594,8 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 **Dependencies**
 
 - [REUSE-01](#reuse-01) (merged)
+
+**Parent** · RUST-05
 
 **Blockers**
 
@@ -581,6 +618,8 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 - [REUSE-03](#reuse-03) (merged)
 
+**Parent** · RUST-05
+
 **Blockers**
 
 - Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work.
@@ -600,6 +639,8 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Dependencies**
 
 - [REUSE-04](#reuse-04) (merged) — The proposal calls for REUSE-04 P1 before deployment.
+
+**Parent** · RUST-07
 
 **Blockers**
 
@@ -624,6 +665,8 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - [REUSE-04](#reuse-04) (merged)
 - [REUSE-05](#reuse-05) (merged)
 
+**Parent** · RUST-08
+
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 ## Engineering decisions
@@ -635,6 +678,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - **D-009 — Selective HMI Forge reuse** · Use verified source and rights, disclosure and advisory gates for approved scope. · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md#d-009--selective-hmi-forge-reuse-boundary-owner-direction-recorded-in-pr-9-2026-11-24)
 - **O-5 — Separate supervised communication engine** · Keep the engine independently supervised and use bounded protocol behavior. · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md#o-5--separate-supervised-communication-engine-owner-approved)
 - **D-DEV-01 — Living development roadmap** · Maintain milestones as structured records. Generate this plan and the dashboard from the same source. · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md#d-dev-01--living-development-roadmap)
+- **D-DEV-01-REVIEW — Reservation, reconciliation and scope accounting** · Proposed review corrections: required scoped milestone changes; shared Git ref reservations; verified GitHub reconciliation PRs; explicit parent and overlapping scope relationships. No acceptance inferred. · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md)
 
 ## Historical roadmap records
 

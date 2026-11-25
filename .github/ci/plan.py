@@ -16,6 +16,8 @@ def classify(paths, force=False):
     for path in paths:
         if path.startswith("roadmap/") or path in {
             ".github/ci/plan.py", ".github/ci/test_plan.py", ".github/ci/test_roadmap.py",
+            ".github/ci/roadmap_gate.py", ".github/ci/test_roadmap_gate.py",
+            ".github/ci/test_roadmap_sync.py", ".github/workflows/roadmap-sync.yml",
         }:
             # Desktop CI's changes job validates these development-only inputs.
             continue

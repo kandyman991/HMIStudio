@@ -3,12 +3,16 @@
   "title": "Migration acceptance",
   "track": "Engineering",
   "phase": "planned",
-  "counts": true,
+  "counts": false,
   "summary": "Verify compatibility and installation across Windows, Linux and Android runtime targets.",
   "dependencies": [
     {
       "id": "RUST-07",
       "gate": "accepted"
+    },
+    {
+      "id": "REUSE-06",
+      "gate": "merged"
     }
   ],
   "criteria": [
@@ -17,5 +21,8 @@
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "related": [
+    "REUSE-06"
   ]
 }

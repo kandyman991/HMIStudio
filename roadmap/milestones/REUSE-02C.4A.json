@@ -47,5 +47,10 @@
         }
       ]
     }
+  ],
+  "parent": "REUSE-02C",
+  "completionPr": 20,
+  "requiredWorkflows": [
+    "Tag engine CI"
   ]
 }

@@ -54,5 +54,6 @@
   ],
   "docs": [
     "docs/reuse/REUSE_02C1_BRIDGE_SUPERVISION.md"
-  ]
+  ],
+  "parent": "REUSE-02C"
 }

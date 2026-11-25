@@ -74,6 +74,7 @@ test('separates merged and accepted prerequisites in next task eligibility', () 
 test('keeps a green active proposal distinct from a merge and from acceptance', () => {
   const candidate = milestone('REUSE-02C.4A');
   candidate.dependencies = [];
+  delete candidate.parent;
   assert.equal(validate([candidate])[0].eligible, false);
   assert.throws(() => validate([{ ...candidate, phase: 'merged', proposal: undefined }]), /must contain text/);
   delete candidate.proposal;
@@ -108,4 +109,13 @@ test('flags overlapping branch claims across active milestones', () => {
   const assignment = { owner: 'Fixture', branch: 'feat/fixture', observedAt: '2026-11-25T11:00:00Z' };
   const active = id => ({ ...task(id), phase: 'in_progress', assignment });
   assert.throws(() => validate([active('FIX-01'), active('FIX-02')]), /Overlapping active branch/);
+});
+
+test('rejects invalid hierarchy and overlapping scope groups', () => {
+  const a = task('FIX-01');
+  assert.throws(() => validate([{ ...a, parent: 'FIX-02' }]), /invalid hierarchy/);
+  assert.throws(() => validate([{ ...a, parent: 'FIX-02' }, { ...task('FIX-02'), parent: 'FIX-01' }]), /hierarchy cycle/);
+  const assignment = branch => ({ owner: 'Agent', branch, observedAt: '2026-11-25T09:00:00Z', scope: ['src/'] });
+  const active = id => ({ ...task(id), claimGroup: 'FIX-01', phase: 'in_progress', assignment: assignment('feat/' + id) });
+  assert.throws(() => validate([a, active('FIX-02'), active('FIX-03')]), /overlapping active claim group/);
 });

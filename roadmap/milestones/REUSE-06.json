@@ -29,5 +29,7 @@
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md"
-  ]
+  ],
+  "parent": "RUST-08",
+  "claimGroup": "RUST-08"
 }

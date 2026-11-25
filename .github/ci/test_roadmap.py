@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 import unittest
+from roadmap_gate import main as enforce_roadmap_gate
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +33,9 @@ def integration_base():
 
 
 class RoadmapTests(unittest.TestCase):
+    def test_implementation_milestone_update(self):
+        enforce_roadmap_gate()
+
     def test_generated_views_and_evidence(self):
         args = ["node", "roadmap/generate.mjs", "--check", "--verify-migration"]
         base = integration_base()

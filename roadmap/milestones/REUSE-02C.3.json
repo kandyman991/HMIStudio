@@ -58,5 +58,6 @@
       "summary": "Review found an incomplete invalidation on out-of-range values. The corrected candidate added full snapshot validation before returning results.",
       "record": "CHAT_HANDOFF.md"
     }
-  ]
+  ],
+  "parent": "REUSE-02C"
 }

@@ -22,5 +22,6 @@
   "docs": [
     "docs/ENGINEERING_DECISIONS.md",
     "docs/reuse/REUSE_MILESTONE_PLAN.md"
-  ]
+  ],
+  "parent": "REUSE-02"
 }

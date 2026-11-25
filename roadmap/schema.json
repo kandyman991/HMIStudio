@@ -89,6 +89,15 @@
         },
         "observedAt": {
           "$ref": "#/$defs/time"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-][A-Za-z0-9_./-]*$"
+          },
+          "minItems": 1
         }
       }
     },
@@ -359,6 +368,26 @@
             "$ref": "#/$defs/event"
           },
           "minItems": 1
+        },
+        "parent": {
+          "$ref": "#/$defs/id"
+        },
+        "claimGroup": {
+          "$ref": "#/$defs/id"
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1
+        },
+        "completionPr": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requiredWorkflows": {
+          "$ref": "#/$defs/lines"
         }
       }
     },
@@ -446,6 +475,51 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/document"
+          },
+          "minItems": 1
+        },
+        "reservations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reservation"
+          }
+        }
+      }
+    },
+    "reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group",
+        "milestone",
+        "owner",
+        "branch",
+        "scope",
+        "observedAt"
+      ],
+      "properties": {
+        "group": {
+          "$ref": "#/$defs/id"
+        },
+        "milestone": {
+          "$ref": "#/$defs/id"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "$ref": "#/$defs/branch"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/time"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-][A-Za-z0-9_./-]*$"
           },
           "minItems": 1
         }

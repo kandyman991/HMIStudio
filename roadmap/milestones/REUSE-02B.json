@@ -43,5 +43,6 @@
   ],
   "docs": [
     "docs/reuse/REUSE_02A_IMPORT_PLAN.md"
-  ]
+  ],
+  "parent": "REUSE-02"
 }

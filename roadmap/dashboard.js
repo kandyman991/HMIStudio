@@ -163,6 +163,7 @@ function renderDetail(task) {
   const marker = element('span', phases[task.phase], 'phase-pill');
   marker.dataset.phase = task.phase;
   detail.replaceChildren(marker, element('h3', task.id + ' — ' + task.title), element('p', task.summary));
+  if (task.parent || task.related) detail.append(detailSection('Scope relationships', list([...(task.parent ? [jumpButton(byId.get(task.parent), 'Parent: ' + task.parent)] : []), ...(task.related ?? []).map(id => jumpButton(byId.get(id), 'Related: ' + id))])));
   if (task.proposal) detail.append(detailSection('Proposal', element('p', task.proposal)));
   if (task.acceptance) {
     const record = task.acceptance;
@@ -335,6 +336,14 @@ function resetFilters() {
 
 function showEligible() {
   const area = $('eligible');
+  area.append(element('p', 'Check shared live reservations before claiming an eligible task.'), link('GitHub shared reservation branches', github + '/branches'));
+  if (context.reservations?.length) {
+    area.append(element('h4', 'Shared reservation snapshot'), list(context.reservations.map(claim => {
+      const item = element('span');
+      item.append(jumpButton(byId.get(claim.milestone), claim.milestone), ' · ' + claim.owner + ' · ' + claim.branch + ' · ' + utc(claim.observedAt));
+      return item;
+    })));
+  }
   const next = tasks.filter(task => task.eligible);
   if (next.length) area.append(list(next.map(task => jumpButton(task, task.id + ' · ' + task.title))));
   else area.append(element('p', 'No planned task currently meets every prerequisite.'));

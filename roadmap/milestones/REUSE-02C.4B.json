@@ -17,5 +17,6 @@
   ],
   "blockers": [
     "Resolve L-4 before exposing writes."
-  ]
+  ],
+  "parent": "REUSE-02C"
 }

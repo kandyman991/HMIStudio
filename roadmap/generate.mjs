@@ -92,6 +92,7 @@ export function validateRoadmap(context, tasks, options = {}) {
   requireThat(tasks.length > 0, 'No milestone files');
   const byId = new Map();
   const activeBranches = new Map();
+  const activeGroups = new Map();
   const verified = new Set();
   const verifyBase = sha => {
     if (!options.base || verified.has(sha)) return;
@@ -112,21 +113,32 @@ export function validateRoadmap(context, tasks, options = {}) {
     byId.set(id, task);
 
     const merged = prs.filter(pr => pr.state === 'merged');
+    requireThat(!task.completionPr || prs.some(pr => pr.number === task.completionPr), id + ' completion PR must be recorded');
     const active = prs.filter(pr => pr.state === 'open' || pr.state === 'draft');
     requireThat((phase === 'proposed') === Boolean(proposal), id + ' needs proposal text exactly in proposed phase');
-    requireThat(phase !== 'proposed' || assignment || active.length, id + ' proposed completion needs an active PR or assignment');
+    requireThat(phase !== 'proposed' || assignment || active.length || merged.some(pr => pr.number === task.completionPr), id + ' proposed completion needs an active PR or assignment');
     requireThat(phase !== 'in_progress' || !task.counts || assignment || active.length, id + ' active work needs a branch or assignment');
     requireThat(phase !== 'planned' || (!active.length && !assignment), id + ' planned task has active work');
     requireThat(!integrated(phase) || (merged.length && !active.length && !assignment),
       id + ' merged/accepted phase needs merged PR evidence and no active completion claim');
     const hasIntegrationChecks = merged.some(pr => integrationWorkflows.every(name =>
       pr.runs.some(run => run.name === name && run.state === 'completed' && run.result === 'success')));
+    if (integrated(phase) && task.completionPr) {
+      const completion = merged.find(pr => pr.number === task.completionPr);
+      requireThat(completion && [...integrationWorkflows, ...(task.requiredWorkflows ?? [])].every(name => completion.runs.some(run => run.name === name && run.state === 'completed' && run.result === 'success')) && completion.runs.every(run => run.state === 'completed' && run.result === 'success'), id + ' completion PR needs all recorded checks successful');
+    }
     requireThat(!integrated(phase) || hasIntegrationChecks, id + ' needs successful exact-head Desktop CI and handoff evidence');
     requireThat((phase === 'accepted') === Boolean(acceptance), id + ' needs explicit milestone acceptance evidence exactly in accepted phase');
     requireThat(!acceptance || !task.blockers?.length, id + ' accepted task has an unresolved blocker');
     if (assignment) {
       claimBranch(assignment.branch, id);
       verifyDate(assignment.observedAt);
+      if (assignment.scope) {
+        for (const path of assignment.scope) requireThat(!path.split('/').some(part => part === '.' || part === '..') && !path.includes('//'), id + ' invalid assignment scope');
+        const group = task.claimGroup ?? id;
+        requireThat(!activeGroups.has(group), id + ' overlapping active claim group ' + group);
+        activeGroups.set(group, id);
+      }
     }
     if (acceptance) {
       verifyBase(acceptance.commit);
@@ -179,7 +191,26 @@ export function validateRoadmap(context, tasks, options = {}) {
     return depth;
   }
   for (const id of byId.keys()) visit(id);
+  for (const task of tasks) {
+    for (const ref of [task.parent, task.claimGroup, ...(task.related ?? [])].filter(Boolean))
+      requireThat(byId.has(ref) && ref !== task.id, task.id + ' invalid hierarchy or overlap reference ' + ref);
+    const seen = new Set([task.id]);
+    let parent = task.parent;
+    while (parent) {
+      requireThat(!seen.has(parent), task.id + ' parent hierarchy cycle');
+      seen.add(parent); parent = byId.get(parent)?.parent;
+    }
+  }
 
+  const reservationGroups = new Set();
+  for (const claim of context.reservations ?? []) {
+    const task = byId.get(claim.milestone);
+    requireThat(task && (task.claimGroup ?? task.id) === claim.group, 'Invalid shared reservation group');
+    requireThat(!reservationGroups.has(claim.group), 'Duplicate shared reservation group');
+    reservationGroups.add(claim.group);
+    verifyBranch(claim.branch); verifyDate(claim.observedAt);
+    for (const path of claim.scope) requireThat(!path.split('/').some(part => part === '.' || part === '..') && !path.includes('//'), 'Invalid reservation scope');
+  }
   requireThat(new Set(context.decisions.map(decision => decision.id)).size === context.decisions.length,
     'Duplicate decision ID');
   context.decisions.forEach(decision => verifyDoc(decision.record));
@@ -195,7 +226,7 @@ export function validateRoadmap(context, tasks, options = {}) {
 
   return tasks.map(task => {
     const waiting = task.dependencies.filter(dep => !meets(byId.get(dep.id).phase, dep.gate));
-    const eligible = task.counts && task.phase === 'planned' && waiting.length === 0 && !task.blockers?.length;
+    const eligible = (task.counts || tasks.some(other => other.dependencies.some(dep => dep.id === task.id))) && task.phase === 'planned' && waiting.length === 0 && !task.blockers?.length && !reservationGroups.has(task.claimGroup ?? task.id);
     return { ...task, rank: ranks.get(task.id), waiting, eligible };
   });
 }
@@ -241,6 +272,8 @@ function renderMarkdown(context, tasks) {
         lines.push('', '**Dependencies**', '', ...task.dependencies.map(dep =>
           '- ' + dependencyLabel(dep) + (dep.note ? ' — ' + md(dep.note) : '')));
       }
+      if (task.parent) lines.push('', '**Parent** · ' + task.parent);
+      if (task.related) lines.push('', '**Related scope** · ' + task.related.join(', '));
       if (blockers) lines.push('', '**Blockers**', '', ...blockers.map(item => '- ' + md(item)));
       if (assignment) lines.push('', '**Assignment** · ' + md(assignment.owner) + ', ' +
         md(assignment.branch) + ' (recorded ' + assignment.observedAt + ')');
@@ -265,6 +298,7 @@ function renderMarkdown(context, tasks) {
         (event.record ? ' · ' + docLink(event.record, '../') : '')));
     }
   }
+  if (context.reservations?.length) lines.push('', '## Shared reservation snapshot', '', ...context.reservations.map(claim => '- ' + claim.milestone + ' · ' + md(claim.owner) + ' · ' + md(claim.branch) + ' · ' + claim.observedAt));
   lines.push('', '## Engineering decisions', '',
     ...context.decisions.map(decision => '- **' + md(decision.id) + ' — ' + md(decision.title) + '** · ' +
       md(decision.summary) + ' · ' + docLink(decision.record, '../')));

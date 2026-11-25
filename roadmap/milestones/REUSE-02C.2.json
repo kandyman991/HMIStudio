@@ -58,5 +58,6 @@
       "summary": "PR #18 candidate recorded 81 local tests, including real-child evidence. It then merged following exact-head hosted checks and review.",
       "record": "CHAT_HANDOFF.md"
     }
-  ]
+  ],
+  "parent": "REUSE-02C"
 }

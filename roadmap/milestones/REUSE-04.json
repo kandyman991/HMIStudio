@@ -21,5 +21,7 @@
   ],
   "blockers": [
     "Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work."
-  ]
+  ],
+  "parent": "RUST-05",
+  "claimGroup": "RUST-05"
 }

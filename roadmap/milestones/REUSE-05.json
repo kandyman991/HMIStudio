@@ -21,5 +21,7 @@
   ],
   "blockers": [
     "Confirm the deployment protocol/legacy listener gate and applicable key and signing decisions before implementation."
-  ]
+  ],
+  "parent": "RUST-07",
+  "claimGroup": "RUST-07"
 }

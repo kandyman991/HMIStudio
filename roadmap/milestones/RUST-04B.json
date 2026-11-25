@@ -52,5 +52,8 @@
   ],
   "docs": [
     "docs/LAYOUT_DESIGNER.md"
-  ]
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04",
+  "completionPr": 12
 }

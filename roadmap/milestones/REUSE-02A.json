@@ -44,5 +44,6 @@
   "docs": [
     "docs/reuse/REUSE_02A_PREFLIGHT.md",
     "docs/reuse/REUSE_02A_NOTICE_REVIEW.md"
-  ]
+  ],
+  "parent": "REUSE-02"
 }

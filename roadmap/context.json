@@ -74,19 +74,5 @@
       "title": "Original reuse proposal before DEV-01"
     }
   ],
-  "reservations": [
-    {
-      "group": "RUST-04",
-      "milestone": "RUST-04C.1",
-      "owner": "ChatGPT",
-      "branch": "fix/rust-04c1-native-drag",
-      "scope": [
-        "src/designer.ts",
-        "src/main.tsx",
-        "src/style.css",
-        "tests/designer.test.mjs"
-      ],
-      "observedAt": "2026-11-25T15:42:06Z"
-    }
-  ]
+  "reservations": []
 }

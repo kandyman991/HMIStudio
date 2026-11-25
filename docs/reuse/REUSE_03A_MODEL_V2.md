@@ -1,6 +1,6 @@
 # REUSE-03A — Canonical model v2 contract and compatibility baseline
 
-Status: first implementation slice / design candidate. Base main f86f4338e33cd6889f42e7d8511a04b938fb1f42. Existing schema remains v1 until all v2 additions, commands and consumer checks land together; do not label this as a frozen or implemented v2.
+Status: implemented schema v2 freeze candidate on PR #35; not frozen until independent final technical review, exact-head CI and verified integration. Base main f86f4338e33cd6889f42e7d8511a04b938fb1f42. Earlier implementation slices below are historical evidence.
 
 ## Owner decisions, 2026-11-25
 
@@ -113,3 +113,17 @@ Fixture provenance:
 Replay in public HMIStudio: cargo test --locked --manifest-path crates/project-model/Cargo.toml --test expression_conformance. To rerun against the private oracle, check out the exact reference revision, compile the original BindingExpression.kt and Quality.kt plus unmodified VariableType/HmiValue declarations and the original synthetic Oracle.kt harness using Kotlin/JVM 2.3.20 with serialization annotations available. Provide one UTF-8 Base64-encoded expression per line (from vectors.json) as the harness file argument. Normalize each numbered PARSE or CHECK row to REJECT; compare every output line with the Rust example expression_conformance invoked with vectors.json. The checked-in TSV is the observed oracle output, not a Rust-generated golden. Do not copy the private reference source into HMIStudio.
 
 Technical preflight disposition: tested expression behavior matches, but deliberately retained canonical safety differences: lossy integer-to-f64 admission is refused, actual runtime reading type mismatches fail closed, expression text is bounded, diagnostics and uncommon Unicode lexer cases are not claimed identical. Canonical project IDs are ASCII and legacy references must be explicitly remapped during import. No device access or write evaluation. Runtime capability refusal remains unchanged. The full v2 schema is still a review candidate; independent review of the complete final PR (not just this slice) and exact-head hosted CI are required by AGENTS.md before freeze/integration. Cross-definition reparenting, reusable-instance expression parameters, full project declaration editor and runtime compatibility remain explicit limitations. Runtime parity belongs to REUSE-04, not this oracle test. No manual native visual pass is claimed.
+
+## Ninth slice — independent review corrections and freeze candidate (2026-11-25)
+
+Observed predecessor `d0c68d14018dca7a3d0ba3e68e031ad90a9bef11`, zero behind main `f86f4338e33cd6889f42e7d8511a04b938fb1f42`. Desktop CI 45686447457, Tag engine CI 45686447214 and Engineering handoff snapshot 45686446711 passed, including Required CI and both native platform jobs. Independent inspection of migration, canonical validation, typed commands/remapping, persistence admission, tag-engine refusal and expression/desktop interfaces identified incorrect diagnostic JSON pointers inherited from staging. Corrected all three group prefixes (`/v2/industrial`, `/v2/bindings`, `/v2/components`) and tested canonical serialized paths. Local locked offline project-model tests: 104 passed, including replay of all 12,664 measured vectors and schema regeneration equality. No new dependencies, private sources, or schema bytes changed by this correction. The full technical review is not yet certified complete.
+
+### Proposed formal freeze record
+
+Owner authorized freezing schema v2 on successful completion of PR #35 review and CI. Freeze applies to the versioned canonical serialized model and semantic validation contract, not to UI, decoder, runtime or production acceptance.
+
+- Schema ID: `urn:hmi-studio:project:schema:v2`; canonical file `crates/project-model/schema/hmi-project.v2.schema.json`; SHA-256 `b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738`.
+- Historical v1 schema SHA-256 `3f136f57224b469f6106c05f120608bf8f4c1e46253df6eff0cddbfbd2131b0f`, identical to main. V1 migration and unknown/duplicate-key rejection remain required.
+- Contract 1 reference and measured corpus hashes above were independently checked against the files. No independent JVM rerun was performed in this review slice.
+- Upon verified merge following successful final-head review and required CI, treat the identified v2 schema and its semantic contract as frozen: no silent incompatible changes; use an explicit reviewed version/migration decision for wire or semantic incompatibility. Legacy decoder mapping must target this frozen contract; unsupported fields are reported, never silently dropped or granted runtime capability.
+- Until those gates pass, this is a freeze proposal only. REUSE-03 remains in progress; decoder mapping and downstream runtime parity remain separate.

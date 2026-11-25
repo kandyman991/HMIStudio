@@ -90,3 +90,31 @@ fn all_five_placed_contracts_validate_and_strict_v1_admission_is_preserved() {
     extension["extensions"] = json!({"example":{"element":{"type":"component","kind":"line"}}});
     assert!(load_project(&extension.to_string()).is_ok());
 }
+
+#[test]
+fn canonical_diagnostics_point_to_real_nested_declarations() {
+    use hmi_project_model::validation::validate;
+    let cases = [
+        (
+            json!({"industrial":{"security":{"autoLogoutSeconds":0}}}),
+            "/v2/industrial/security/autoLogoutSeconds",
+        ),
+        (
+            json!({"bindings":{"enumerations":[{"id":"enum-state","name":"State","dataType":"uint16","entries":[{"value":65536,"label":"Invalid"}]}]}}),
+            "/v2/bindings/enumerations/0/entries/0/value",
+        ),
+        (
+            json!({"components":{"handlers":[{"origin":{"node":"missing-node"},"event":"click","actions":[{"type":"navigateStartup"}]}]}}),
+            "/v2/components/handlers/0/origin",
+        ),
+    ];
+    for (declarations, expected) in cases {
+        let mut doc = base();
+        doc["schemaVersion"] = json!(2);
+        doc["v2"] = declarations;
+        let project = parse_project(&doc.to_string()).unwrap().project;
+        let report = validate(&project);
+        assert!(report.errors().any(|d| d.path == expected), "{report:?}");
+        assert!(doc.pointer(expected).is_some());
+    }
+}

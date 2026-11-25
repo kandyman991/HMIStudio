@@ -83,7 +83,7 @@ pub fn validate_v2_bindings(
     );
     let mut enums = BTreeMap::new();
     for (i, e) in d.enumerations.iter().enumerate() {
-        let path = format!("/v2/enumerations/{i}");
+        let path = format!("/v2/bindings/enumerations/{i}");
         if validate_id(e.id.as_str()).is_err() {
             error(
                 &mut r,
@@ -162,7 +162,7 @@ pub fn validate_v2_bindings(
     let tags: BTreeMap<_, _> = p.tags.iter().map(|t| (t.id.as_str(), t)).collect();
     let mut mapped = BTreeSet::new();
     for (i, m) in d.mappings.iter().enumerate() {
-        let path = format!("/v2/mappings/{i}");
+        let path = format!("/v2/bindings/mappings/{i}");
         if !mapped.insert(m.tag.as_str()) {
             error(
                 &mut r,
@@ -219,7 +219,7 @@ pub fn validate_v2_bindings(
     }
     let mut bound = BTreeSet::new();
     for (i, b) in d.expressions.iter().enumerate() {
-        let path = format!("/v2/expressions/{i}");
+        let path = format!("/v2/bindings/expressions/{i}");
         if !bound.insert((b.node.as_str(), b.property.as_str())) {
             error(
                 &mut r,

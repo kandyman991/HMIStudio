@@ -219,7 +219,7 @@ fn check_write(
 
 /// Validate the active base project first, then declarations. Every finding
 /// is an error; no effective permissions or write authorization are produced.
-/// Staging paths start at /v2 and are not part of the active v1 schema.
+/// Diagnostic paths refer to the canonical v2 industrial group.
 pub fn validate_v2_declarations(
     project: &Project,
     v2: &IndustrialSecurityDeclarations,
@@ -241,7 +241,7 @@ pub fn validate_v2_declarations(
         .map(|c| (c.id.as_str(), c))
         .collect();
     for (i, policy) in v2.connections.iter().enumerate() {
-        let path = format!("/v2/connections/{i}");
+        let path = format!("/v2/industrial/connections/{i}");
         unique(
             &mut seen,
             policy.connection.as_str(),
@@ -291,7 +291,7 @@ pub fn validate_v2_declarations(
     seen.clear();
     let tags: BTreeMap<_, _> = project.tags.iter().map(|t| (t.id.as_str(), t)).collect();
     for (i, policy) in v2.tags.iter().enumerate() {
-        let path = format!("/v2/tags/{i}");
+        let path = format!("/v2/industrial/tags/{i}");
         unique(
             &mut seen,
             policy.tag.as_str(),
@@ -311,7 +311,7 @@ pub fn validate_v2_declarations(
 
     let mut permissions = BTreeSet::new();
     for (i, p) in v2.security.permissions.iter().enumerate() {
-        let path = format!("/v2/security/permissions/{i}");
+        let path = format!("/v2/industrial/security/permissions/{i}");
         register_id(&mut ids, p.id.as_str(), format!("{path}/id"), &mut report);
         permissions.insert(p.id.as_str());
         if p.name.trim().is_empty() {
@@ -325,7 +325,7 @@ pub fn validate_v2_declarations(
     }
     let mut roles = BTreeSet::new();
     for (i, role) in v2.security.roles.iter().enumerate() {
-        let path = format!("/v2/security/roles/{i}");
+        let path = format!("/v2/industrial/security/roles/{i}");
         register_id(
             &mut ids,
             role.id.as_str(),
@@ -352,7 +352,7 @@ pub fn validate_v2_declarations(
         known(
             &roles,
             role.as_str(),
-            "/v2/security/anonymousRole".into(),
+            "/v2/industrial/security/anonymousRole".into(),
             &mut report,
         );
     }
@@ -360,14 +360,14 @@ pub fn validate_v2_declarations(
         error(
             &mut report,
             C::InvalidValue,
-            "/v2/security/autoLogoutSeconds".into(),
+            "/v2/industrial/security/autoLogoutSeconds".into(),
             "configured auto logout must be positive",
         );
     }
     let screens: BTreeSet<_> = project.screens.iter().map(|s| s.id.as_str()).collect();
     seen.clear();
     for (i, s) in v2.screens.iter().enumerate() {
-        let path = format!("/v2/screens/{i}");
+        let path = format!("/v2/industrial/screens/{i}");
         unique(
             &mut seen,
             s.screen.as_str(),
@@ -400,7 +400,7 @@ pub fn validate_v2_declarations(
     }
     seen.clear();
     for (i, n) in v2.nodes.iter().enumerate() {
-        let path = format!("/v2/nodes/{i}");
+        let path = format!("/v2/industrial/nodes/{i}");
         unique(
             &mut seen,
             n.node.as_str(),

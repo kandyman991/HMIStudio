@@ -305,3 +305,7 @@ Valid v2 open/save/recovery, static five-component preview, typed inspector and 
 ## REUSE-03A expression conformance — 2026-11-25
 
 Pinned actual private Kotlin/JVM contract-1 oracle 92a612d compiled separately; 12,664 original synthetic vectors match Rust after numeric text formatting fixes. Public fixture replay is automated; no private source or project fixture transfer. Exact-head hosted CI and independent full technical review remain prerequisites for schema freeze; no runtime or Android parity claim. Next exact action: independently review final PR #35, correct any findings, verify exact-head checks, record freeze and merge only when gates satisfied. Reservation active.
+
+## REUSE-03A independent review correction — 2026-11-25
+- PR #35 predecessor d0c68d14018dca7a3d0ba3e68e031ad90a9bef11 passed Desktop CI 45686447457, Tag engine CI 45686447214 and handoff 45686446711. Corrected canonical v2 diagnostic paths; 104 local locked offline model tests passed (including corpus replay and schema checks). V1 schema bytes unchanged and v2 hash recorded.
+- Formal freeze proposal in docs/reuse/REUSE_03A_MODEL_V2.md; do not certify freeze or merge before completing independent technical review and exact corrected-head hosted checks. REUSE-03 remains in progress; no runtime, device or visual acceptance.

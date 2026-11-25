@@ -50,12 +50,12 @@ fn exact_unsigned_limits_do_not_round_adjacent_values() {
     assert_error(
         &check(p.clone(), d.clone()),
         C::InvalidTag,
-        "/v2/tags/1/limits/max",
+        "/v2/industrial/tags/1/limits/max",
     );
     d["tags"][1]["limits"] = json!({"min":-1,"step":0});
     let r = check(p, d);
-    assert_error(&r, C::InvalidTag, "/v2/tags/1/limits/min");
-    assert_error(&r, C::InvalidTag, "/v2/tags/1/limits/step");
+    assert_error(&r, C::InvalidTag, "/v2/industrial/tags/1/limits/min");
+    assert_error(&r, C::InvalidTag, "/v2/industrial/tags/1/limits/step");
 }
 #[test]
 fn reject_invalid_command_semantics_and_narrowing() {
@@ -66,10 +66,10 @@ fn reject_invalid_command_semantics_and_narrowing() {
     d["tags"][1]["limits"]["step"] = json!(0.1);
     let r = check(base(), d);
     for path in [
-        "/v2/tags/0/tag",
-        "/v2/tags/0/pulseMs",
-        "/v2/tags/0/confirmationRequired",
-        "/v2/tags/1/limits/step",
+        "/v2/industrial/tags/0/tag",
+        "/v2/industrial/tags/0/pulseMs",
+        "/v2/industrial/tags/0/confirmationRequired",
+        "/v2/industrial/tags/1/limits/step",
     ] {
         assert_error(&r, C::InvalidTag, path);
     }
@@ -84,22 +84,30 @@ fn reject_unknown_roles_permissions_targets_and_global_collisions() {
     d["screens"][0]["screen"] = json!("n-root");
     d["nodes"][0]["node"] = json!("scr-main");
     let r = check(base(), d.clone());
-    assert_error(&r, C::DuplicateIdentifier, "/v2/security/permissions/0/id");
     assert_error(
         &r,
         C::DuplicateIdentifier,
-        "/v2/security/roles/0/permissions/1",
+        "/v2/industrial/security/permissions/0/id",
+    );
+    assert_error(
+        &r,
+        C::DuplicateIdentifier,
+        "/v2/industrial/security/roles/0/permissions/1",
     );
     for path in [
-        "/v2/security/roles/0/permissions/0",
-        "/v2/security/anonymousRole",
-        "/v2/screens/0/screen",
-        "/v2/nodes/0/node",
-        "/v2/nodes/0/requiredPermission",
+        "/v2/industrial/security/roles/0/permissions/0",
+        "/v2/industrial/security/anonymousRole",
+        "/v2/industrial/screens/0/screen",
+        "/v2/industrial/nodes/0/node",
+        "/v2/industrial/nodes/0/requiredPermission",
     ] {
         assert_error(&r, C::UnknownReference, path);
     }
-    assert_error(&r, C::InvalidValue, "/v2/security/autoLogoutSeconds");
+    assert_error(
+        &r,
+        C::InvalidValue,
+        "/v2/industrial/security/autoLogoutSeconds",
+    );
     assert_eq!(r, check(base(), d));
 }
 #[test]
@@ -109,11 +117,11 @@ fn loopback_has_no_physical_connection_or_commissioning() {
     let mut d = declarations();
     d["connections"][0]["commissioningAllowed"] = json!(true);
     let r = check(p, d);
-    assert_error(&r, C::InvalidValue, "/v2/connections/0/driver");
+    assert_error(&r, C::InvalidValue, "/v2/industrial/connections/0/driver");
     assert_error(
         &r,
         C::InvalidValue,
-        "/v2/connections/0/commissioningAllowed",
+        "/v2/industrial/connections/0/commissioningAllowed",
     );
 }
 #[test]
@@ -127,7 +135,7 @@ fn reject_unknown_fields_in_security_and_duplicate_declarations() {
     assert_error(
         &check(base(), d),
         C::DuplicateIdentifier,
-        "/v2/nodes/1/node",
+        "/v2/industrial/nodes/1/node",
     );
 }
 #[test]

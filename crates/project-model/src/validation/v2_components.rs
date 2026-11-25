@@ -89,7 +89,7 @@ pub fn validate_v2_components(
     let defs: BTreeMap<_, _> = p.components.iter().map(|c| (c.id.as_str(), c)).collect();
     let mut classifications = BTreeMap::new();
     for (i, c) in d.definitions.iter().enumerate() {
-        let path = format!("/v2/definitions/{i}");
+        let path = format!("/v2/components/components/definitions/{i}");
         if classifications
             .insert(c.definition.as_str(), &c.classification)
             .is_some()
@@ -178,7 +178,7 @@ pub fn validate_v2_components(
         });
     }
     for (i, c) in d.components.iter().enumerate() {
-        let path = format!("/v2/components/{i}");
+        let path = format!("/v2/components/components/{i}");
         if validate_id(c.id.as_str()).is_err() {
             error(
                 &mut r,
@@ -374,7 +374,7 @@ pub fn validate_v2_components(
     }
     let mut handlers = BTreeSet::new();
     for (i, h) in d.handlers.iter().enumerate() {
-        let path = format!("/v2/handlers/{i}");
+        let path = format!("/v2/components/handlers/{i}");
         let (id, existing, allowed, context) = match &h.origin {
             EventOrigin::Screen(id) => match screens.get(id.as_str()) {
                 Some(s) => (id.as_str(), &s.events, catalog::SCREEN_EVENTS, None),

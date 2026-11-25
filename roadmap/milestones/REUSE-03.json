@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A model-v2 review candidate: canonical model, migration, placement/remapping and desktop typed engineering preview implemented; measured Kotlin/JVM contract-1 conformance 12,664/12,664.",
+  "summary": "REUSE-03A schema-v2 freeze candidate: canonical model and desktop preview, 12,664/12,664 oracle vectors replayed; review corrected canonical diagnostic paths.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Independent technical review of full final-head PR #35 and successful exact-head hosted CI before schema freeze. Explicit limitations: reusable-instance expression parameters, cross-definition reparenting, full project-level declaration UI and runtime capability integration. Legacy decoder mapping waits for frozen schema."
+    "Complete independent technical review and exact corrected-head hosted CI for PR #35 before formal schema freeze and merge. Retain documented runtime and editor limitations; legacy decoder mapping waits for verified freeze."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -90,6 +90,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Compared actual pinned Kotlin/JVM contract-1 evaluator with Rust on 12,664 original synthetic vectors; fixed shortest decimal and asymmetric rounding-boundary formatting differences. All tested observations match; reproducible corpus and oracle harness retained, no private source transferred. Exact-head hosted CI and independent review required before schema freeze.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Independent review verified predecessor hosted CI and schema/corpus hashes; corrected staged diagnostic pointers to canonical v2 groups, 104 locked offline model tests passed. Formal freeze proposal recorded; final technical review and corrected-head CI remain required.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

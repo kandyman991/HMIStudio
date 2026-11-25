@@ -68,12 +68,12 @@ fn geometry_and_input_rejections() {
     d["components"][3]["contract"]["maxLength"] = json!(0);
     let r = check(base(), d);
     for path in [
-        "/v2/components/0/contract/end",
-        "/v2/components/1/contract/headLength",
-        "/v2/components/2/contract/points",
-        "/v2/components/3/contract/tag",
-        "/v2/components/3/contract/maxLength",
-        "/v2/components/4/contract/tag",
+        "/v2/components/components/0/contract/end",
+        "/v2/components/components/1/contract/headLength",
+        "/v2/components/components/2/contract/points",
+        "/v2/components/components/3/contract/tag",
+        "/v2/components/components/3/contract/maxLength",
+        "/v2/components/components/4/contract/tag",
     ] {
         assert!(r.errors().any(|d| d.path == path), "{path}: {r}");
     }
@@ -85,9 +85,9 @@ fn faceplate_arguments_and_handler_conflicts_are_rejected() {
     d["handlers"][0]["actions"][1]["parameters"] = json!({"source":"tag-word","other":"x"});
     let r = check(base_rw(), d);
     for path in [
-        "/v2/handlers/0/event",
-        "/v2/handlers/0/actions/1/parameters/source",
-        "/v2/handlers/0/actions/1/parameters/other",
+        "/v2/components/handlers/0/event",
+        "/v2/components/handlers/0/actions/1/parameters/source",
+        "/v2/components/handlers/0/actions/1/parameters/other",
     ] {
         assert!(r.errors().any(|d| d.path == path), "{path}: {r}");
     }

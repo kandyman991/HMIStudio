@@ -813,6 +813,10 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
+## Shared reservation snapshot
+
+- RUST-04C.1 · ChatGPT · fix/rust-04c1-native-drag · 2026-11-25T15:42:06Z
+
 ## Engineering decisions
 
 - **D-003 — Public successor boundary** · Preserve the public/private separation and approved import boundaries. · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md#d-003--public-successor-boundary-accepted)

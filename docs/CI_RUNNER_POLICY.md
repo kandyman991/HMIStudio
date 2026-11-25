@@ -14,3 +14,7 @@ Public successor policy, not the legacy private repository's runner contract. CI
 - Commit lockfiles; require locked resolution and verify no lockfile drift. Review applicable dependency vulnerabilities/licenses independently; issue #4 remains open. Batch fixes; no repetitive reruns without evidence.
 - Required-check transition: inspect repository branch protection/rulesets; configure Required CI plus snapshot (and any applicable independent gate). Existing required contexts must not be removed until replacement gate is validated. Connector could not inspect branch protection (403); owner/admin verification required if old matrix contexts are enforced. Never weaken enforcement to force a merge.
 - Snapshot is read-only and never uploads artifacts or writes refs. Verify exact final PR head, live main and independent review. Skipped installer jobs mean not built, never passed.
+
+## Review depth (owner-approved, 2026-11-25)
+
+Use the AGENTS.md scope-based review policy: lightweight independent consistency review for evidence/documentation-only changes, full technical review for executable or control-changing changes and mixed/uncertain scope. Both require exact-head Required CI and Engineering handoff success and applicable dedicated checks. The reviewer verifies classification, evidence and authorization; no change to CI routing, installer triggers, security gates or acceptance criteria follows from a lighter review.

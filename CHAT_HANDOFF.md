@@ -269,3 +269,7 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## RUST-04 scoped acceptance — 2026-11-25
 
 - Owner directed skipping Linux installation and removing it as an acceptance prerequisite. RUST-04 accepted for supported designer scope on cumulative owner Windows 10/10 and verified successful build a204ba0 (run 45652237283); Linux installation/manual interactions deferred, not passed. RUST-02 deferred visual fidelity gate satisfied by prior Windows visual PASS; retain historical issue #10 limitations. RUST-05 acceptance dependency on RUST-04 is satisfied; remaining reuse prerequisites unchanged. See D-008 follow-up and docs/LAYOUT_DESIGNER.md.
+
+## Review depth decision — 2026-11-25
+
+Owner approved lightweight independent consistency review for documentation/roadmap-only PRs; full technical review remains required for implementation or control changes. Both retain exact-head Required CI, handoff and applicable gates. Apply to PR #34 evidence with explicit scrutiny of its owner-approved policy changes; do not self-exempt.

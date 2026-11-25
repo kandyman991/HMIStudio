@@ -74,5 +74,17 @@
       "title": "Original reuse proposal before DEV-01"
     }
   ],
-  "reservations": []
+  "reservations": [
+    {
+      "group": "REUSE-02C.4A",
+      "milestone": "REUSE-02C.4A",
+      "owner": "ChatGPT",
+      "branch": "feat/reuse-02c4a-write-lifecycle",
+      "scope": [
+        "crates/hmi-engine/src/engine.rs",
+        "crates/hmi-engine/tests/write_lifecycle.rs"
+      ],
+      "observedAt": "2026-11-25T10:22:48Z"
+    }
+  ]
 }

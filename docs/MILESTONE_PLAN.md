@@ -540,7 +540,7 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 
 **Proposal** · PR #20 is a draft with exact-head hosted runs observed. Its engineering and review state remains separate.
 
-[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [f06ed65](https://github.com/kandyman991/HMIStudio/commit/f06ed6591d1a0573d62d1c4ba32b447a2bcfad45) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45579765121](https://github.com/kandyman991/HMIStudio/actions/runs/45579765121) success, [Engineering handoff snapshot #45579764645](https://github.com/kandyman991/HMIStudio/actions/runs/45579764645) success, [Tag engine CI #45579764379](https://github.com/kandyman991/HMIStudio/actions/runs/45579764379) success
+[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [7b0166c](https://github.com/kandyman991/HMIStudio/commit/7b0166cccd0657104a440fec0fb7c628170c364e) · snapshot 2026-11-25T11:01:17Z · [Desktop CI #45594448967](https://github.com/kandyman991/HMIStudio/actions/runs/45594448967) success, [Engineering handoff snapshot #45594448982](https://github.com/kandyman991/HMIStudio/actions/runs/45594448982) success, [Tag engine CI #45594448963](https://github.com/kandyman991/HMIStudio/actions/runs/45594448963) success
 
 <a id="reuse-02c.4b"></a>
 ### REUSE-02C.4B — Write-capable EngineDriver integration
@@ -668,6 +668,10 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Parent** · RUST-08
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+
+## Shared reservation snapshot
+
+- REUSE-02C.4A · ChatGPT · feat/reuse-02c4a-write-lifecycle · 2026-11-25T10:22:48Z
 
 ## Engineering decisions
 

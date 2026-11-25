@@ -19,33 +19,33 @@
   "prs": [
     {
       "number": 20,
-      "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+      "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
       "branch": "feat/reuse-02c4a-write-lifecycle",
       "state": "draft",
-      "observedAt": "2026-11-25T09:01:59Z",
       "runs": [
         {
-          "id": 45579765121,
+          "id": 45594448967,
           "name": "Desktop CI",
-          "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+          "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45579764645,
+          "id": 45594448982,
           "name": "Engineering handoff snapshot",
-          "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+          "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45579764379,
+          "id": 45594448963,
           "name": "Tag engine CI",
-          "head": "f06ed6591d1a0573d62d1c4ba32b447a2bcfad45",
+          "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
           "state": "completed",
           "result": "success"
         }
-      ]
+      ],
+      "observedAt": "2026-11-25T11:01:17Z"
     }
   ],
   "parent": "REUSE-02C",

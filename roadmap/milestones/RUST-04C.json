@@ -2,7 +2,7 @@
   "id": "RUST-04C",
   "title": "Direct graphical manipulation",
   "track": "Engineering",
-  "phase": "planned",
+  "phase": "in_progress",
   "counts": true,
   "summary": "Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.",
   "dependencies": [
@@ -20,5 +20,36 @@
     "docs/reference/README.md"
   ],
   "parent": "RUST-04",
-  "claimGroup": "RUST-04"
+  "claimGroup": "RUST-04",
+  "assignment": {
+    "owner": "ChatGPT",
+    "branch": "feat/rust-04c-direct-manipulation",
+    "scope": [
+      "CHAT_HANDOFF.md",
+      "docs/LAYOUT_DESIGNER.md",
+      "src/designer.ts",
+      "src/main.tsx",
+      "src/style.css",
+      "tests/designer.test.mjs"
+    ],
+    "observedAt": "2026-11-25T14:02:11Z"
+  },
+  "blockers": [
+    "Independent final-head review and exact-head hosted CI pending.",
+    "Native desktop interaction and prototype comparison deferred to RUST-04 acceptance; non-flow layouts and runtime parity remain explicitly unsupported in this slice."
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "started",
+      "summary": "Reserved RUST-04C from verified main bfd81fc; reconciled PR #25 engineering integration and carried native validation to RUST-04.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Implemented selection, flow reorder/reparent, resize with snap, pan and semantic cross-axis alignment through existing typed transactions; local 17 frontend tests, TypeScript/Vite and isolated browser gesture fixture passed. No native acceptance claimed.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    }
+  ]
 }

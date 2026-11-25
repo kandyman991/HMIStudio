@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A merged; schema v2 frozen. REUSE-03B portable decoder and conservative industrial/security declaration mapping implemented.",
+  "summary": "REUSE-03A merged; schema v2 frozen. REUSE-03B portable decoder, conservative industrial/security and graphical/layout/binding mappings implemented.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1\u2013V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Complete adaptive layout, component, expression/enumeration and other feature mappings; resolve or explicitly refuse legacy semantics not representable in frozen v2; complete source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding."
+    "Complete remaining legacy component/catalog and parameter semantics, component-specific enumeration usage, actions, alarms, assets and themes; full source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -110,6 +110,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "REUSE-03B.2 maps S7/OPC UA/loopback connection declarations, single external mapping per tag, exact setpoint limits, momentary/maintained commands, deduplicated units and role/permission references into frozen v2. Explicitly refuses ambiguous mappings, credential fields and unsupported write-policy semantics. Eleven local regression groups and Clippy/rustdoc passed; schema unchanged.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "REUSE-03B.3 adds selected graphical components, nested row/column layout intent with explicit approximation diagnostics and inactive geometry metadata, reusable composites and read-only bool/text tag parameters, typed direct/expression bindings with parser-checked reference remapping, exact int64 enumeration declarations. 17 local regression groups and Clippy/rustdoc passed; unsupported semantics refuse import and frozen schema unchanged.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

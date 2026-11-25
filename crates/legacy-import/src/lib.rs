@@ -1,6 +1,7 @@
 //! Read-only portable legacy import, initial conservative mapping slice.
 //! No filesystem writes, archive extraction, I/O, or runtime authorization.
 use hmi_project_model::{model::Project, serialization::load_project};
+mod graphics;
 mod industrial;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
@@ -333,7 +334,7 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
             &path(&p, "heightDp"),
             &format!("{t}/root/layout/height/value"),
         );
-        for k in ["layout", "requiredPermission", "actions"] {
+        for k in ["requiredPermission", "actions"] {
             if let Some(x) = s.get(k) {
                 m.empty(x, &path(&p, k), &t);
             }
@@ -351,16 +352,17 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
             }
             let mut ordered = c.iter().collect::<Vec<_>>();
             let mut z = BTreeSet::new();
-            if ordered
-                .iter()
-                .any(|(_, x)| !z.insert(x.get("zIndex").and_then(Value::as_i64).unwrap_or(0)))
+            if s.get("layout").is_none_or(Value::is_null)
+                && ordered
+                    .iter()
+                    .any(|(_, x)| !z.insert(x.get("zIndex").and_then(Value::as_i64).unwrap_or(0)))
             {
                 return None;
             }
             ordered
                 .sort_by_key(|(k, x)| (x.get("zIndex").and_then(Value::as_i64).unwrap_or(0), *k));
             for (j, (key, x)) in ordered.into_iter().enumerate() {
-                children.push(map_label(
+                children.push(graphics::component(
                     x,
                     key,
                     &path(&path(&p, "components"), key),
@@ -447,11 +449,9 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
         }
     }
     for (k, t) in [
-        ("componentDefinitions", "/components"),
         ("alarms", "/alarms"),
         ("assets", "/resources"),
         ("theme", "/themes"),
-        ("enumerations", "/v2/bindings/enumerations"),
     ] {
         if let Some(x) = v.get(k) {
             m.empty(x, &path("", k), t);
@@ -459,75 +459,7 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
     }
     let mut doc = json!({"format":"hmi-studio.project","schemaVersion":2,"id":project_id,"metadata":metadata,"navigation":{"startScreen":start},"localization":{"defaultLocale":"en","locales":["en"]},"screens":result,"tags":tags,"extensions":{"hmiforge.idMap":m.ids}});
     industrial::map(v, &mut doc, m)?;
+    graphics::finish(v, &mut doc, m)?;
     doc["extensions"]["hmiforge.idMap"] = json!(m.ids);
     load_project(&doc.to_string()).ok().map(|x| x.project)
-}
-fn map_label(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping) -> Option<Value> {
-    if v.get("id")?.as_str() != Some(key) || v.get("type")?.as_str() != Some("label") {
-        return None;
-    }
-    let id = m.id(&path(p, "id"), key, "node");
-    m.mark(&path(p, "id"), &path(t, "id"));
-    m.mark(&path(p, "type"), &format!("{t}/element/kind"));
-    let name = if let Some(n) = v.get("displayName") {
-        m.text(n, &path(p, "displayName"), &path(t, "name"))?
-    } else {
-        key.into()
-    };
-    let g = v.get("geometry");
-    let mut geo = Vec::new();
-    for (k, default, dest) in [
-        ("x", 0., "position/x"),
-        ("y", 0., "position/y"),
-        ("width", 120., "width/value"),
-        ("height", 60., "height/value"),
-    ] {
-        geo.push(dim(g.and_then(|x| x.get(k)), default)?);
-        m.mark(&format!("{p}/geometry/{k}"), &format!("{t}/layout/{dest}"));
-    }
-    if g.is_some_and(|x| x.as_object().is_some_and(|o| o.is_empty())) {
-        m.mark(&path(p, "geometry"), &path(t, "layout"));
-    }
-    let mut props = json!({});
-    if let Some(x) = v.get("properties") {
-        let o = x.as_object()?;
-        if o.is_empty() {
-            m.mark(&path(p, "properties"), &path(t, "properties"));
-        }
-        if let Some(text) = o.get("text") {
-            props["text"] = json!(m.text(
-                text,
-                &format!("{p}/properties/text"),
-                &format!("{t}/properties/text")
-            )?);
-        }
-    }
-    props.get("text")?;
-    if let Some(z) = v.get("zIndex") {
-        i32::try_from(z.as_i64()?).ok()?;
-        m.mark(&path(p, "zIndex"), t);
-    }
-    let visible = match v.get("visible") {
-        None => true,
-        Some(x) => {
-            let b = x.as_bool()?;
-            m.mark(&path(p, "visible"), &format!("{t}/layout/visibility"));
-            b
-        }
-    };
-    for k in [
-        "componentDefinitionId",
-        "parentId",
-        "bindings",
-        "expressions",
-        "actions",
-        "requiredPermission",
-    ] {
-        if let Some(x) = v.get(k) {
-            m.empty(x, &path(p, k), t);
-        }
-    }
-    Some(
-        json!({"id":id,"name":name,"element":{"type":"component","kind":"text"},"layout":{"position":{"x":geo[0],"y":geo[1]},"width":fixed(geo[2]),"height":fixed(geo[3]),"visibility":if visible{"visible"}else{"hidden"}},"properties":props}),
-    )
 }

@@ -334,3 +334,157 @@ fn refuse_address_alias_with_writable_tag_and_credential_keys() {
         .unwrap()
         .contains("SECRET-TEST"));
 }
+
+#[test]
+fn graphics_and_expression_remap() {
+    let mut f = fixture(10);
+    f["variables"]["label-a"]["type"] = json!("STRING");
+    let n = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    n["expressions"] = json!({"text":"`label-a` + ' label-a'"});
+    f["enumerations"] = json!({"state/a":{"id":"state/a","name":"States","entries":[{"value":9223372036854775807i64,"text":"Max","color":"#123456"},{"value":-1,"text":"Other"}]}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let v = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        v["v2"]["bindings"]["expressions"][0]["expression"],
+        format!("`{}` + ' label-a'", p.tags[0].id)
+    );
+    assert_eq!(
+        v["v2"]["bindings"]["enumerations"][0]["entries"][0]["value"],
+        json!(i64::MAX)
+    );
+    let mut expected = BTreeSet::new();
+    paths(&f, "", &mut expected);
+    assert_eq!(
+        expected,
+        a.report.findings.iter().map(|x| x.path.clone()).collect()
+    );
+    let mut f2 = f.clone();
+    f2["screens"]["screen/a"]["components"]["label-a"]["bindings"] = json!({"text":"label-a"});
+    assert!(import_portable(&serde_json::to_vec(&f2).unwrap())
+        .project
+        .is_none());
+    f["screens"]["screen/a"]["components"]["label-a"]["expressions"] =
+        json!({"text":"unknown + 'x'"});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+#[test]
+fn direct_binding_and_shapes() {
+    let mut f = fixture(5);
+    f["variables"]["label-a"]["type"] = json!("STRING");
+    let n = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    n["bindings"] = json!({"text":"label-a"});
+    f["screens"]["screen/a"]["components"]["shape"] = json!({"id":"shape","type":"rectangle","zIndex":2,"properties":{"fillColor":"#123456","strokeColor":"#000000","strokeWidth":"2","cornerRadius":"4"}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let v = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        v["screens"][0]["root"]["children"][0]["bindings"][0]["source"]["tag"],
+        p.tags[0].id.as_str()
+    );
+    assert_eq!(
+        v["screens"][0]["root"]["children"][1]["properties"]["strokeWidth"],
+        2.0
+    );
+}
+#[test]
+fn nested_adaptive_tree() {
+    let mut f = fixture(3);
+    f["screens"]["screen/a"]["components"]["label-b"] =
+        json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
+    f["screens"]["screen/a"]["layout"] = json!({"version":1,"root":{"node":"stack","id":"outer","direction":"COLUMN","children":[{"node":"stack","id":"inner","direction":"ROW","gapDp":8,"children":[{"node":"component","componentId":"label-b","minWidthDp":80,"weight":2},{"node":"component","componentId":"label-a","minHeightDp":30}]}]}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let v = serde_json::to_value(&p).unwrap();
+    let inner = &v["screens"][0]["root"]["children"][0];
+    assert_eq!(inner["element"]["type"], "row");
+    assert_eq!(inner["children"][0]["id"], "label-b");
+    assert!(a.report.findings.iter().any(|f| f.severity == "warning"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|f| f.disposition == "preserved"));
+    let mut expected = BTreeSet::new();
+    paths(&f, "", &mut expected);
+    assert_eq!(
+        expected,
+        a.report.findings.iter().map(|x| x.path.clone()).collect()
+    );
+    f["screens"]["screen/a"]["layout"]["root"]["children"][0]["children"][0]["componentId"] =
+        json!("label-a");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+#[test]
+fn static_reusable_definition() {
+    let mut f = fixture(6);
+    f["componentDefinitions"] = json!({"label-a":{"id":"label-a","displayName":"Reusable","type":"composite","kind":"COMPONENT","composition":{"widthDp":200,"heightDp":100,"elements":{"part":{"id":"part","type":"label","properties":{"text":"Inside"}}}}}});
+    f["screens"]["screen/a"]["components"]["label-a"] =
+        json!({"id":"label-a","type":"composite","componentDefinitionId":"label-a"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let v = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        v["screens"][0]["root"]["children"][0]["element"]["definition"],
+        v["components"][0]["id"]
+    );
+    assert_ne!(v["components"][0]["id"], "label-a");
+    f["componentDefinitions"]["label-a"]["kind"] = json!("FACEPLATE");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+
+#[test]
+fn reusable_read_only_tag_parameters() {
+    let mut f = fixture(6);
+    f["variables"]["label-a"]["type"] = json!("STRING");
+    f["componentDefinitions"] = json!({"def":{"id":"def","displayName":"Read-only composite","type":"composite","parameters":{"caption":{"type":"TEXT_VARIABLE"}},"composition":{"elements":{"part":{"id":"part","type":"label","properties":{"text":"Fallback"},"bindings":{"text":"caption"}}}}}});
+    f["screens"]["screen/a"]["components"]["label-a"] = json!({"id":"label-a","type":"composite","componentDefinitionId":"def","bindings":{"caption":"label-a"}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let v = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        v["components"][0]["root"]["children"][0]["bindings"][0]["source"]["tagParameter"],
+        "caption"
+    );
+    assert_eq!(
+        v["screens"][0]["root"]["children"][0]["element"]["parameters"]["caption"],
+        p.tags[0].id.as_str()
+    );
+    f["componentDefinitions"]["def"]["parameters"]["caption"]["writable"] = json!(true);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+
+#[test]
+fn adaptive_unknown_geometry_and_unsupported_layout_refuse() {
+    let mut f = fixture(3);
+    f["screens"]["screen/a"]["layout"] = json!({"root":{"node":"stack","id":"outer","direction":"COLUMN","children":[{"node":"component","componentId":"label-a"}]}});
+    f["screens"]["screen/a"]["components"]["label-a"]["geometry"]["unknown"] = json!(1);
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.path.ends_with("/geometry/unknown") && x.disposition == "refused"));
+    f["screens"]["screen/a"]["components"]["label-a"]["geometry"]
+        .as_object_mut()
+        .unwrap()
+        .remove("unknown");
+    f["screens"]["screen/a"]["layout"]["root"]["direction"] = json!("ADAPTIVE");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+    f["screens"]["screen/a"]["layout"]["root"]["direction"] = json!("COLUMN");
+    f["screens"]["screen/a"]["components"]["label-a"]["expressions"] = json!({"visible":"true"});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

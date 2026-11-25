@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · REUSE-03A merged; schema v2 frozen. REUSE-03B portable decoder and conservative industrial/security declaration mapping implemented.
+**In progress** · REUSE-03A merged; schema v2 frozen. REUSE-03B portable decoder, conservative industrial/security and graphical/layout/binding mappings implemented.
 
 **Acceptance criteria**
 
@@ -748,7 +748,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Complete adaptive layout, component, expression/enumeration and other feature mappings; resolve or explicitly refuse legacy semantics not representable in frozen v2; complete source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding.
+- Complete remaining legacy component/catalog and parameter semantics, component-specific enumeration usage, actions, alarms, assets and themes; full source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-25T20:55:06Z)
 
@@ -769,6 +769,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-25 · handoff · Verified PR #35 merged b9ae1d5 after independent review and all 17 exact-head CI jobs on 1ddf0b4; schema v2 freeze effective. Retained RUST-05 reservation and transferred to REUSE-03B branch by compare-and-set. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 - 2026-11-25 · handoff · Added standalone read-only portable importer foundation with strict bounded JSON, version 1–10 admission, deterministic ID mapping, SHA-256 and leaf report, static label/screens and internal read-only tags, exact typed defaults. Six local regression groups, Clippy and rustdoc passed; frozen schema unchanged. Unsupported content refuses project. Full mapping and engineering integration outstanding. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-25 · handoff · REUSE-03B.2 maps S7/OPC UA/loopback connection declarations, single external mapping per tag, exact setpoint limits, momentary/maintained commands, deduplicated units and role/permission references into frozen v2. Explicitly refuses ambiguous mappings, credential fields and unsupported write-policy semantics. Eleven local regression groups and Clippy/rustdoc passed; schema unchanged. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-25 · handoff · REUSE-03B.3 adds selected graphical components, nested row/column layout intent with explicit approximation diagnostics and inactive geometry metadata, reusable composites and read-only bool/text tag parameters, typed direct/expression bindings with parser-checked reference remapping, exact int64 enumeration declarations. 17 local regression groups and Clippy/rustdoc passed; unsupported semantics refuse import and frozen schema unchanged. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

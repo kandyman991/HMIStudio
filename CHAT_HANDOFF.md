@@ -1,5 +1,9 @@
 # HMI Studio — curated engineering handoff
 
+## DEV-01 acceptance — 2026-11-25
+- Verified PR #21 merge, owner-configured synchronization credential, automatic PR #22 merge and successful no-change post-merge reconciliation. See docs/DEV_01_ACCEPTANCE.md for exact evidence. Formal acceptance recorded in canonical roadmap source; this acceptance PR still requires independent review and exact-head CI.
+- Next: reconcile legacy PRs #20, #13 and #12 with current main and applicable claims; preserve scope and review each independently.
+
 ## DEV-01 review corrections — 2026-11-25
 - PR #21 predecessor c08424c passed hosted Required CI and handoff. The corrected branch adds required scoped milestone changes and shared reservations, trusted GitHub reconciliation through reviewed PRs, explicit parent/related scopes and generated view consistency. No new application or installer work.
 - Reconciliation reads verified GitHub observations; publication requires an approved repository-scoped ROADMAP_SYNC_TOKEN. Offline dashboard remains supported; public hosting not authorized. Shared reservation race handling is conservative; coordinate legacy PRs #12, #13 and #20 before integration.

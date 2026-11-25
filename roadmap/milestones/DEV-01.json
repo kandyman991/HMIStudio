@@ -2,7 +2,7 @@
   "id": "DEV-01",
   "title": "Living development roadmap",
   "track": "Developer workflow",
-  "phase": "merged",
+  "phase": "accepted",
   "counts": true,
   "summary": "Structured roadmap owns milestone state and generates the detailed plan and dashboard.",
   "dependencies": [],
@@ -36,6 +36,12 @@
       "date": "2026-11-25",
       "type": "merged",
       "summary": "GitHub verified designated completion PR #21 merged at 2ed018ae9641 with successful recorded exact-head workflows. Acceptance remains separate."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "accepted",
+      "summary": "Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op.",
+      "record": "docs/DEV_01_ACCEPTANCE.md"
     }
   ],
   "prs": [
@@ -64,5 +70,11 @@
       "observedAt": "2026-11-25T10:08:30Z"
     }
   ],
-  "completionPr": 21
+  "completionPr": 21,
+  "acceptance": {
+    "commit": "0221bbe8de604f349e894ec607b240d12e41dba6",
+    "date": "2026-11-25",
+    "summary": "Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op.",
+    "record": "docs/DEV_01_ACCEPTANCE.md"
+  }
 }

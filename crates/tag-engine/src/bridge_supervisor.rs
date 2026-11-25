@@ -201,16 +201,22 @@ impl Supervisor {
         let config = json!({"type":"configure","config":{"version":1,
             "sources":[{"id":"isolated-loopback","driver":"loopback","settings":{}}],
             "points":config_points}});
+        // The imported engine acknowledges start before emitting any loopback data.
+        // Exchange queues events received before each acknowledgement; none can
+        // belong to the new baseline yet, so reject rather than reuse them.
         if !matches!(
             self.exchange(config, ReplyKind::Ok, remaining()?)?,
             Message::Ok { .. }
-        ) || !matches!(
-            self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?)?,
-            Message::Ok { .. }
-        ) {
+        ) || self.dispatch.pop_event().is_some()
+            || !matches!(
+                self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?)?,
+                Message::Ok { .. }
+            )
+            || self.dispatch.pop_event().is_some()
+        {
             self.invalidate()?;
             return Err(io::Error::other(
-                "isolated loopback configuration/start rejected",
+                "isolated loopback configuration/start rejected or premature event",
             ));
         }
         Ok(())

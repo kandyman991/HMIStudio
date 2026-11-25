@@ -200,3 +200,37 @@ fn incomplete_simulation_baseline_times_out_without_publication() -> io::Result<
     assert!(bridge.refresh().is_err());
     Ok(())
 }
+
+#[test]
+fn premature_loopback_events_cannot_satisfy_new_baseline() -> io::Result<()> {
+    use hmi_tag_engine::bridge_dispatch::ValueType;
+    use hmi_tag_engine::bridge_simulation::{SimPoint, SimulationBridge};
+    let early = r#"'{"type":"sourceState","sourceId":"isolated-loopback","state":"CONNECTED"}' '{"type":"values","values":[{"variableId":"a","quality":"GOOD","value":{"type":"long","value":7}}]}'"#;
+    let ok2 = r#"'{"type":"ok","id":2}'"#;
+    let ok3 = r#"'{"type":"ok","id":3}'"#;
+    let points = [SimPoint {
+        id: "a".into(),
+        kind: ValueType::Long,
+    }];
+    for body in [
+        format!("{HELLO}; read -r line; printf '%s\n' {early} {ok2}; read -r line; printf '%s\n' {ok3}; exec sleep 60"),
+        format!("{HELLO}; read -r line; printf '%s\n' {ok2}; read -r line; printf '%s\n' {early} {ok3}; exec sleep 60"),
+    ] {
+        let fixture = Fixture::new(&body)?;
+        let mut bridge = SimulationBridge::default();
+        let mut attempts = 0;
+        let error = loop {
+            match bridge.resynchronize(&fixture.path(), &points, Duration::from_secs(2)) {
+                Err(e) if e.kind() == io::ErrorKind::ExecutableFileBusy && attempts < 50 => {
+                    attempts += 1;
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) => break e,
+                Ok(_) => return Err(io::Error::other("premature baseline was published")),
+            }
+        };
+        assert!(error.to_string().contains("premature event"));
+        assert!(bridge.refresh().is_err());
+    }
+    Ok(())
+}

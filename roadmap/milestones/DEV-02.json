@@ -2,7 +2,7 @@
   "id": "DEV-02",
   "title": "Roadmap reconciliation regression fix",
   "track": "Developer workflow",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
   "summary": "Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.",
   "dependencies": [
@@ -39,26 +39,38 @@
       "type": "completion_proposed",
       "summary": "Draft PR #28 opened after all local roadmap regressions passed. Verify final-head hosted CI and independent review before integration.",
       "record": "CHAT_HANDOFF.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "GitHub verified designated completion PR #28 merged at 8cf75d3f710e with successful recorded exact-head workflows. Acceptance remains separate."
     }
   ],
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "fix/dev-02-roadmap-regression",
-    "scope": [
-      "roadmap/roadmap.test.mjs"
-    ],
-    "observedAt": "2026-11-25T14:23:35Z"
-  },
-  "proposal": "Corrected regression fixtures and verified PR #20 reconciliation candidate; 10 JavaScript and 9 Python roadmap tests passed, exact-head hosted CI and independent review pending.",
   "completionPr": 28,
   "prs": [
     {
       "number": 28,
-      "head": "8f970ff9a63a74232a033385847e213687e309a7",
+      "head": "445f0cf2e4471a983eb301e3126c6dc43b50680c",
       "branch": "fix/dev-02-roadmap-regression",
-      "state": "draft",
-      "runs": [],
-      "observedAt": "2026-11-25T14:24:31Z"
+      "state": "merged",
+      "runs": [
+        {
+          "id": 45633744927,
+          "name": "Desktop CI",
+          "head": "445f0cf2e4471a983eb301e3126c6dc43b50680c",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45633745156,
+          "name": "Engineering handoff snapshot",
+          "head": "445f0cf2e4471a983eb301e3126c6dc43b50680c",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "8cf75d3f710e271d2855dd52deaf1382e58da1f3",
+      "observedAt": "2026-11-25T14:54:12Z"
     }
   ]
 }

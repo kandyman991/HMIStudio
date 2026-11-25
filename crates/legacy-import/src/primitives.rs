@@ -47,7 +47,10 @@ pub(super) fn shape(
     let t = format!("/v2/components/components/{}/contract", m.contracts.len());
     if kind == "line" {
         if points.len() != 2 {
-            m.fail(&path(&path(p, "properties"), "points"), "polyline-not-representable");
+            m.fail(
+                &path(&path(p, "properties"), "points"),
+                "polyline-not-representable",
+            );
             return None;
         }
         contract["start"] = points[0].clone();
@@ -98,7 +101,6 @@ pub(super) fn symbol(
     t: &str,
     kind: K,
     ids: &BTreeMap<String, String>,
-    index: usize,
     m: &mut Mapping,
 ) -> Option<(Value, Value)> {
     // Only explicitly supplied passive status slots; any extra properties,
@@ -124,12 +126,13 @@ pub(super) fn symbol(
     definition.root.walk(&mut |n| {
         m.used.insert(n.id.as_str().to_owned());
     });
-    m.ids.insert(path(p, "@generated-symbol-definition"), id.clone());
+    m.ids
+        .insert(path(p, "@generated-symbol-definition"), id.clone());
     node["element"] = json!({"type":"instance","definition":id,"parameters":parameters});
     if let Some(f) = m.findings.get_mut(&path(p, "type")) {
         f.code = "industrial-symbol-visual-approximation";
         f.severity = "warning";
-        f.target = Some(format!("/components/{index}"));
+        f.target = Some(format!("{t}/element/definition"));
         f.message = "Passive status slots mapped to an original canonical symbol; legacy appearance and interactions are not established.";
     }
     let class = json!({"definition":id,"classification":{"kind":"industrialSymbol","symbol":kind}});

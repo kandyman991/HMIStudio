@@ -798,8 +798,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                         &ids,
                     )?;
                 } else if let Some(kind) = super::primitives::symbol_kind(c["type"].as_str()?) {
-                    let index = definitions.len() + symbol_defs.len();
-                    let (def, class) = super::primitives::symbol(c, n, &cp, &nt, kind, &ids, index, m)?;
+                    let (def, class) = super::primitives::symbol(c, n, &cp, &nt, kind, &ids, m)?;
                     symbol_defs.push(def);
                     classifications.push(class);
                 } else {

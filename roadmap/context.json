@@ -79,16 +79,11 @@
       "group": "RUST-05",
       "milestone": "REUSE-03",
       "owner": "ChatGPT",
-      "branch": "feat/reuse-03a-canonical-v2",
+      "branch": "feat/reuse-03b-legacy-import",
       "scope": [
-        "crates/engineering-core/",
-        "crates/project-model/",
-        "crates/tag-engine/",
-        "src-tauri/src/",
-        "src/",
-        "tests/"
+        "crates/legacy-import/"
       ],
-      "observedAt": "2026-11-25T19:25:37Z"
+      "observedAt": "2026-11-25T20:55:06Z"
     }
   ]
 }

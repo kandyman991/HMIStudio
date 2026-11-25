@@ -42,3 +42,6 @@
 - At milestone/PR transitions update CHAT_HANDOFF.md and milestone statuses with verified source SHA, PR and CI links; refresh handoff/state.json with observed facts and timestamp when useful. Do not claim the current commit contains its own hash; record the observed predecessor and verify live head.
 - Automated snapshots cannot replace curated engineering decisions or approval. Do not use uploaded artifacts as project memory.
 - Resume phrase: "Resume HMI Studio (kandyman991/HMIStudio)" means follow mandatory resumption, not permission to bypass review, testing or acceptance.
+
+## Visual reference (owner-approved)
+- For desktop UI changes, read `docs/reference/README.md` and inspect `docs/reference/hmi-forge.html` before implementing. Preserve the original workspace layout and visual language; keep the Rust engine authoritative. Record deviations and verify visual acceptance at RUST-04. Never ship the reference as application code or substitute its mock behavior for validated operations.

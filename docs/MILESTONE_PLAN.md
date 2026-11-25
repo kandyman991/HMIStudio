@@ -196,7 +196,7 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 <a id="rust-04"></a>
 ### RUST-04 — Semantic layout editor
 
-**In progress** · Initial nested editing merged. Model-backed layout is in draft review, and designer acceptance depends on RUST-02 acceptance.
+**In progress** · Initial nested editing merged. PR #13 preserves the recovered visual reference; PR #12 is a separate model-backed layout candidate. Desktop visual acceptance remains outstanding.
 
 **Acceptance criteria**
 
@@ -208,11 +208,17 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 - [RUST-02](#rust-02) (accepted) — Issue #10 covers desktop workspace acceptance.
 - [RUST-03B](#rust-03b) (merged)
 
+**Assignment** · ChatGPT, docs/original-visual-reference (recorded 2026-11-25T13:03:47Z)
+
 [PR #13](https://github.com/kandyman991/HMIStudio/pull/13) · open · head [de777d7](https://github.com/kandyman991/HMIStudio/commit/de777d7368fa2ffe6c95c3f27c49a89802989c8d) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45431128554](https://github.com/kandyman991/HMIStudio/actions/runs/45431128554) success, [Engineering handoff snapshot #45431128532](https://github.com/kandyman991/HMIStudio/actions/runs/45431128532) success
 
 [Issue #10](https://github.com/kandyman991/HMIStudio/issues/10) · open · RUST-02 — Windows/Linux desktop milestone acceptance · snapshot 2026-11-25T09:01:59Z
 
-Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/README.md](reference/README.md)
+
+**History**
+
+- 2026-11-25 · handoff · Independently reviewed PR #13 and reconciled with main 9c09e363. Verified original HTML byte count, SHA-256 and Git blob; scoped reservation RUST-04. No application or acceptance change. PR #12 remains separate; exact-head hosted CI pending. · [docs/reference/README.md](reference/README.md)
 
 <a id="rust-04a"></a>
 ### RUST-04A — Nested editing foundation

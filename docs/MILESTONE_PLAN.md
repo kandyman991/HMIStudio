@@ -12,7 +12,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | Milestone | Track | Phase | Dependencies |
 | --- | --- | --- | --- |
 | [CI-02](#ci-02) Change-aware CI | Developer workflow | Merged | — |
-| [DEV-01](#dev-01) Living development roadmap | Developer workflow | Merged | — |
+| [DEV-01](#dev-01) Living development roadmap | Developer workflow | Accepted | — |
 | [REUSE-01](#reuse-01) Inventory and compatibility audit | Reuse | Merged | — |
 | [REUSE-02](#reuse-02) Engine bridge and delivery | Reuse | In progress | [REUSE-01](#reuse-01) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02A](#reuse-02a) Pinned engine preflight | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
@@ -67,13 +67,15 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 <a id="dev-01"></a>
 ### DEV-01 — Living development roadmap
 
-**Merged** · Structured roadmap owns milestone state and generates the detailed plan and dashboard.
+**Accepted** · Structured roadmap owns milestone state and generates the detailed plan and dashboard.
 
 **Acceptance criteria**
 
 - Preserve milestone records, criteria, dependencies and history with deterministic generated views and schema validation.
 - Provide a local interactive graph, progress, filters, assignments, blockers, evidence, next eligible tasks, prompts and continuity.
 - Integrate stale-output and consistency checks without unrelated installer builds. Independently review the feature and verify exact-head hosted checks.
+
+**Acceptance** · Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op. (2026-11-25, [docs/DEV\_01\_ACCEPTANCE.md](DEV_01_ACCEPTANCE.md), [commit](https://github.com/kandyman991/HMIStudio/commit/0221bbe8de604f349e894ec607b240d12e41dba6))
 
 [PR #21](https://github.com/kandyman991/HMIStudio/pull/21) · merged · head [4fd0f42](https://github.com/kandyman991/HMIStudio/commit/4fd0f4261530b1ff0e3ab169de11b7b507e0665d) · merged [2ed018a](https://github.com/kandyman991/HMIStudio/commit/2ed018ae964183a35d5720886add717cc2f867bc) · snapshot 2026-11-25T10:08:30Z · [Desktop CI #45587538404](https://github.com/kandyman991/HMIStudio/actions/runs/45587538404) success, [Engineering handoff snapshot #45587538625](https://github.com/kandyman991/HMIStudio/actions/runs/45587538625) success
 
@@ -84,6 +86,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 - 2026-11-25 · completion proposed · Submitted DEV-01 as a scoped candidate for exact-head CI and review.
 - 2026-11-25 · handoff · Independent review identified enforcement, synchronization, reservation and scope accounting gaps; corrections in progress.
 - 2026-11-25 · merged · GitHub verified designated completion PR #21 merged at 2ed018ae9641 with successful recorded exact-head workflows. Acceptance remains separate.
+- 2026-11-25 · accepted · Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op. · [docs/DEV\_01\_ACCEPTANCE.md](DEV_01_ACCEPTANCE.md)
 
 ## Engineering
 

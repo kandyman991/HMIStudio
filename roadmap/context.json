@@ -74,5 +74,16 @@
       "title": "Original reuse proposal before DEV-01"
     }
   ],
-  "reservations": []
+  "reservations": [
+    {
+      "group": "DEV-02",
+      "milestone": "DEV-02",
+      "owner": "ChatGPT",
+      "branch": "fix/dev-02-roadmap-regression",
+      "scope": [
+        "roadmap/roadmap.test.mjs"
+      ],
+      "observedAt": "2026-11-25T14:23:35Z"
+    }
+  ]
 }

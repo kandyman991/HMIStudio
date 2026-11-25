@@ -8,13 +8,23 @@ import { generate, validateRoadmap } from './generate.mjs';
 
 const read = path => JSON.parse(readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8'));
 const context = read('./context.json');
-const milestone = id => read('./milestones/' + id + '.json');
+// Synthetic validator fixtures must not depend on mutable milestone phases or live claims.
+const fixtureContext = { ...context, reservations: [] };
 const task = (id, dependencies = []) => ({
   id, title: id, summary: 'A regression fixture', track: 'Engineering', counts: true,
   phase: 'planned', criteria: ['Demonstrate the expected behavior'], dependencies,
 });
 const dep = (id, gate = 'merged') => ({ id, gate });
-const validate = tasks => validateRoadmap(context, tasks);
+const validate = tasks => validateRoadmap(fixtureContext, tasks);
+const head = 'b'.repeat(40);
+const greenPR = (state = 'open') => ({
+  number: 1, head, branch: 'feat/fixture', state, observedAt: '2026-11-25T11:00:00Z',
+  runs: ['Desktop CI', 'Engineering handoff snapshot'].map((name, i) => ({
+    id: i + 1, name, head, state: 'completed', result: 'success',
+  })),
+  ...(state === 'merged' ? { merge: 'c'.repeat(40) } : {}),
+});
+const mergedFixture = () => ({ ...task('FIX-00'), phase: 'merged', prs: [greenPR('merged')] });
 
 test('generates the same bytes twice and preserves exact original sources', () => {
   const one = generate({ check: true, verifyMigration: true });
@@ -57,7 +67,7 @@ test('rejects duplicate IDs, unknown prerequisites and cycles', () => {
 });
 
 test('separates merged and accepted prerequisites in next task eligibility', () => {
-  const foundation = milestone('RUST-01');
+  const foundation = mergedFixture();
   const tasks = [foundation, task('FIX-01', [dep(foundation.id)]),
     task('FIX-02', [dep(foundation.id, 'accepted')]),
     { ...task('FIX-03'), blockers: ['Owner decision'] },
@@ -72,14 +82,12 @@ test('separates merged and accepted prerequisites in next task eligibility', () 
 });
 
 test('keeps a green active proposal distinct from a merge and from acceptance', () => {
-  const candidate = milestone('REUSE-02C.4A');
-  candidate.dependencies = [];
-  delete candidate.parent;
+  const candidate = { ...task('FIX-01'), phase: 'proposed', proposal: 'Fixture candidate', prs: [greenPR()], completionPr: 1 };
   assert.equal(validate([candidate])[0].eligible, false);
   assert.throws(() => validate([{ ...candidate, phase: 'merged', proposal: undefined }]), /must contain text/);
   delete candidate.proposal;
   assert.throws(() => validate([{ ...candidate, phase: 'merged' }]), /needs merged PR evidence/);
-  const foundation = milestone('RUST-01');
+  const foundation = mergedFixture();
   assert.throws(() => validate([{ ...foundation, phase: 'accepted' }]), /needs explicit milestone acceptance/);
   const failed = structuredClone(foundation);
   failed.prs[0].runs[0].result = 'failure';
@@ -90,7 +98,7 @@ test('keeps a green active proposal distinct from a merge and from acceptance', 
 });
 
 test('rejects impossible times, unrelated merge commits and malformed exact-head CI', () => {
-  const foundation = milestone('RUST-01');
+  const foundation = mergedFixture();
   const pr = foundation.prs[0];
   pr.runs[0].head = 'a'.repeat(40);
   assert.throws(() => validate([foundation]), /different PR head/);
@@ -102,7 +110,7 @@ test('rejects impossible times, unrelated merge commits and malformed exact-head
   assert.throws(() => validate([foundation]), /Invalid calendar date/);
   pr.observedAt = '2026-11-25T11:00:00Z';
   pr.merge = 'a'.repeat(40);
-  assert.throws(() => validateRoadmap(context, [foundation], { base: context.migrationBase }), /not a confirmed ancestor/);
+  assert.throws(() => validateRoadmap(fixtureContext, [foundation], { base: context.migrationBase }), /not a confirmed ancestor/);
 });
 
 test('flags overlapping branch claims across active milestones', () => {
@@ -118,4 +126,11 @@ test('rejects invalid hierarchy and overlapping scope groups', () => {
   const assignment = branch => ({ owner: 'Agent', branch, observedAt: '2026-11-25T09:00:00Z', scope: ['src/'] });
   const active = id => ({ ...task(id), claimGroup: 'FIX-01', phase: 'in_progress', assignment: assignment('feat/' + id) });
   assert.throws(() => validate([a, active('FIX-02'), active('FIX-03')]), /overlapping active claim group/);
+});
+
+test('valid shared reservation suppresses otherwise eligible work without using live claim snapshots', () => {
+  const candidate = task('FIX-01');
+  const claim = { group: candidate.id, milestone: candidate.id, owner: 'Fixture', branch: 'feat/fixture', scope: ['src/'], observedAt: '2026-11-25T11:00:00Z' };
+  assert.equal(validate([candidate])[0].eligible, true);
+  assert.equal(validateRoadmap({ ...fixtureContext, reservations: [claim] }, [candidate])[0].eligible, false);
 });

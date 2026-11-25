@@ -2,9 +2,9 @@
   "id": "REUSE-02C.4A",
   "title": "Write lifecycle and termination safety",
   "track": "Reuse",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
-  "summary": "Draft PR #20 contains a bounded write/release and termination safety candidate.",
+  "summary": "PR #20 integrated the bounded write/release and termination safety scope; production acceptance remains separate.",
   "dependencies": [
     {
       "id": "REUSE-02C.3",
@@ -15,37 +15,37 @@
     "Verify simulation-only write and release handling, bounded termination, outcomes and startup/lifecycle protections scoped by draft PR #20.",
     "Require independent review and exact-head Required CI, dedicated tag checks and handoff before merge."
   ],
-  "proposal": "PR #20 incorporates the three independent-review corrections; all 77 local locked test-server engine tests passed. Fresh hosted CI and final review are required on the corrected head.",
   "prs": [
     {
       "number": 20,
-      "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
+      "head": "3d7b7b4a654ef818b45cb0b240d38c35e2c3af79",
       "branch": "feat/reuse-02c4a-write-lifecycle",
-      "state": "draft",
-      "observedAt": "2026-11-25T12:46:48Z",
+      "state": "merged",
       "runs": [
         {
-          "id": 45615999970,
+          "id": 45617123948,
           "name": "Desktop CI",
-          "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
+          "head": "3d7b7b4a654ef818b45cb0b240d38c35e2c3af79",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45615999960,
-          "name": "Tag engine CI",
-          "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
-          "state": "completed",
-          "result": "success"
-        },
-        {
-          "id": 45616000143,
+          "id": 45617123906,
           "name": "Engineering handoff snapshot",
-          "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
+          "head": "3d7b7b4a654ef818b45cb0b240d38c35e2c3af79",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45617123855,
+          "name": "Tag engine CI",
+          "head": "3d7b7b4a654ef818b45cb0b240d38c35e2c3af79",
           "state": "completed",
           "result": "success"
         }
-      ]
+      ],
+      "merge": "9c09e363d5df08114202a42ec0c9aa8bca664b80",
+      "observedAt": "2026-11-25T14:23:39Z"
     }
   ],
   "parent": "REUSE-02C",
@@ -53,16 +53,6 @@
   "requiredWorkflows": [
     "Tag engine CI"
   ],
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "feat/reuse-02c4a-write-lifecycle",
-    "scope": [
-      "crates/hmi-engine/src/driver/opcua.rs",
-      "crates/hmi-engine/src/engine.rs",
-      "crates/hmi-engine/tests/write_lifecycle.rs"
-    ],
-    "observedAt": "2026-11-25T12:43:08Z"
-  },
   "history": [
     {
       "date": "2026-11-25",
@@ -81,12 +71,14 @@
       "type": "handoff",
       "summary": "Extended the existing claim atomically to the OPC UA driver. Corrected ambiguous OPC UA replies, connection-loss dispatch and stale queued authorization, and bounded startup, failed-start cleanup and demand waits. Local locked test-server suite passed 77/77 including six added tests. Fresh hosted checks required.",
       "record": "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "GitHub verified designated completion PR #20 merged at 9c09e363d5df with successful recorded exact-head workflows. Acceptance remains separate."
     }
   ],
   "docs": [
     "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
-  ],
-  "blockers": [
-    "Exact-head hosted Required CI, Tag engine CI, handoff and final independent review required."
   ]
 }

@@ -73,3 +73,23 @@ Latest-state subscriptions replace unbounded channels. Choose 64 subscribers, 25
 
 ### REUSE-02C.3 — Explicit isolated driver and checked scalar translation (candidate)
 Host explicitly supplies and registers the separate engine executable for Simulator only; no project-supplied executable/endpoints/credentials. Initial adapter supports 1–4 unique read-only zero-initialized scalar points and rejects unsupported configurations. Use signed integer protocol variants with checked narrowing and unsigned range checks; UInt64 above signed Long capacity is refused rather than rounded. Preserve exact float variants and finite-only values. No writes or arming exposed; this is scoped incremental implementation, not a new simulation approval requirement. On source/transport loss, discard generation, mark TagEngine connection bad and obtain fresh baseline through normal reconnect. Cancellation extends into startup waits; full driver mapping, richer quality semantics and writes/termination are later work. Evidence and limits: docs/reuse/REUSE_02C3_ENGINE_DRIVER.md.
+
+### D-02C4A-1 — Global disarm on connection loss (owner accepted, 2026-11-25)
+Under protocol 3, a source that leaves the connected state ends the control period for the whole engine:
+
+- that source's running pulses are released, with the result reported;
+- arming is withdrawn (`writesArmed {armed:false}`);
+- monitoring of healthy sources continues.
+
+Automatic re-arming after reconnection and replay of stale commands are prohibited; writes need an explicit new `armWrites`. Arming is engine-wide in protocol 3, so this disarm is global by design. **Protocol 4 requirement:** per-connection arming.
+
+### D-02C4A-2 — Unconfirmed momentary-command release (owner accepted with modifications, 2026-11-25)
+A pulse release is attempted once and bounded. Release failure, timeout, or a missing driver is reported explicitly (`pulseReleased {released:false}` with `NOT_TRANSMITTED:` or `OUTCOME_UNKNOWN:`), and only the affected momentary command is blocked. The engine never rewrites FALSE automatically.
+
+Communication authorization and command recovery are separate operations. Ordinary `armWrites`, `disarmWrites`, `stop`, `start`, `configure` and reconnection never clear an unconfirmed command. Clearing requires an explicit, command-specific recovery with appropriate verification of the device state. Protocol 3 has no such operation, so the block is retained conservatively for the rest of the engine session; a refused pulse carries `BUSY` and a `COMMAND_UNCONFIRMED:` message.
+
+**Protocol 4 requirements:**
+- an explicit outcome-unknown status, instead of the `DRIVER_ERROR` message prefix;
+- an operator-initiated, command-specific recovery operation that verifies state before clearing.
+
+PLC-side watchdogs remain required for physical momentary commands. Development and isolated simulation reads and writes remain permitted without production approval. The engine-session scope of the block, which is lost when the engine process ends, is a recorded limitation that the EngineDriver integration and protocol 4 must address.

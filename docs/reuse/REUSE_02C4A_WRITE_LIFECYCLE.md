@@ -1,205 +1,211 @@
 # REUSE-02C.4A — Write lifecycle and termination safety
 
-Status: **candidate, draft PR**. Branch `feat/reuse-02c4a-write-lifecycle` from verified main
-`9dc343b052f456ad507dfc69e2a82fb28345f108` (merge of PR #18). Only `crates/hmi-engine/` and
-documentation are changed. The `crates/tag-engine/` EngineDriver adapter (PR #19, under
-independent review) is untouched.
+Status: **draft PR #20, corrected after the owner decisions of 2026-11-25**.
 
-The work uses only a scripted simulated driver, the existing loopback driver and the existing
-synthetic OPC UA and S7 test servers. Nothing connects to a physical PLC, no deployment is
-involved, and nothing here is production-accepted.
+- Branch `feat/reuse-02c4a-write-lifecycle` starts from verified main
+  `9dc343b052f456ad507dfc69e2a82fb28345f108`.
+- PR #19 merged as `d1571fc` during the work. It was reconciled by an ordinary merge.
+- Only `crates/hmi-engine/` and documentation are changed. The `crates/tag-engine/`
+  EngineDriver is untouched.
+- Only simulated and synthetic drivers are used: a scripted driver, loopback, and the existing
+  OPC UA and S7 test servers. There is no physical PLC connectivity and no deployment, and
+  nothing is production-accepted.
+- This is not REUSE-02C.4B: no write-capable EngineDriver integration.
 
 ## 1. Compatibility
 
 - **Protocol 3 is unchanged.** No request or message type, field, refusal code or version
   changed. `contract.rs`, `messages.json` and `write-guard-cases.json` pass unchanged.
-- **Kotlin runtime compatibility.** Every message emitted is one Kotlin already receives. Two
-  behaviours are new, both through existing messages:
-  - `writesArmed {armed:false}` is sent when a source loses its connection (§3, D-02C4A-1).
-    Kotlin already receives this message on TTL expiry.
-  - `writeResult {refusal: BUSY}` can carry an explanatory message for a command whose last
-    release was not confirmed (§3, D-02C4A-2).
+- **Kotlin runtime.** Only messages that Kotlin already receives are emitted. Two behaviours are
+  new, both through existing messages:
+  - `writesArmed {armed:false}` when a source loses its connection (D-02C4A-1). Kotlin already
+    receives this message on TTL expiry.
+  - `writeResult {accepted:false, refusal: BUSY, message: "COMMAND_UNCONFIRMED: …"}` for a
+    blocked momentary command (D-02C4A-2).
   
-  These were not exercised against the Kotlin runtime in this milestone. That remains an
-  explicit gap (F-9).
-- **Development and simulation.** Writes in development and simulation remain available
-  without any production approval. Arming is still the only gate.
-- **Dependencies.** No dependency was added or changed. `Cargo.lock` is unchanged.
+  The Kotlin runtime was not exercised against these behaviours (L-5).
+- **Development and simulation.** Writes in development and isolated simulation remain
+  available without production approval. Arming is still the only communication gate.
+- **Dependencies.** None added or changed. Both lockfiles are unchanged.
 
-## 2. Inspection of REUSE-02C.1 findings
+## 2. Owner decisions (2026-11-25), recorded in `docs/ENGINEERING_DECISIONS.md`
 
-| Finding | 02C.4A disposition |
+**D-02C4A-1: accepted.** Global disarm on connection loss under protocol 3:
+
+- when a source leaves the connected state, its pulses are released and arming is withdrawn;
+- monitoring of healthy sources continues;
+- automatic re-arming and stale command replay are prohibited.
+
+*Protocol 4 requirement:* per-connection arming.
+
+**D-02C4A-2: accepted with modifications.**
+
+- A release attempt is bounded; an uncertain outcome is reported explicitly; only the affected
+  momentary command is blocked.
+- Ordinary re-arming does not clear an unconfirmed command, because communication
+  authorization and command recovery are separate operations.
+- Clearing requires explicit, command-specific recovery with verification of the device state.
+- Protocol 3 has no such operation, so the block is retained conservatively. Nothing clears it:
+  not `armWrites`, `disarmWrites`, `stop`, `start`, `configure` nor reconnection.
+
+*Protocol 4 requirements:* an explicit outcome-unknown status, and an operator-initiated,
+command-specific recovery operation.
+
+PLC-side watchdogs remain required for physical momentary commands.
+
+The first PR #20 candidate (`26910c1`) cleared the block on the next `armWrites`. That rule was
+**SUPERSEDED** by the owner decision and is now covered by a regression test (§5).
+
+## 3. Inspection of REUSE-02C.1 findings
+
+| Finding | Disposition |
 | --- | --- |
-| F-1 arming survives a reconnection | **Resolved**: losing a connection disarms; reconnection never re-arms (D-02C4A-1) |
-| F-2 release after an unknown start can fail, TRUE may stay asserted | **Mitigated, owner decision remains**: the release is attempted once, bounded and reported. The command is then blocked (`BUSY`) until an explicit re-arming, and the engine never writes FALSE again by itself (D-02C4A-2). A PLC-side command watchdog is still required before physical use |
-| F-3 release and stop bounded only by the driver | **Resolved for the engine**: every release write and every driver `stop` is bounded by the engine, whichever driver it is |
-| F-4 a detached S7 thread may finish one transmission | Unchanged; inherent to a synchronous client. The stop flag still prevents anything further |
-| F-5 no explicit protocol-3 "outcome unknown" code | Unchanged by design (no protocol change). Carried as `DRIVER_ERROR` plus `OUTCOME_UNKNOWN:`; certain non-transmission is `NOT_TRANSMITTED:`. An explicit code is still recommended for protocol 4 (O-9) |
-| F-6 redundant S7 transmit-time stop check | Unchanged (defence in depth) |
-| F-7 flood behaviour (32 deferred) | Unchanged |
-| F-8 bridge not wired | Out of scope here (`tag-engine`, PR #19) |
-| F-9 evidence scope | Local Linux only. Hosted Windows and Linux CI comes from this PR. Kotlin interoperability is not exercised |
+| F-1 arming survives reconnection | **Resolved**: D-02C4A-1 |
+| F-2 release after an unknown start can fail | **Mitigated**: bounded, reported, and the affected command blocked for the engine session (D-02C4A-2). Command recovery is a protocol-4 requirement. A PLC-side watchdog is still required before physical use |
+| F-3 release and stop bounded only by the driver | **Resolved for the engine**: every release and stop is bounded by the engine, whichever driver it is |
+| F-4 a detached S7 thread may finish one transmission | Unchanged (inherent; the stop flag prevents anything further) |
+| F-5 no explicit protocol-3 "outcome unknown" code | Unchanged in protocol 3 (`DRIVER_ERROR` + `OUTCOME_UNKNOWN:`); now a recorded protocol-4 requirement |
+| F-6 redundant S7 stop check | Unchanged (defence in depth) |
+| F-7 flood behaviour | Unchanged |
+| F-8 bridge not wired | Out of scope (REUSE-02C.4B) |
+| F-9 evidence scope | Hosted Windows and Linux CI comes from the PR. Kotlin not exercised (L-5) |
 
-## 3. Implementation
+## 4. Implementation
 
 **Time bounds (`engine::Limits`).** Every wait on a driver is bounded.
 
 | Bound | Default | Effect when exceeded |
 | --- | --- | --- |
-| `write_timeout` | 10 s | A `write` or `pulse` start is withdrawn (its future dropped, so an untransmitted S7 command is withdrawn) and reported as `DRIVER_ERROR` / `OUTCOME_UNKNOWN:`. A timed-out pulse start is released at once. A `browse` answers `BROWSE_FAILED`. |
-| `release_timeout` | 5 s, per release | `pulseReleased {released:false}` with `OUTCOME_UNKNOWN:`; the command is marked unconfirmed |
+| `write_timeout` | 10 s | A `write` or `pulse` start is withdrawn and reported as `DRIVER_ERROR` / `OUTCOME_UNKNOWN:`. Dropping the future withdraws an untransmitted S7 command. A timed-out pulse start is released at once. A `browse` answers `BROWSE_FAILED`. |
+| `release_timeout` | 5 s, per release | `pulseReleased {released:false}` with `OUTCOME_UNKNOWN:`; the command is blocked |
 | `stop_timeout` | 5 s, per driver | The driver is dropped and termination continues |
 
-A session with *n* running pulses and *m* sources therefore terminates within about
-*n* × `release_timeout` + *m* × `stop_timeout` after the stop or shutdown begins.
+With *n* running pulses and *m* sources, termination takes at most about
+*n* × `release_timeout` + *m* × `stop_timeout`.
 
-`Limits` is engine-side only. Protocol 3 has no field for it, so clients cannot change it.
-`run_with_limits` (`#[doc(hidden)]`) exists for tests. `run` and `run_with_drivers` keep their
-signatures and use the defaults.
+`Limits` is engine-side only, because protocol 3 has no field for it. `run_with_limits`
+(`#[doc(hidden)]`) exists for tests. `run` and `run_with_drivers` are unchanged and use the
+defaults.
 
-**Write outcomes.** `write_outcome` maps the supervised result to protocol-3 refusals:
+**Write outcomes.** The driver's own result is passed on. A session end or an elapsed deadline
+becomes `OUTCOME_UNKNOWN:`. Certain non-transmission stays `NOT_TRANSMITTED:`. Nothing is
+retried.
 
-- the driver answered → its result;
-- session ended → `OUTCOME_UNKNOWN:` (the REUSE-02C.1 abandonment text);
-- deadline passed → `OUTCOME_UNKNOWN:`, citing the bound.
+**D-02C4A-1.** `on_driver_event`: on any transition from connected to another state, the engine
+releases that source's pulses (bounded and reported) and disarms. Other sources keep
+connecting, polling and reporting values.
 
-Nothing is ever retried.
+**D-02C4A-2.** `Engine.unconfirmed` holds each momentary command whose release failed, timed out
+or had no driver.
 
-**D-02C4A-1: connection loss ends the control period (proposed).** When a source goes from
-connected to any other state while the engine is running, two things happen:
+- A `pulse` on such a command is refused with `BUSY` and
+  `COMMAND_UNCONFIRMED: … re-arming does not clear it … command-specific recovery is not
+  available in protocol 3`. Nothing reaches the driver.
+- Other commands and ordinary writes are unaffected.
+- No request clears the set. It lives for the engine session.
 
-1. Pulses of that source are released at once. The release is reported, and marked unconfirmed
-   if it fails.
-2. Arming is withdrawn: `writesArmed {armed:false, actor}`.
+**Shutdown.** `stop_all` releases running pulses (bounded), disarms, then stops each driver
+(bounded). A `shutdown` during an active write still ends the wait at once (REUSE-02C.1).
 
-After reconnection, writes are refused with `WRITES_DISARMED` until the operator arms again.
-Arming is engine-wide, so the loss of any one source disarms all sources. This is the
-conservative choice; per-source arming would need a protocol change.
+## 5. Regression tests
 
-**D-02C4A-2: unconfirmed release (proposed).** A release that fails, times out or has no
-started driver is reported as `pulseReleased {released:false}` with
-`NOT_TRANSMITTED:` or `OUTCOME_UNKNOWN:`, and the command's variable is recorded as
-unconfirmed. The engine never writes FALSE again by itself, not on reconnection and not on
-re-arming. A new `pulse` for that command is refused with `BUSY` and an explanation. The next
-explicit `armWrites` clears every unconfirmed mark; that is the operator's acknowledgement that
-the device was checked. A later pulse then runs normally and ends with FALSE.
+`crates/hmi-engine/tests/write_lifecycle.rs` has **17 tests**. It uses a scripted simulated
+driver with two sources (`sim` with two momentary commands and a setpoint, and the healthy
+read-only source `aux`), and 300 ms limits.
 
-Whether to add an operator-initiated "release now" request is an owner and protocol-4 decision.
-
-**Shutdown and termination.**
-
-- `stop_all` releases every running pulse (bounded), disarms, then stops each driver (bounded),
-  dropping any driver that overruns.
-- `shutdown` during an active write still ends the wait at once (REUSE-02C.1). The write is
-  reported as `OUTCOME_UNKNOWN` and deferred requests are dropped.
-
-## 4. Regression tests
-
-`crates/hmi-engine/tests/write_lifecycle.rs` has 13 tests with a scripted simulated driver and
-short limits (300 ms each).
-
-| Area | Test |
+| Area | Tests |
 | --- | --- |
 | Normal write and acknowledgement | `a_normal_write_is_acknowledged_once_and_audited` |
 | Momentary command | `a_momentary_command_is_true_then_false_after_its_pulse_time` |
 | Timeout and cancellation | `a_write_without_an_answer_times_out_as_outcome_unknown_and_is_withdrawn`, `a_pulse_start_that_times_out_is_released_at_once` |
 | Uncertain outcomes | `certain_refusal_and_unknown_outcome_are_distinguished` |
-| Connection loss, no re-arming | `connection_loss_disarms_and_reconnection_never_rearms`, `connection_loss_during_a_pulse_releases_it_and_disarms` |
-| Failed or unconfirmed release | `an_unconfirmed_release_blocks_the_command_until_writes_are_armed_again`, `a_release_without_an_answer_is_bounded_and_reported` |
+| D-02C4A-1 | `connection_loss_disarms_and_reconnection_never_rearms`, `connection_loss_during_a_pulse_releases_it_and_disarms`, `a_healthy_source_keeps_being_monitored_after_another_source_is_lost` |
+| D-02C4A-2 | `an_unconfirmed_release_blocks_the_command_and_is_never_rewritten`, `re_arming_does_not_clear_an_unconfirmed_command`, `stop_start_configure_and_reconnection_do_not_clear_an_unconfirmed_command`, `only_the_affected_command_is_blocked`, `a_release_without_an_answer_is_bounded_and_reported` |
 | Shutdown and termination | `shutdown_with_a_running_pulse_releases_it_before_stopping`, `shutdown_is_bounded_when_the_release_and_the_driver_hang`, `a_client_disconnect_terminates_within_bounds_with_a_hung_driver`, `shutdown_during_a_pending_write_is_immediate_and_nothing_follows` |
 
-The REUSE-02C.1 tests (`session_safety.rs`, the S7 `supervision_tests`) and every earlier suite
-still pass unchanged.
+The REUSE-02C.1 suites (`session_safety.rs`, the S7 `supervision_tests`) and every earlier suite
+pass unchanged.
 
 ### Defect re-introduction
 
-Each defect was re-introduced one at a time, the targeted tests were run, and the source was
-then restored and compared byte for byte. **All 8 were caught.**
+Each defect was re-introduced one at a time against the corrected head, the targeted tests were
+run, and the source was restored and compared byte for byte. **All 11 were caught.**
 
 | Re-introduced defect | Failing test(s) |
 | --- | --- |
+| re-arming clears an unconfirmed command (the superseded first rule) | `re_arming_does_not_clear_an_unconfirmed_command` |
+| `configure` clears an unconfirmed command | `stop_start_configure_and_reconnection_do_not_clear_…` |
+| every command blocked instead of the affected one | `only_the_affected_command_is_blocked` |
+| connection loss stops all sources (no healthy monitoring) | `a_healthy_source_keeps_being_monitored_…` |
+| unconfirmed release not tracked | 3 D-02C4A-2 tests |
+| arming survives connection loss | `connection_loss_disarms_and_reconnection_never_rearms` |
 | no write deadline | both timeout tests |
 | timed-out pulse start not released at once | `a_pulse_start_that_times_out_is_released_at_once` |
-| arming survives connection loss (F-1) | `connection_loss_disarms_and_reconnection_never_rearms` |
 | loss does not release that source's pulses | `connection_loss_during_a_pulse_releases_it_and_disarms` |
-| unconfirmed release not tracked (F-2) | `an_unconfirmed_release_blocks_…` |
-| arming does not clear the unconfirmed mark | `an_unconfirmed_release_blocks_…` |
 | unbounded release write | `a_release_without_an_answer_is_bounded_and_reported` |
 | unbounded driver stop | `shutdown_is_bounded_when_the_release_and_the_driver_hang` |
 
-## 5. Local validation
+## 6. Local validation (corrected head)
 
-Linux x86_64, rustc and cargo 1.97.0, all commands in `crates/hmi-engine`, `--locked`.
+Linux x86_64, rustc and cargo 1.97.0, `--locked`, on the tree merged with PR #19.
 
 | Check | Result |
 | --- | --- |
-| `cargo fmt --check` | clean |
-| `cargo clippy --locked --all-targets -- -D warnings` | clean |
-| `cargo clippy --locked --all-targets --features test-server -- -D warnings` | clean |
-| `RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --features test-server` | clean |
-| `cargo test --locked --features test-server` | **67 passed, 0 failed** |
-| `cargo test --locked` | **49 passed, 0 failed** |
-| `write_lifecycle` + `session_safety` repeated 10× | 10/10 green (13 + 7 each run) |
-| `Cargo.lock` | unchanged (`git diff --exit-code`) |
-| `cargo audit` 0.23.0, database fetched at run time, 221 crates | 0 vulnerabilities, 1 warning (RUSTSEC-2026-0543, `chrono` unmaintained, already documented) |
+| hmi-engine `cargo fmt --check` | clean |
+| hmi-engine strict Clippy (`-D warnings`), default and `test-server` | clean |
+| hmi-engine rustdoc (`RUSTDOCFLAGS="-D warnings"`, `test-server`) | clean |
+| hmi-engine `cargo test --locked --features test-server` | **71 passed, 0 failed** |
+| hmi-engine `cargo test --locked` | **53 passed, 0 failed** |
+| `write_lifecycle` + `session_safety` repeated 10× | 10/10 green (17 + 7 each run) |
+| `cargo audit` 0.23.0, database fetched at run time, 221 crates | 0 vulnerabilities; 1 warning (RUSTSEC-2026-0543, `chrono` unmaintained, already documented) |
+| tag-engine fmt and strict Clippy | clean |
+| tag-engine `cargo test --locked` | 86 passed, 0 failed, 2 ignored by design |
+| tag-engine real-child tests (`--ignored`) against an `hmi-engine` freshly built from this branch | 2 passed |
+| Both lockfiles; `crates/tag-engine` vs main | unchanged; no diff |
 
-Test counts by target, with `test-server` (default features include the targets marked †):
+hmi-engine tests by target (`test-server`):
 
 | Target | Tests |
 | --- | --- |
-| lib † | 16 |
-| contract † | 4 |
+| lib | 16 |
+| contract | 4 |
 | opcua | 9 |
-| process † | 5 |
-| pulse † | 4 |
+| process | 5 |
+| pulse | 4 |
 | s7 | 9 |
-| session_safety † | 7 |
-| write_lifecycle † | 13 |
+| session_safety | 7 |
+| write_lifecycle | 17 |
 
-Hosted Windows and Linux CI, routed by CI-02, comes from the PR. It is not claimed here.
+The first candidate `26910c1` passed exact-head Required CI 45577232401, tag workflow 45577232651
+and handoff 45577232344. That evidence does not carry over to the corrected head, which needs
+its own exact-head hosted CI.
 
-### After reconciling with PR #19
+## 7. Limitations and open items
 
-PR #19 (REUSE-02C.3 EngineDriver) merged into main as `d1571fc` during this work. It was
-reconciled by an ordinary merge: the only conflicts were in shared records, and both entries
-were kept. Re-run on the merged tree:
+- **L-1 Engine bound shorter than some driver bounds.** `write_timeout` (10 s) is shorter than
+  the largest S7 `timeoutMs` (30 s). A slower write is reported as outcome unknown, and is
+  withdrawn if still queued.
+- **L-2 Disarm scope.** The disarm is global by design under protocol 3 (D-02C4A-1).
+  Per-connection arming is a protocol-4 requirement.
+- **L-3 Hung release.** When a release times out, its future is dropped and whether FALSE
+  reached the device is unknown, hence the block. The OPC UA driver's behaviour when a future
+  is dropped was not analysed.
+- **L-4 The block is per engine session.** It is in memory and ends with the engine process; a
+  restarted engine does not know about it. Before writes are exposed through the EngineDriver
+  (REUSE-02C.4B), the host must carry such blocks across engine restarts, or protocol 4 must
+  provide recovery. Until then, no write-capable integration should rely on an engine restart.
+- **L-5 Kotlin not exercised.** The Kotlin runtime was not run against the disarm and
+  `COMMAND_UNCONFIRMED` behaviour.
+- **L-6 Unchanged and still required.** F-4, F-6 and F-7 are unchanged. PLC-side watchdogs are
+  still required for physical momentary commands.
 
-| Check | Result |
-| --- | --- |
-| hmi-engine `cargo test --locked --features test-server` | 67 passed, 0 failed |
-| tag-engine fmt and strict Clippy | clean |
-| tag-engine rustdoc `-D warnings` | clean |
-| tag-engine `cargo test --locked` | 86 passed, 0 failed, 2 ignored by design |
-| Real-child tests (`--ignored`) against an `hmi-engine` freshly built from this branch | 2 passed (`real_child_integrates_with_tag_engine`, `real_loopback_baseline_and_new_generation`) |
-| Both lockfiles | unchanged |
+**Protocol 4 requirements recorded:**
+- explicit outcome-unknown status;
+- operator-initiated, command-specific recovery with verification of the device state;
+- per-connection arming.
 
-The EngineDriver remains read-only, so it does not yet exercise the new write semantics.
+## 8. Next exact action
 
-## 6. Limitations and open findings
-
-- **L-1 Driver timeouts above the engine bound.** `write_timeout` (10 s) is shorter than the
-  largest S7 `timeoutMs` (30 s). A slower S7 write is reported as outcome unknown at 10 s. If the
-  S7 command was still queued, it is withdrawn. Accepted as conservative; review if real
-  devices need longer.
-- **L-2 Scope of disarm on loss.** The loss of any source disarms all, because arming is
-  engine-wide. Per-source arming would need a protocol change and an owner decision.
-- **L-3 Releasing a hung driver.** The timeout drops the write future. Whether the device saw
-  FALSE is unknown, which is why the command is marked unconfirmed. The OPC UA driver's own
-  behaviour when a future is dropped was not analysed.
-- **L-4 Owner decisions open.** Confirm D-02C4A-1 and D-02C4A-2. Decide whether an explicit
-  operator "release now" request (protocol 4) is wanted. A PLC-side watchdog for momentary
-  commands remains required before physical machinery (decision 14 in the legacy register,
-  O-9).
-- **L-5 Kotlin not exercised.** The Kotlin runtime was not run against these behaviours (F-9).
-- **L-6 Unchanged.** F-4, F-6 and F-7 are unchanged. No EngineDriver write integration exists
-  yet.
-
-## 7. Next exact action
-
-1. Verify exact-head Required CI (Windows and Linux engine tests, notice and advisory gate) and
-   handoff on this PR.
-2. Independently review it, reconciling with PR #19 if that merges first. Shared records may
-   need an ordinary merge.
-3. Obtain owner confirmation of D-02C4A-1 and D-02C4A-2.
-4. Then REUSE-02C.4B: write-capable EngineDriver integration in `tag-engine` on these semantics,
-   still in isolated simulation.
+1. Exact-head hosted Required CI, tag workflow and handoff on the corrected PR #20 head.
+2. Independent review of the corrected head, then merge only after both gates pass.
+3. REUSE-02C.4B only on separate authorization. It must honour D-02C4A-1/2 and L-4.

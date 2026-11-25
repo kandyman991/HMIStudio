@@ -2,7 +2,7 @@
 //! device, no network). Engine time bounds are shortened through `run_with_limits`; every
 //! blocking point is either scripted or released by the test.
 
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -12,8 +12,8 @@ use hmi_engine::driver::{
 };
 use hmi_engine::engine::{self, Limits};
 use hmi_engine::protocol::{
-    Access, BrowseNode, Message, Request, RuntimeConfig, RuntimePoint, RuntimeSource, SourceState,
-    Value, ValueType, WriteRefusal, PROTOCOL_VERSION,
+    Access, BrowseNode, Message, PointValue, Quality, Request, RuntimeConfig, RuntimePoint,
+    RuntimeSource, SourceState, Value, ValueType, WriteRefusal, PROTOCOL_VERSION,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
@@ -45,7 +45,8 @@ struct Shared {
     steps: VecDeque<Step>,
     /// `stop` never completes.
     stop_hangs: bool,
-    sink: Option<(String, EventSink)>,
+    /// Event sink of every started source, by source id.
+    sinks: BTreeMap<String, EventSink>,
 }
 
 struct Scripted {
@@ -64,7 +65,11 @@ impl Drop for Withdrawn {
 #[async_trait]
 impl Driver for Scripted {
     async fn start(&mut self) -> Result<(), DriverError> {
-        self.shared.lock().unwrap().sink = Some((self.source.clone(), self.sink.clone()));
+        self.shared
+            .lock()
+            .unwrap()
+            .sinks
+            .insert(self.source.clone(), self.sink.clone());
         let _ = self.sink.send((
             self.source.clone(),
             DriverEvent::State(SourceState::Connected, None),
@@ -107,10 +112,14 @@ impl Driver for Scripted {
 }
 
 fn point(variable: &str, value_type: ValueType, pulse_ms: Option<u32>) -> RuntimePoint {
+    on("sim", variable, value_type, pulse_ms)
+}
+
+fn on(source: &str, variable: &str, value_type: ValueType, pulse_ms: Option<u32>) -> RuntimePoint {
     RuntimePoint {
         mapping_id: format!("m-{variable}"),
         variable_id: variable.into(),
-        source_id: "sim".into(),
+        source_id: source.into(),
         address: variable.into(),
         value_type,
         access: Access::ReadWrite,
@@ -122,6 +131,10 @@ fn point(variable: &str, value_type: ValueType, pulse_ms: Option<u32>) -> Runtim
 
 const SETPOINT: &str = "line.setpoint";
 const RESET: &str = "line.reset";
+/// A second momentary command on the same source, never affected by RESET's state.
+const START: &str = "line.start";
+/// A readable point on a second, healthy source.
+const LEVEL: &str = "aux.level";
 
 struct Session {
     tx: Option<Sender<Request>>,
@@ -129,6 +142,7 @@ struct Session {
     engine: JoinHandle<()>,
     next: u64,
     shared: Arc<Mutex<Shared>>,
+    config: Option<RuntimeConfig>,
 }
 
 impl Session {
@@ -154,6 +168,7 @@ impl Session {
             engine,
             next: 0,
             shared,
+            config: None,
         };
         let id = s.send(|id| Request::Hello {
             id,
@@ -166,27 +181,53 @@ impl Session {
         .await;
         let config = RuntimeConfig {
             version: 1,
-            sources: vec![RuntimeSource {
-                id: "sim".into(),
-                driver: "loopback".into(), // a valid name; the factory supplies the simulation
-                settings: Default::default(),
-            }],
+            sources: ["sim", "aux"]
+                .into_iter()
+                .map(|id| RuntimeSource {
+                    id: id.into(),
+                    driver: "loopback".into(), // a valid name; the factory supplies the simulation
+                    settings: Default::default(),
+                })
+                .collect(),
             points: vec![
                 point(SETPOINT, ValueType::Double, None),
                 point(RESET, ValueType::Bool, Some(pulse_ms)),
+                point(START, ValueType::Bool, Some(pulse_ms)),
+                RuntimePoint {
+                    access: Access::Read,
+                    write_confirmed: false,
+                    ..on("aux", LEVEL, ValueType::Double, None)
+                },
             ],
         };
         let id = s.send(|id| Request::Configure {
             id,
-            config,
+            config: config.clone(),
             credentials: Default::default(),
         });
         s.ok(id).await;
-        let id = s.send(|id| Request::Start { id });
-        s.ok(id).await;
-        s.connected().await;
+        s.config = Some(config);
+        s.start().await;
         s.arm().await;
         s
+    }
+
+    /// `start`, then both sources connected.
+    async fn start(&mut self) {
+        let id = self.send(|id| Request::Start { id });
+        self.ok(id).await;
+        self.connected().await;
+        self.connected().await;
+    }
+
+    async fn reconfigure(&mut self) {
+        let config = self.config.clone().expect("configured");
+        let id = self.send(|id| Request::Configure {
+            id,
+            config,
+            credentials: Default::default(),
+        });
+        self.ok(id).await;
     }
 
     fn send(&mut self, make: impl FnOnce(u64) -> Request) -> u64 {
@@ -258,12 +299,15 @@ impl Session {
         self.shared.lock().unwrap().writes.clone()
     }
 
-    /// Emits a source state from the simulated driver, as a real driver would.
+    /// Emits an event from a simulated driver, as a real driver would.
+    fn emit(&self, source: &str, event: DriverEvent) {
+        let sink = self.shared.lock().unwrap().sinks[source].clone();
+        sink.send((source.into(), event)).map_err(|_| ()).unwrap();
+    }
+
+    /// State change of the main source "sim".
     fn source_state(&self, state: SourceState) {
-        let (source, sink) = self.shared.lock().unwrap().sink.clone().expect("started");
-        sink.send((source, DriverEvent::State(state, None)))
-            .map_err(|_| ())
-            .unwrap();
+        self.emit("sim", DriverEvent::State(state, None));
     }
 
     fn write(&mut self, value: f64) -> u64 {
@@ -276,11 +320,27 @@ impl Session {
     }
 
     fn pulse(&mut self) -> u64 {
+        self.pulse_of(RESET)
+    }
+
+    fn pulse_of(&mut self, variable: &str) -> u64 {
+        let variable = variable.to_string();
         self.send(|id| Request::Pulse {
             id,
-            variable_id: RESET.into(),
+            variable_id: variable,
             actor: "op".into(),
         })
+    }
+
+    /// Asserts that a RESET pulse is refused as blocked, without reaching the driver.
+    async fn reset_is_blocked(&mut self) {
+        let before = self.writes().len();
+        let id = self.pulse();
+        let (accepted, refusal, message) = self.result(id).await;
+        assert!(!accepted);
+        assert_eq!(refusal, Some(WriteRefusal::Busy));
+        assert!(starts(&message, "COMMAND_UNCONFIRMED:"), "{message:?}");
+        assert_eq!(self.writes().len(), before, "nothing reached the driver");
     }
 
     async fn result(&mut self, id: u64) -> (bool, Option<WriteRefusal>, Option<String>) {
@@ -473,31 +533,109 @@ async fn connection_loss_during_a_pulse_releases_it_and_disarms() {
     );
 }
 
+#[tokio::test]
+async fn a_healthy_source_keeps_being_monitored_after_another_source_is_lost() {
+    let mut s = Session::armed(200).await;
+    s.source_state(SourceState::Connecting);
+    s.expect("writesArmed false", |m| {
+        matches!(m, Message::WritesArmed { armed: false, .. })
+    })
+    .await;
+    // Disarming is global under protocol 3, but monitoring of the healthy source continues.
+    s.emit(
+        "aux",
+        DriverEvent::Values(vec![PointValue {
+            variable_id: LEVEL.into(),
+            value: Some(Value::Double(41.5)),
+            quality: Quality::Good,
+            status: None,
+            source_timestamp_ms: None,
+        }]),
+    );
+    let values = s
+        .expect("aux values", |m| matches!(m, Message::Values { .. }))
+        .await;
+    let Message::Values { values } = values else {
+        unreachable!()
+    };
+    assert_eq!(values.len(), 1);
+    assert_eq!(values[0].variable_id, LEVEL);
+    assert_eq!(values[0].value, Some(Value::Double(41.5)));
+    assert_eq!(values[0].quality, Quality::Good);
+    assert_eq!(s.shared.lock().unwrap().stops, 0, "no source was stopped");
+}
+
 // ---- failed or unconfirmed release (F-2) ---------------------------------------------------
 
-#[tokio::test]
-async fn an_unconfirmed_release_blocks_the_command_until_writes_are_armed_again() {
+/// Leaves RESET with an unconfirmed release: TRUE written, FALSE outcome unknown.
+async fn unconfirmed_reset() -> Session {
     let mut s = Session::armed(100).await;
-    s.script(&[Step::Ok, Step::Unknown]); // TRUE fine, FALSE uncertain
+    s.script(&[Step::Ok, Step::Unknown]);
     let id = s.pulse();
     assert!(s.result(id).await.0);
     let (released, message) = s.released().await;
     assert!(!released);
     assert!(starts(&message, OUTCOME_UNKNOWN), "{message:?}");
-    // The engine never writes FALSE again by itself, and refuses a new pulse.
+    s
+}
+
+#[tokio::test]
+async fn an_unconfirmed_release_blocks_the_command_and_is_never_rewritten() {
+    let mut s = unconfirmed_reset().await;
     tokio::time::sleep(Duration::from_millis(600)).await;
-    let id = s.pulse();
-    let (accepted, refusal, message) = s.result(id).await;
-    assert!(!accepted);
-    assert_eq!(refusal, Some(WriteRefusal::Busy));
-    assert!(message.unwrap_or_default().contains("not confirmed"));
-    assert_eq!(s.writes(), vec![t(true), t(false)]);
-    // Arming again is the explicit acknowledgement; the command works normally afterwards.
+    s.reset_is_blocked().await;
+    assert_eq!(
+        s.writes(),
+        vec![t(true), t(false)],
+        "FALSE never written again by itself"
+    );
+}
+
+#[tokio::test]
+async fn re_arming_does_not_clear_an_unconfirmed_command() {
+    // D-02C4A-2 as decided: communication authorization and command recovery are separate.
+    let mut s = unconfirmed_reset().await;
     s.arm().await;
-    let id = s.pulse();
-    assert!(s.result(id).await.0);
+    s.reset_is_blocked().await;
+    let id = s.send(|id| Request::DisarmWrites { id });
+    s.ok(id).await;
+    s.arm().await;
+    s.reset_is_blocked().await;
+    assert_eq!(s.writes(), vec![t(true), t(false)]);
+}
+
+#[tokio::test]
+async fn stop_start_configure_and_reconnection_do_not_clear_an_unconfirmed_command() {
+    let mut s = unconfirmed_reset().await;
+    let id = s.send(|id| Request::Stop { id });
+    s.ok(id).await;
+    s.start().await;
+    s.arm().await;
+    s.reset_is_blocked().await;
+    s.reconfigure().await;
+    s.start().await;
+    s.arm().await;
+    s.reset_is_blocked().await;
+    s.source_state(SourceState::Connecting);
+    s.source_state(SourceState::Connected);
+    s.connected().await;
+    s.arm().await;
+    s.reset_is_blocked().await;
+    assert_eq!(s.writes(), vec![t(true), t(false)]);
+}
+
+#[tokio::test]
+async fn only_the_affected_command_is_blocked() {
+    let mut s = unconfirmed_reset().await;
+    let id = s.pulse_of(START);
+    assert!(
+        s.result(id).await.0,
+        "another momentary command still works"
+    );
     assert_eq!(s.released().await, (true, None));
-    assert_eq!(s.writes(), vec![t(true), t(false), t(true), t(false)]);
+    let id = s.write(3.0);
+    assert!(s.result(id).await.0, "ordinary writes still work");
+    s.reset_is_blocked().await;
 }
 
 #[tokio::test]
@@ -526,7 +664,7 @@ async fn shutdown_with_a_running_pulse_releases_it_before_stopping() {
     s.ok(id).await;
     s.ended_within(Duration::from_secs(2)).await;
     assert_eq!(s.writes(), vec![t(true), t(false)]);
-    assert_eq!(s.shared.lock().unwrap().stops, 1);
+    assert_eq!(s.shared.lock().unwrap().stops, 2, "both sources stopped");
 }
 
 #[tokio::test]
@@ -544,12 +682,12 @@ async fn shutdown_is_bounded_when_the_release_and_the_driver_hang() {
     s.ok(id).await;
     s.ended_within(Duration::from_secs(2)).await;
     let took = started.elapsed();
-    // release bound + stop bound, plus scheduling margin.
+    // One release bound plus one stop bound per source (two hung drivers), plus margin.
     assert!(
-        took < LIMITS.release_timeout + LIMITS.stop_timeout + Duration::from_millis(700),
+        took < LIMITS.release_timeout + LIMITS.stop_timeout * 2 + Duration::from_millis(700),
         "{took:?}"
     );
-    assert_eq!(s.shared.lock().unwrap().stops, 1);
+    assert_eq!(s.shared.lock().unwrap().stops, 2, "both sources stopped");
 }
 
 #[tokio::test]
@@ -567,7 +705,7 @@ async fn a_client_disconnect_terminates_within_bounds_with_a_hung_driver() {
         vec![t(true), t(false)],
         "release attempted once"
     );
-    assert_eq!(shared.stops, 1);
+    assert_eq!(shared.stops, 2, "both sources stopped");
     assert_eq!(
         shared.withdrawn, 1,
         "the hung release was dropped, not leaked"

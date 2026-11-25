@@ -76,9 +76,10 @@ enum Supervised<T> {
     TimedOut,
 }
 
-/// Message prefix of a pulse whose release was not confirmed: further pulses of that command are
-/// refused until writes are armed again (an explicit operator acknowledgement).
-const RELEASE_UNCONFIRMED: &str = "the release (FALSE) of the previous pulse of this command was not confirmed; it may still be asserted. Check the device, then arm writes again before pulsing it";
+/// Message of a pulse refused because the command's last release was not confirmed. The block is
+/// kept for the rest of the engine session: re-arming authorizes communication and does not
+/// recover a command (D-02C4A-2). Recovery needs a protocol-4 operation.
+const RELEASE_UNCONFIRMED: &str = "COMMAND_UNCONFIRMED: the release (FALSE) of an earlier pulse of this command was not confirmed and the command may still be asserted. It stays blocked for this engine session; re-arming does not clear it. Verify the device state; command-specific recovery is not available in protocol 3";
 
 /// Awaits a driver operation while still watching the session and the deadline. The operation
 /// is dropped when the session ends first (client gone, output closed, event delivery failed, or
@@ -163,7 +164,9 @@ pub struct Engine {
     /// Running pulses by variable; released by the engine, armed or not.
     pulses: BTreeMap<String, PendingPulse>,
     /// Momentary commands whose last release was not confirmed (failed, timed out or no
-    /// driver). Never written again automatically; cleared by the next explicit arming.
+    /// driver). Never written again automatically and never cleared by arming, `stop`, `start`
+    /// or `configure` (D-02C4A-2). Protocol 3 has no command-recovery operation, so the block
+    /// lasts for the rest of this engine session.
     unconfirmed: BTreeSet<String>,
     factory: driver::DriverFactory,
     limits: Limits,
@@ -438,9 +441,8 @@ impl Engine {
                 // Re-arming is a new control period: release any pulse belonging to the
                 // previous period before changing the named actor.
                 self.release_pulses(true).await;
-                // Explicit arming is the operator's acknowledgement of earlier unconfirmed
-                // releases; it is the only thing that clears them.
-                self.unconfirmed.clear();
+                // Arming authorizes communication only. It never clears an unconfirmed command
+                // (D-02C4A-2): command recovery is a separate, command-specific operation.
                 self.armed = Some(Armed {
                     actor: actor.clone(),
                     until: Instant::now() + Duration::from_secs(ttl_seconds as u64),

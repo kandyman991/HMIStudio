@@ -167,3 +167,21 @@ Append or supersede entries when milestone state changes. Include date, source S
   Simulated and synthetic drivers only. No hosted CI claimed.
 - After the #19 merge, on the merged tree: hmi-engine 67/67; tag-engine 86 passed (2 ignored by design); both real-child tests passed against an engine freshly built from this branch; lockfiles unchanged.
 - Open: owner confirmation of D-02C4A-1/2; whether to add a protocol-4 explicit outcome code or "release now" request; PLC-side command watchdog before physical use; Kotlin not exercised against the new disarm/BUSY behaviour; F-4/F-6/F-7 unchanged. Next: verify exact-head Required CI and handoff, independent review (reconcile with #19 if it merges first), then REUSE-02C.4B write-capable EngineDriver integration in isolated simulation.
+
+## REUSE-02C.4A owner decisions applied — 2026-11-25
+- Owner decisions:
+  - D-02C4A-1 accepted: global disarm on connection loss under protocol 3; healthy-source monitoring kept; no automatic re-arming or stale replay; per-connection arming is a protocol-4 requirement.
+  - D-02C4A-2 accepted with modifications: bounded release attempts and explicit uncertain outcomes; only the affected momentary command is blocked. Ordinary re-arming must not clear it, because authorization and command recovery are separate. Protocol 3 has no recovery operation, so the block is retained for the engine session. An explicit outcome-unknown status and command-specific recovery are protocol-4 requirements. PLC-side watchdogs are still required for physical momentary commands.
+  
+  Both are recorded in docs/ENGINEERING_DECISIONS.md.
+- Correction on PR #20, from the first candidate `26910c1`, whose CI does not carry over:
+  - `armWrites` no longer clears unconfirmed commands; nothing in protocol 3 clears them;
+  - the refusal message is now `COMMAND_UNCONFIRMED:`.
+  
+  Tests now cover two sources (one healthy), a second momentary command, re-arm/disarm/stop/start/configure/reconnection not clearing the block, and only the affected command being blocked. The superseded clear-on-arm rule is caught by a regression test.
+- Local Linux results (rustc 1.97.0, `--locked`):
+  - hmi-engine 71/71 with test-server, 53/53 with default features; `write_lifecycle` 17 tests, repeated 10× green; 11/11 re-introduced defects caught;
+  - fmt, strict Clippy and rustdoc clean; `cargo audit` 0 vulnerabilities (chrono warning);
+  - tag-engine 86 passed (2 ignored) plus 2 real-child tests against the branch engine;
+  - tag-engine and lockfiles unchanged.
+- Open: the block is per engine session (L-4, must be addressed before REUSE-02C.4B exposes writes); Kotlin not exercised. Next: corrected-head hosted CI and independent review before merge; REUSE-02C.4B only on separate authorization.

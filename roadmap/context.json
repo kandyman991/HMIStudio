@@ -82,9 +82,11 @@
       "branch": "feat/reuse-03a-canonical-v2",
       "scope": [
         "crates/engineering-core/",
-        "crates/project-model/"
+        "crates/project-model/",
+        "crates/tag-engine/",
+        "src-tauri/src/"
       ],
-      "observedAt": "2026-11-25T18:38:11Z"
+      "observedAt": "2026-11-25T19:01:02Z"
     }
   ]
 }

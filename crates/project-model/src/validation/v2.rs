@@ -2,7 +2,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{validate, Diagnostic, DiagnosticCode as C, Severity, ValidationReport};
+use super::{validate_base, Diagnostic, DiagnosticCode as C, Severity, ValidationReport};
 use crate::id::validate_id;
 use crate::model::v2::*;
 use crate::model::{DataType, DriverKind, Project};
@@ -224,7 +224,7 @@ pub fn validate_v2_declarations(
     project: &Project,
     v2: &IndustrialSecurityDeclarations,
 ) -> ValidationReport {
-    let mut report = validate(project);
+    let mut report = validate_base(project);
     if report.has_errors() {
         return report;
     }

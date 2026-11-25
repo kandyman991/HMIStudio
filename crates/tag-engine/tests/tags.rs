@@ -347,3 +347,18 @@ fn regression_default_values_bound_expanded_array_size() {
         TagValue::Array(vec![TagValue::Bool(false); 2])
     );
 }
+
+#[test]
+fn unsupported_v2_declarations_never_start_drivers_or_expose_tags() {
+    let mut p = project();
+    p.v2.industrial.security.auto_logout_seconds = Some(30);
+    let r = rig_with(&p, ScanMode::Threaded);
+    assert!(!r.engine.is_running());
+    assert!(r.engine.tag_ids().is_empty());
+    assert_eq!(r.report.issues.len(), 1);
+    assert!(r.report.issues[0].message.contains("activation refused"));
+    assert!(r
+        .engine
+        .write_json(&tid("int-bool"), None, &json!(true))
+        .is_err());
+}

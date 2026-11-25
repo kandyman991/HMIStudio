@@ -84,7 +84,7 @@ fn canonical_output_omits_defaults_and_ends_with_newline() {
     assert!(!text.contains("\"mode\": \"read\""));
     assert!(!text.contains("\"zIndex\": 0"));
     assert!(!text.contains("null"));
-    assert!(text.starts_with("{\n  \"format\": \"hmi-studio.project\",\n  \"schemaVersion\": 1,"));
+    assert!(text.starts_with("{\n  \"format\": \"hmi-studio.project\",\n  \"schemaVersion\": 2,"));
 }
 
 #[test]

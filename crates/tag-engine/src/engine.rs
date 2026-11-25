@@ -386,6 +386,26 @@ impl TagEngine {
         clock: Arc<dyn Clock>,
         config: EngineConfig,
     ) -> (TagEngine, InitReport) {
+        // This engine does not yet implement the v2 policy/authorization
+        // semantics. Never start drivers or offer writes for such a project.
+        if !project.v2.is_empty()
+            || project.schema_version != hmi_project_model::CURRENT_SCHEMA_VERSION
+        {
+            let mut empty = project.clone();
+            empty.schema_version = hmi_project_model::CURRENT_SCHEMA_VERSION;
+            empty.v2 = Default::default();
+            empty.tags.clear();
+            empty.connections.clear();
+            let mut safe_config = config;
+            safe_config.scan_mode = ScanMode::Manual;
+            let (engine, mut report) = Self::new(&empty, registry, clock, safe_config);
+            engine.shutdown();
+            report.issues.push(InitIssue {
+                subject: project.id.to_string(),
+                message: "unsupported project declarations: runtime activation refused".into(),
+            });
+            return (engine, report);
+        }
         let types = TypeContext::from_project(project);
         let mut report = InitReport::default();
         let now = clock.now();

@@ -30,7 +30,7 @@ fn typed_declarations_roundtrip_without_activating_v1() {
         serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap()
     );
     assert!(validate_v2_declarations(&project(base()), &d).is_valid());
-    assert_eq!(CURRENT_SCHEMA_VERSION, 1);
+    assert_eq!(CURRENT_SCHEMA_VERSION, 2);
     let mut v = base();
     v["security"] = declarations()["security"].clone();
     assert!(parse_project(&v.to_string()).is_err());

@@ -254,6 +254,9 @@ impl Host {
             &MigrationRegistry::builtin(),
         )
         .map_err(err)?;
+        if !opened.session.project().v2.is_empty() {
+            return Err("Project uses v2 declarations not yet supported by this workspace; original data preserved".into());
+        }
         self.session = opened.session;
         self.generation += 1;
         self.pending_untitled = false;
@@ -310,6 +313,9 @@ impl Host {
             )
         }
         .map_err(err)?;
+        if !opened.session.project().v2.is_empty() {
+            return Err("Project uses v2 declarations not yet supported by this workspace; original data preserved".into());
+        }
         if has_recovery && !recover {
             fs::remove_file(dir.join(RECOVERY)).map_err(err)?;
         }
@@ -466,6 +472,22 @@ mod tests {
                 name: name.into(),
             }))
             .unwrap();
+    }
+
+    #[test]
+    fn unsupported_v2_project_cannot_replace_workspace() {
+        let t = Temp::new();
+        let path = t.0.join("v2.hmi.json");
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.session.snapshot();
+        let mut project = host.session.project().clone();
+        project.v2.industrial.security.auto_logout_seconds = Some(30);
+        let original = hmi_project_model::save_project(&project).unwrap();
+        fs::write(&path, &original).unwrap();
+        let result = host.open_with(&path, false, |_| Ok(Some(false)));
+        assert!(result.unwrap_err().contains("v2 declarations"));
+        assert_eq!(host.session.snapshot(), before);
+        assert_eq!(fs::read_to_string(&path).unwrap(), original);
     }
 
     #[test]

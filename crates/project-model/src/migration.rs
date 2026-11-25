@@ -5,9 +5,8 @@
 //! Rust types of version *N* to still exist. Each migration upgrades exactly
 //! one version step; the registry chains them.
 //!
-//! Version 1 is the first schema, so [`MigrationRegistry::builtin`] is
-//! currently empty. The machinery is exercised by tests with synthetic
-//! migrations.
+//! Version 1 is the first schema. The additive v1-to-v2 migration preserves
+//! the original document and never imports v2 declarations from v1.
 
 use std::collections::BTreeMap;
 
@@ -96,7 +95,9 @@ impl std::fmt::Debug for MigrationRegistry {
 impl MigrationRegistry {
     /// Registry with every migration shipped by this crate version.
     pub fn builtin() -> Self {
-        Self::default()
+        let mut registry = Self::default();
+        registry.steps.insert(1, Box::new(V1ToV2));
+        registry
     }
 
     /// Adds a migration.
@@ -155,5 +156,31 @@ impl MigrationRegistry {
             });
         }
         Ok((document, applied))
+    }
+}
+
+/// Additive migration: the new field is absent by default. Reject any v2
+/// field in v1, even an empty or null one, rather than promoting its policy.
+struct V1ToV2;
+impl Migration for V1ToV2 {
+    fn source_version(&self) -> u32 {
+        1
+    }
+    fn description(&self) -> &str {
+        "preserve v1 project; add empty v2 declarations"
+    }
+    fn migrate(&self, mut doc: Value) -> Result<Value, MigrationError> {
+        let obj = doc.as_object_mut().ok_or_else(|| MigrationError::Failed {
+            from: 1,
+            message: "root is not an object".into(),
+        })?;
+        if obj.contains_key("v2") {
+            return Err(MigrationError::Failed {
+                from: 1,
+                message: "v2 declarations are not allowed in v1".into(),
+            });
+        }
+        obj.insert("schemaVersion".into(), Value::from(2));
+        Ok(doc)
     }
 }

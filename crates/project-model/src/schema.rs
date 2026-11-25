@@ -2,7 +2,7 @@
 //!
 //! The schema is generated from the Rust types, so it cannot drift from the
 //! serializer. A committed copy lives at
-//! `crates/project-model/schema/hmi-project.v1.schema.json` for consumers
+//! `crates/project-model/schema/hmi-project.v2.schema.json` for consumers
 //! that do not build Rust (the Kotlin runtime, external tooling); a test
 //! fails if the committed copy is stale. Regenerate with
 //! `cargo run --example export_schema`.
@@ -17,10 +17,10 @@ use crate::model::Project;
 use crate::CURRENT_SCHEMA_VERSION;
 
 /// `$id` of the current schema.
-pub const SCHEMA_ID: &str = "urn:hmi-studio:project:schema:v1";
+pub const SCHEMA_ID: &str = "urn:hmi-studio:project:schema:v2";
 
 /// Relative path of the committed schema inside the crate.
-pub const SCHEMA_FILE: &str = "schema/hmi-project.v1.schema.json";
+pub const SCHEMA_FILE: &str = "schema/hmi-project.v2.schema.json";
 
 /// Builds the JSON Schema for [`Project`].
 pub fn project_json_schema() -> Value {

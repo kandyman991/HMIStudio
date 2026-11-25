@@ -289,3 +289,7 @@ Added staged typed Rust expression parser/type checker/snapshot evaluator and di
 ## REUSE-03A components/actions — 2026-11-25
 
 Added nine passive reusable symbol definitions and staged line/arrow/polygon/text-input/dropdown contracts, faceplate classification/arguments, ordered actions and dynamic startup resolution. Initial createIndustrialSymbol typed session command integrates allocation, undo/redo and atomic rollback using v1-compatible data. Classification/placement and remaining typed commands still need canonical integration; schema stays v1. Next exact action: canonical integration, reference/remap/transaction tests and strict migration activation. PR #35 remains draft; reservation active.
+
+## REUSE-03A canonical v2 candidate — 2026-11-25
+
+Draft branch now writes schema 2; v1 fixtures/schema immutable, additive strict migration and typed project groups integrated. Group replacement commands use strict validation, normalized references and existing persistence/undo; duplicate operations refused on nonempty v2 until remap is complete. Unsupported desktop and tag-engine consumers refuse nonempty v2; native Tauri offline dependency unavailable. Scope extended atomically to consumer paths. Next exact action: finish canonical component placement, copy/remap, consumer validation and cross-runtime parity before freezing v2. PR #35 remains draft.

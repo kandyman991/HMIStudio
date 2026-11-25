@@ -296,6 +296,21 @@ pub enum Command {
     },
 
     // --------------------------------------------------------- project
+    /// Atomically replace the typed industrial/security declarations.
+    #[serde(rename_all = "camelCase")]
+    SetIndustrialSecurity {
+        declarations: hmi_project_model::model::v2::IndustrialSecurityDeclarations,
+    },
+    /// Atomically replace typed expressions and enumeration declarations.
+    #[serde(rename_all = "camelCase")]
+    SetExpressionEnumerations {
+        declarations: hmi_project_model::model::v2_bindings::ExpressionEnumerationDeclarations,
+    },
+    /// Atomically replace component classifications and candidate action handlers.
+    #[serde(rename_all = "camelCase")]
+    SetComponentActions {
+        declarations: hmi_project_model::model::v2_components::ComponentActionDeclarations,
+    },
     /// Replaces project metadata.
     #[serde(rename_all = "camelCase")]
     SetMetadata {
@@ -360,6 +375,9 @@ impl Command {
             Command::SetComponentParameters { .. } => "setComponentParameters",
             Command::DeleteComponentDefinition { .. } => "deleteComponentDefinition",
             Command::DuplicateComponentDefinition { .. } => "duplicateComponentDefinition",
+            Command::SetIndustrialSecurity { .. } => "setIndustrialSecurity",
+            Command::SetExpressionEnumerations { .. } => "setExpressionEnumerations",
+            Command::SetComponentActions { .. } => "setComponentActions",
             Command::SetMetadata { .. } => "setMetadata",
             Command::SetSettings { .. } => "setSettings",
             Command::SetNavigation { .. } => "setNavigation",

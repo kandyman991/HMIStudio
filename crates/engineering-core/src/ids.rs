@@ -36,6 +36,22 @@ pub fn collect_ids(p: &Project) -> Vec<String> {
         out.push(s.id.to_string());
         collect_node_ids(&s.root, &mut out);
     }
+    out.extend(
+        p.v2.industrial
+            .security
+            .permissions
+            .iter()
+            .map(|x| x.id.to_string()),
+    );
+    out.extend(
+        p.v2.industrial
+            .security
+            .roles
+            .iter()
+            .map(|x| x.id.to_string()),
+    );
+    out.extend(p.v2.bindings.enumerations.iter().map(|x| x.id.to_string()));
+    out.extend(p.v2.components.components.iter().map(|x| x.id.to_string()));
     out
 }
 

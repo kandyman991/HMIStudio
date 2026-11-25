@@ -188,6 +188,29 @@ impl std::fmt::Display for ValidationReport {
 
 /// Validates a project. See the module documentation.
 pub fn validate(project: &Project) -> ValidationReport {
+    if project.v2.is_empty() {
+        return validate_base(project);
+    }
+    let mut report = validate_v2_components(
+        project,
+        &project.v2.industrial,
+        &project.v2.bindings,
+        &project.v2.components,
+    );
+    if !project.v2.components.components.is_empty() {
+        report.diagnostics.push(Diagnostic {
+            severity: Severity::Error,
+            code: DiagnosticCode::InvalidHierarchy,
+            path: "/v2/components/components".into(),
+            message:
+                "new primitive/input declarations require canonical tree placement before admission"
+                    .into(),
+        });
+    }
+    report
+}
+
+pub(super) fn validate_base(project: &Project) -> ValidationReport {
     let mut v = checks::Validator::new(project);
     v.run();
     ValidationReport {

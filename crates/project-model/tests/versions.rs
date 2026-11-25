@@ -13,10 +13,7 @@ use serde_json::{json, Value};
 
 #[test]
 fn detects_current_version() {
-    assert_eq!(
-        detect_version(&base().to_string()).unwrap(),
-        CURRENT_SCHEMA_VERSION
-    );
+    assert_eq!(detect_version(&base().to_string()).unwrap(), 1);
     assert_eq!(
         detect_version(&fixture("valid/bottling-line.hmi.json")).unwrap(),
         1
@@ -86,7 +83,7 @@ fn older_versions_without_migrations_are_rejected() {
             ..
         } => {
             assert_eq!(found, 0);
-            assert_eq!(oldest_supported, CURRENT_SCHEMA_VERSION);
+            assert_eq!(oldest_supported, 1);
         }
         other => panic!("{other}"),
     }
@@ -150,10 +147,10 @@ fn migrations_upgrade_older_documents() {
 
     let loaded = load_project_with(&v0_document().to_string(), &registry).unwrap();
     assert_eq!(loaded.source_version, 0);
-    assert_eq!(loaded.migrations.len(), 1);
+    assert_eq!(loaded.migrations.len(), 2);
     assert_eq!(loaded.migrations[0].from, 0);
     assert_eq!(loaded.migrations[0].to, 1);
-    assert_eq!(loaded.project.schema_version, 1);
+    assert_eq!(loaded.project.schema_version, CURRENT_SCHEMA_VERSION);
     assert_eq!(loaded.project.metadata.name, "Test");
     assert_eq!(loaded.project, project(base()));
 }
@@ -172,7 +169,7 @@ fn migration_registry_guards() {
     );
     assert_eq!(
         registry.migrate(json!({}), 1, 3).unwrap_err(),
-        MigrationError::MissingStep { from: 1 }
+        MigrationError::MissingStep { from: 2 }
     );
 
     let mut broken = MigrationRegistry::builtin();

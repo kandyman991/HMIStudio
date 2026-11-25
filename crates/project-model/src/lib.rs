@@ -40,7 +40,7 @@ pub use validation::{validate, Diagnostic, DiagnosticCode, Severity, ValidationR
 pub const FORMAT_ID: &str = "hmi-studio.project";
 
 /// Schema version written by this crate.
-pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
 /// Maximum nesting depth of a layout tree (root = depth 1). Bounded so that
 /// recursive processing on every platform (including Android) stays far

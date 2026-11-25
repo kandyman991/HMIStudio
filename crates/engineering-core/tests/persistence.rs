@@ -48,7 +48,7 @@ fn save_then_open_is_equivalent_and_canonical() {
     assert!(o.report.diagnostics.is_empty());
     assert!(!o.session.is_dirty());
     assert!(o.recovery.is_none());
-    // The original RUST-03A fixture round-trips byte-for-byte through the engine.
+    // The original v1 fixture migrates only the schema version on explicit save.
     let fixture = std::fs::read_to_string(fixture_path("bottling-line.hmi.json")).unwrap();
     let copy = dir.join("copy.hmi.json");
     write(&copy, &fixture);
@@ -67,7 +67,10 @@ fn save_then_open_is_equivalent_and_canonical() {
             ..SaveOptions::default()
         })
         .unwrap();
-    assert_eq!(std::fs::read_to_string(&copy).unwrap(), fixture);
+    assert_eq!(
+        std::fs::read_to_string(&copy).unwrap(),
+        fixture.replacen("\"schemaVersion\": 1", "\"schemaVersion\": 2", 1)
+    );
 }
 
 #[test]
@@ -605,6 +608,7 @@ fn invalid_project_opens_with_diagnostics_and_is_not_repaired() {
     let mut doc: Value =
         serde_json::from_str(&std::fs::read_to_string(fixture_path("minimal.hmi.json")).unwrap())
             .unwrap();
+    doc["schemaVersion"] = json!(2);
     doc["navigation"]["startScreen"] = json!("scr-gone");
     let text = serde_json::to_string_pretty(&doc).unwrap();
     write(&path, &text);

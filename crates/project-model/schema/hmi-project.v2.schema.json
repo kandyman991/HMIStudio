@@ -1,0 +1,4388 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "Declarative action contract. Execution is out of scope for this crate.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Navigate to a page.",
+          "properties": {
+            "screen": {
+              "$ref": "#/$defs/ScreenId",
+              "description": "Target page."
+            },
+            "type": {
+              "const": "navigate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "screen"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Navigate back.",
+          "properties": {
+            "type": {
+              "const": "back",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Open a popup screen.",
+          "properties": {
+            "screen": {
+              "$ref": "#/$defs/ScreenId",
+              "description": "Target popup."
+            },
+            "type": {
+              "const": "openPopup",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "screen"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Close the topmost popup.",
+          "properties": {
+            "type": {
+              "const": "closePopup",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Write a constant value.",
+          "properties": {
+            "member": {
+              "description": "Member path.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target": {
+              "$ref": "#/$defs/TagRef",
+              "description": "Target tag."
+            },
+            "type": {
+              "const": "writeTag",
+              "type": "string"
+            },
+            "value": {
+              "description": "Value to write."
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Invert a boolean.",
+          "properties": {
+            "member": {
+              "description": "Member path.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target": {
+              "$ref": "#/$defs/TagRef",
+              "description": "Target tag."
+            },
+            "type": {
+              "const": "toggleTag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Add `step` to a numeric value, clamped to `[min, max]` if given.",
+          "properties": {
+            "max": {
+              "description": "Upper clamp.",
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "member": {
+              "description": "Member path.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "min": {
+              "description": "Lower clamp.",
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "step": {
+              "description": "Increment (negative to decrement).",
+              "format": "double",
+              "type": "number"
+            },
+            "target": {
+              "$ref": "#/$defs/TagRef",
+              "description": "Target tag."
+            },
+            "type": {
+              "const": "stepTag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "step"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Set a boolean true for `durationMs`, then false.",
+          "properties": {
+            "durationMs": {
+              "description": "Pulse duration in milliseconds (> 0).",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "member": {
+              "description": "Member path.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target": {
+              "$ref": "#/$defs/TagRef",
+              "description": "Target tag."
+            },
+            "type": {
+              "const": "pulseTag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "durationMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Acknowledge alarms (one alarm, one group, or all when both are unset).",
+          "properties": {
+            "alarm": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AlarmId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Single alarm."
+            },
+            "group": {
+              "description": "Alarm group.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "acknowledgeAlarms",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Download a recipe set to its tags.",
+          "properties": {
+            "recipe": {
+              "$ref": "#/$defs/RecipeId",
+              "description": "Recipe."
+            },
+            "set": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecipeSetId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Set; operator chooses when unset."
+            },
+            "type": {
+              "const": "loadRecipe",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Upload current tag values into a recipe set.",
+          "properties": {
+            "recipe": {
+              "$ref": "#/$defs/RecipeId",
+              "description": "Recipe."
+            },
+            "set": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecipeSetId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Set; operator chooses when unset."
+            },
+            "type": {
+              "const": "saveRecipe",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Change the UI language.",
+          "properties": {
+            "locale": {
+              "description": "Declared locale.",
+              "type": "string"
+            },
+            "type": {
+              "const": "setLocale",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "locale"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AlarmCondition": {
+      "description": "Alarm trigger condition.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Value > limit.",
+          "properties": {
+            "limit": {
+              "description": "Limit.",
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "high",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "limit"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Value < limit.",
+          "properties": {
+            "limit": {
+              "description": "Limit.",
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "low",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "limit"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Value == constant.",
+          "properties": {
+            "type": {
+              "const": "equals",
+              "type": "string"
+            },
+            "value": {
+              "description": "Constant."
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Bit `index` of an integer value is set.",
+          "properties": {
+            "index": {
+              "description": "Bit index.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "bitSet",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "index"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Boolean value is true.",
+          "properties": {
+            "type": {
+              "const": "isTrue",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Boolean value is false.",
+          "properties": {
+            "type": {
+              "const": "isFalse",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AlarmDefinition": {
+      "additionalProperties": false,
+      "description": "An alarm definition.",
+      "properties": {
+        "acknowledge": {
+          "description": "Operator acknowledgement required.",
+          "type": "boolean"
+        },
+        "condition": {
+          "$ref": "#/$defs/AlarmCondition",
+          "description": "Trigger condition."
+        },
+        "deadband": {
+          "description": "Hysteresis for `high`/`low` (>= 0).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "delayMs": {
+          "description": "Condition must hold this long before raising (ms).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "group": {
+          "description": "Group for filtering and group acknowledgement.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/AlarmId",
+          "description": "Stable identifier."
+        },
+        "latched": {
+          "description": "Stays active until acknowledged even if the condition clears.",
+          "type": "boolean"
+        },
+        "member": {
+          "description": "Member path into the tag.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "$ref": "#/$defs/LocalizedText",
+          "description": "Operator message."
+        },
+        "name": {
+          "description": "Engineer-facing name.",
+          "type": "string"
+        },
+        "priority": {
+          "description": "Priority 1..=1000 (higher = more urgent).",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severity": {
+          "$ref": "#/$defs/AlarmSeverity",
+          "description": "Severity class."
+        },
+        "tag": {
+          "$ref": "#/$defs/TagId",
+          "description": "Monitored tag."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "tag",
+        "condition",
+        "message"
+      ],
+      "type": "object"
+    },
+    "AlarmId": {
+      "description": "Stable identifier (AlarmId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "AlarmSeverity": {
+      "description": "Alarm severity class.",
+      "oneOf": [
+        {
+          "const": "info",
+          "description": "Information.",
+          "type": "string"
+        },
+        {
+          "const": "warning",
+          "description": "Warning.",
+          "type": "string"
+        },
+        {
+          "const": "alarm",
+          "description": "Alarm.",
+          "type": "string"
+        },
+        {
+          "const": "critical",
+          "description": "Critical / safety-relevant indication (the HMI is never the safety\nfunction itself).",
+          "type": "string"
+        }
+      ]
+    },
+    "Alignment": {
+      "description": "Two-dimensional alignment (Compose `Alignment`).",
+      "oneOf": [
+        {
+          "const": "topStart",
+          "description": "Top start.",
+          "type": "string"
+        },
+        {
+          "const": "topCenter",
+          "description": "Top center.",
+          "type": "string"
+        },
+        {
+          "const": "topEnd",
+          "description": "Top end.",
+          "type": "string"
+        },
+        {
+          "const": "centerStart",
+          "description": "Center start.",
+          "type": "string"
+        },
+        {
+          "const": "center",
+          "description": "Center.",
+          "type": "string"
+        },
+        {
+          "const": "centerEnd",
+          "description": "Center end.",
+          "type": "string"
+        },
+        {
+          "const": "bottomStart",
+          "description": "Bottom start.",
+          "type": "string"
+        },
+        {
+          "const": "bottomCenter",
+          "description": "Bottom center.",
+          "type": "string"
+        },
+        {
+          "const": "bottomEnd",
+          "description": "Bottom end.",
+          "type": "string"
+        }
+      ]
+    },
+    "Arrangement": {
+      "description": "Main-axis arrangement for rows and columns.",
+      "oneOf": [
+        {
+          "const": "start",
+          "description": "Pack at start.",
+          "type": "string"
+        },
+        {
+          "const": "center",
+          "description": "Pack at center.",
+          "type": "string"
+        },
+        {
+          "const": "end",
+          "description": "Pack at end.",
+          "type": "string"
+        },
+        {
+          "const": "spaceBetween",
+          "description": "Distribute with space between.",
+          "type": "string"
+        },
+        {
+          "const": "spaceAround",
+          "description": "Distribute with space around.",
+          "type": "string"
+        },
+        {
+          "const": "spaceEvenly",
+          "description": "Distribute evenly.",
+          "type": "string"
+        }
+      ]
+    },
+    "Axis": {
+      "description": "Flow axis, used by responsive overrides to switch a row into a column.",
+      "oneOf": [
+        {
+          "const": "horizontal",
+          "description": "Horizontal (row).",
+          "type": "string"
+        },
+        {
+          "const": "vertical",
+          "description": "Vertical (column).",
+          "type": "string"
+        }
+      ]
+    },
+    "BindingMode": {
+      "description": "Binding data flow.",
+      "oneOf": [
+        {
+          "const": "read",
+          "description": "Source -> property.",
+          "type": "string"
+        },
+        {
+          "const": "write",
+          "description": "Property -> source (operator input writes the tag).",
+          "type": "string"
+        },
+        {
+          "const": "readWrite",
+          "description": "Both directions.",
+          "type": "string"
+        }
+      ]
+    },
+    "BindingSource": {
+      "description": "Where a binding takes its value from.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A project tag: `{ \"tag\": \"<tagId>\" }`.",
+          "properties": {
+            "tag": {
+              "$ref": "#/$defs/TagId"
+            }
+          },
+          "required": [
+            "tag"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The tag supplied to a `tag`-typed parameter of the enclosing\ncomponent definition: `{ \"tagParameter\": \"<name>\" }`.",
+          "properties": {
+            "tagParameter": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tagParameter"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A value parameter of the enclosing component definition:\n`{ \"parameter\": \"<name>\" }` (read-only).",
+          "properties": {
+            "parameter": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "parameter"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Breakpoint": {
+      "additionalProperties": false,
+      "description": "A responsive breakpoint (window width class), in dp.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/BreakpointId",
+          "description": "Stable identifier."
+        },
+        "maxWidth": {
+          "description": "Maximum width (exclusive); unset = unbounded.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minWidth": {
+          "description": "Minimum width (inclusive).",
+          "format": "double",
+          "type": "number"
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "minWidth"
+      ],
+      "type": "object"
+    },
+    "BreakpointId": {
+      "description": "Stable identifier (BreakpointId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "CandidateAction": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NewAction"
+        },
+        {
+          "$ref": "#/$defs/Action"
+        }
+      ],
+      "description": "Explicit union preserves ordering of old and new actions without rewriting\na dynamic startup navigation to a fixed screen id."
+    },
+    "CandidateHandler": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/CandidateAction"
+          },
+          "type": "array"
+        },
+        "confirm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "origin": {
+          "$ref": "#/$defs/EventOrigin"
+        }
+      },
+      "required": [
+        "origin",
+        "event",
+        "actions"
+      ],
+      "type": "object"
+    },
+    "CommandKind": {
+      "description": "Operator command semantics, distinct from tag read/write access.",
+      "enum": [
+        "momentary",
+        "maintained",
+        "setpoint"
+      ],
+      "type": "string"
+    },
+    "ComponentActionDeclarations": {
+      "additionalProperties": false,
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ComponentCandidate"
+          },
+          "type": "array"
+        },
+        "definitions": {
+          "items": {
+            "$ref": "#/$defs/DefinitionClassification"
+          },
+          "type": "array"
+        },
+        "handlers": {
+          "items": {
+            "$ref": "#/$defs/CandidateHandler"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ComponentCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/ComponentContract"
+        },
+        "id": {
+          "$ref": "#/$defs/NodeId"
+        }
+      },
+      "required": [
+        "id",
+        "contract"
+      ],
+      "type": "object"
+    },
+    "ComponentContract": {
+      "description": "Missing primitive and input contracts. Values are engineering declarations;\nthe future canonical node integration must preserve them and bind them\nthrough validated operations, not interpret them in the v1 renderer.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "end": {
+              "$ref": "#/$defs/Point"
+            },
+            "kind": {
+              "const": "line",
+              "type": "string"
+            },
+            "start": {
+              "$ref": "#/$defs/Point"
+            },
+            "strokeColor": {
+              "type": "string"
+            },
+            "strokeWidth": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "start",
+            "end",
+            "strokeColor",
+            "strokeWidth"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "end": {
+              "$ref": "#/$defs/Point"
+            },
+            "headLength": {
+              "format": "double",
+              "type": "number"
+            },
+            "kind": {
+              "const": "arrow",
+              "type": "string"
+            },
+            "start": {
+              "$ref": "#/$defs/Point"
+            },
+            "strokeColor": {
+              "type": "string"
+            },
+            "strokeWidth": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "start",
+            "end",
+            "strokeColor",
+            "strokeWidth",
+            "headLength"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "fill": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "polygon",
+              "type": "string"
+            },
+            "points": {
+              "items": {
+                "$ref": "#/$defs/Point"
+              },
+              "type": "array"
+            },
+            "strokeColor": {
+              "type": "string"
+            },
+            "strokeWidth": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "points",
+            "fill",
+            "strokeColor",
+            "strokeWidth"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "textInput",
+              "type": "string"
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LocalizedText"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxLength": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "tag": {
+              "$ref": "#/$defs/TagId"
+            }
+          },
+          "required": [
+            "kind",
+            "tag",
+            "maxLength"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "enumeration": {
+              "$ref": "#/$defs/EnumerationId"
+            },
+            "kind": {
+              "const": "dropDown",
+              "type": "string"
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LocalizedText"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "tag": {
+              "$ref": "#/$defs/TagId"
+            }
+          },
+          "required": [
+            "kind",
+            "tag",
+            "enumeration"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ComponentDefinition": {
+      "additionalProperties": false,
+      "description": "A reusable component (faceplate, symbol, composite widget).",
+      "properties": {
+        "category": {
+          "description": "Library category for the editor palette.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "Description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Extensible engineering metadata.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/ComponentDefinitionId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        },
+        "parameters": {
+          "description": "Parameters exposed to instances.",
+          "items": {
+            "$ref": "#/$defs/ParameterDefinition"
+          },
+          "type": "array"
+        },
+        "root": {
+          "$ref": "#/$defs/Node",
+          "description": "Root of the definition's layout tree."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "root"
+      ],
+      "type": "object"
+    },
+    "ComponentDefinitionId": {
+      "description": "Stable identifier (ComponentDefinitionId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "ComponentKind": {
+      "description": "Built-in component kinds. The property catalog for each kind lives in\n[`crate::catalog`].",
+      "oneOf": [
+        {
+          "const": "button",
+          "description": "Push button.",
+          "type": "string"
+        },
+        {
+          "const": "text",
+          "description": "Static or bound text.",
+          "type": "string"
+        },
+        {
+          "const": "image",
+          "description": "Raster or vector image.",
+          "type": "string"
+        },
+        {
+          "const": "rectangle",
+          "description": "Rectangle shape.",
+          "type": "string"
+        },
+        {
+          "const": "ellipse",
+          "description": "Ellipse / circle shape.",
+          "type": "string"
+        },
+        {
+          "const": "numericDisplay",
+          "description": "Read-only numeric value.",
+          "type": "string"
+        },
+        {
+          "const": "numericInput",
+          "description": "Operator numeric entry.",
+          "type": "string"
+        },
+        {
+          "const": "indicator",
+          "description": "Status lamp / LED.",
+          "type": "string"
+        },
+        {
+          "const": "gauge",
+          "description": "Analog gauge.",
+          "type": "string"
+        },
+        {
+          "const": "slider",
+          "description": "Slider.",
+          "type": "string"
+        },
+        {
+          "const": "switch",
+          "description": "On/off switch.",
+          "type": "string"
+        },
+        {
+          "const": "progressBar",
+          "description": "Progress / level bar.",
+          "type": "string"
+        },
+        {
+          "const": "container",
+          "description": "Decorated surface that may host one child layout.",
+          "type": "string"
+        }
+      ]
+    },
+    "Connection": {
+      "additionalProperties": false,
+      "description": "Reference to a PLC or other data source.",
+      "properties": {
+        "credentialRef": {
+          "description": "Name of a credential held in the runtime's secure store. Projects\nnever contain secrets.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "driver": {
+          "$ref": "#/$defs/DriverKind",
+          "description": "Driver family."
+        },
+        "endpoint": {
+          "description": "Endpoint (e.g. `opc.tcp://10.0.0.5:4840`). Deployment-specific\nendpoints may be overridden at publish time.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Extensible metadata.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/ConnectionId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "description": "Driver-specific, non-secret parameters.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "driver"
+      ],
+      "type": "object"
+    },
+    "ConnectionId": {
+      "description": "Stable identifier (ConnectionId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "ConnectionPolicy": {
+      "additionalProperties": false,
+      "description": "Candidate connection metadata tied to an existing v1 connection.",
+      "properties": {
+        "commissioningAllowed": {
+          "description": "Engineering intent only; never active commissioning authorization.",
+          "type": "boolean"
+        },
+        "connection": {
+          "$ref": "#/$defs/ConnectionId"
+        },
+        "driver": {
+          "$ref": "#/$defs/DriverKindV2"
+        }
+      },
+      "required": [
+        "connection",
+        "driver"
+      ],
+      "type": "object"
+    },
+    "CrossAlignment": {
+      "description": "Cross-axis alignment for rows and columns.",
+      "oneOf": [
+        {
+          "const": "start",
+          "description": "Top (row) / start (column).",
+          "type": "string"
+        },
+        {
+          "const": "center",
+          "description": "Centered.",
+          "type": "string"
+        },
+        {
+          "const": "end",
+          "description": "Bottom (row) / end (column).",
+          "type": "string"
+        }
+      ]
+    },
+    "DataType": {
+      "description": "Tag / member data type.",
+      "oneOf": [
+        {
+          "const": "bool",
+          "description": "Boolean.",
+          "type": "string"
+        },
+        {
+          "const": "int8",
+          "description": "Signed 8-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "int16",
+          "description": "Signed 16-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "int32",
+          "description": "Signed 32-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "int64",
+          "description": "Signed 64-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "uint8",
+          "description": "Unsigned 8-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "uint16",
+          "description": "Unsigned 16-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "uint32",
+          "description": "Unsigned 32-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "uint64",
+          "description": "Unsigned 64-bit integer.",
+          "type": "string"
+        },
+        {
+          "const": "float32",
+          "description": "IEEE-754 single precision.",
+          "type": "string"
+        },
+        {
+          "const": "float64",
+          "description": "IEEE-754 double precision.",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "description": "UTF-8 string.",
+          "type": "string"
+        },
+        {
+          "const": "dateTime",
+          "description": "Date and time (ISO-8601 text in JSON values).",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fixed-length array: `{ \"array\": { \"element\": ..., \"length\": n } }`.",
+          "properties": {
+            "array": {
+              "additionalProperties": false,
+              "properties": {
+                "element": {
+                  "$ref": "#/$defs/DataType",
+                  "description": "Element type."
+                },
+                "length": {
+                  "description": "Number of elements (>= 1).",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "element",
+                "length"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "array"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "User-defined structure: `{ \"struct\": \"<dataTypeId>\" }`.",
+          "properties": {
+            "struct": {
+              "$ref": "#/$defs/DataTypeId"
+            }
+          },
+          "required": [
+            "struct"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DataTypeId": {
+      "description": "Stable identifier (DataTypeId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "DefinitionClassification": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "$ref": "#/$defs/DefinitionKind"
+        },
+        "definition": {
+          "$ref": "#/$defs/ComponentDefinitionId"
+        }
+      },
+      "required": [
+        "definition",
+        "classification"
+      ],
+      "type": "object"
+    },
+    "DefinitionKind": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "faceplate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "industrialSymbol",
+              "type": "string"
+            },
+            "symbol": {
+              "$ref": "#/$defs/IndustrialSymbolKind"
+            }
+          },
+          "required": [
+            "kind",
+            "symbol"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DeviceProfile": {
+      "additionalProperties": false,
+      "description": "A target device / resolution profile. Used for editor previews,\nresponsive rules and publishing; layouts remain responsive.",
+      "properties": {
+        "density": {
+          "description": "Pixels per dp (Android density; 1.0 = 160 dpi).",
+          "format": "double",
+          "type": "number"
+        },
+        "heightPx": {
+          "description": "Physical resolution height in pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "$ref": "#/$defs/DeviceProfileId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        },
+        "orientation": {
+          "$ref": "#/$defs/Orientation",
+          "description": "Orientation."
+        },
+        "platform": {
+          "$ref": "#/$defs/Platform",
+          "description": "Platform."
+        },
+        "touch": {
+          "description": "Touch input available.",
+          "type": "boolean"
+        },
+        "widthPx": {
+          "description": "Physical resolution width in pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "widthPx",
+        "heightPx",
+        "density"
+      ],
+      "type": "object"
+    },
+    "DeviceProfileId": {
+      "description": "Stable identifier (DeviceProfileId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "DriverKind": {
+      "description": "Driver family of a connection. The driver itself is not part of this\ncrate.",
+      "oneOf": [
+        {
+          "const": "simulator",
+          "description": "Built-in simulator (development and testing; never touches hardware).",
+          "type": "string"
+        },
+        {
+          "const": "opcUa",
+          "description": "OPC UA client.",
+          "type": "string"
+        },
+        {
+          "const": "siemensS7",
+          "description": "Siemens S7 (ISO-on-TCP).",
+          "type": "string"
+        },
+        {
+          "const": "modbusTcp",
+          "description": "Modbus TCP.",
+          "type": "string"
+        },
+        {
+          "const": "custom",
+          "description": "Third-party driver identified in `parameters`.",
+          "type": "string"
+        }
+      ]
+    },
+    "DriverKindV2": {
+      "description": "Candidate v2 driver vocabulary; the existing S7 spelling is retained.",
+      "oneOf": [
+        {
+          "enum": [
+            "simulator",
+            "opcUa",
+            "siemensS7",
+            "modbusTcp",
+            "custom"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "loopback",
+          "description": "In-process test transport only; no external endpoint or credentials.",
+          "type": "string"
+        }
+      ]
+    },
+    "Element": {
+      "description": "The semantic kind of a node.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Horizontal flow (Compose `Row`, Figma horizontal auto-layout).",
+          "properties": {
+            "alignment": {
+              "$ref": "#/$defs/CrossAlignment",
+              "description": "Cross-axis alignment of children."
+            },
+            "arrangement": {
+              "$ref": "#/$defs/Arrangement",
+              "description": "Main-axis arrangement."
+            },
+            "spacing": {
+              "description": "Gap between children (dp). Ignored by space-* arrangements.",
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "row",
+              "type": "string"
+            },
+            "wrap": {
+              "description": "Wrap children onto new lines (Compose `FlowRow`).",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Vertical flow (Compose `Column`, Figma vertical auto-layout).",
+          "properties": {
+            "alignment": {
+              "$ref": "#/$defs/CrossAlignment",
+              "description": "Cross-axis alignment of children."
+            },
+            "arrangement": {
+              "$ref": "#/$defs/Arrangement",
+              "description": "Main-axis arrangement."
+            },
+            "spacing": {
+              "description": "Gap between children (dp).",
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "column",
+              "type": "string"
+            },
+            "wrap": {
+              "description": "Wrap children onto new columns (Compose `FlowColumn`).",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Stack / overlay (Compose `Box`). Children are layered.",
+          "properties": {
+            "contentAlignment": {
+              "$ref": "#/$defs/Alignment",
+              "description": "Default alignment of children inside the box."
+            },
+            "type": {
+              "const": "box",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Two-dimensional track grid. Children must declare `layout.gridCell`.",
+          "properties": {
+            "columnGap": {
+              "description": "Gap between columns (dp).",
+              "format": "double",
+              "type": "number"
+            },
+            "columns": {
+              "description": "Column tracks (at least one).",
+              "items": {
+                "$ref": "#/$defs/Track"
+              },
+              "type": "array"
+            },
+            "rowGap": {
+              "description": "Gap between rows (dp).",
+              "format": "double",
+              "type": "number"
+            },
+            "rows": {
+              "description": "Row tracks (at least one).",
+              "items": {
+                "$ref": "#/$defs/Track"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "grid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "columns",
+            "rows"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Scrollable viewport with exactly one child.",
+          "properties": {
+            "direction": {
+              "$ref": "#/$defs/ScrollDirection",
+              "description": "Scroll direction(s)."
+            },
+            "type": {
+              "const": "scroll",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Free-form canvas. Children must declare `layout.position`. Use only\nwhere explicit coordinates are required (P&ID mimics, overlays on\nmachine pictures); prefer flow containers elsewhere.",
+          "properties": {
+            "type": {
+              "const": "absolute",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A built-in component from the catalog.",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ComponentKind",
+              "description": "Component kind."
+            },
+            "type": {
+              "const": "component",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An instance of a reusable [`crate::model::ComponentDefinition`].",
+          "properties": {
+            "definition": {
+              "$ref": "#/$defs/ComponentDefinitionId",
+              "description": "Referenced definition."
+            },
+            "parameters": {
+              "additionalProperties": true,
+              "description": "Parameter values (validated against the definition parameters).",
+              "type": "object"
+            },
+            "type": {
+              "const": "instance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "definition"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "EngineeringUnit": {
+      "additionalProperties": false,
+      "description": "An engineering unit.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/UnitId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Display name."
+        },
+        "quantity": {
+          "description": "Physical quantity (`temperature`, `pressure`, ...).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "symbol": {
+          "description": "Display symbol (`°C`, `bar`, `m/s`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "symbol"
+      ],
+      "type": "object"
+    },
+    "EnumerationDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "dataType": {
+          "$ref": "#/$defs/DataType"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/EnumerationEntry"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/EnumerationId"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "dataType",
+        "entries"
+      ],
+      "type": "object"
+    },
+    "EnumerationEntry": {
+      "additionalProperties": false,
+      "description": "A discrete display mapping. This never changes tag write semantics.",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "value": true
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "type": "object"
+    },
+    "EnumerationId": {
+      "description": "Stable identifier (EnumerationId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "EnumerationMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "enumeration": {
+          "$ref": "#/$defs/EnumerationId"
+        },
+        "tag": {
+          "$ref": "#/$defs/TagId"
+        }
+      },
+      "required": [
+        "tag",
+        "enumeration"
+      ],
+      "type": "object"
+    },
+    "EventHandler": {
+      "additionalProperties": false,
+      "description": "Event handler: an ordered list of actions.",
+      "properties": {
+        "actions": {
+          "description": "Actions, executed in order.",
+          "items": {
+            "$ref": "#/$defs/Action"
+          },
+          "type": "array"
+        },
+        "confirm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional operator confirmation prompt shown before running actions."
+        },
+        "event": {
+          "$ref": "#/$defs/EventKind",
+          "description": "Triggering event."
+        }
+      },
+      "required": [
+        "event",
+        "actions"
+      ],
+      "type": "object"
+    },
+    "EventKind": {
+      "description": "Event raised by a node or screen.",
+      "oneOf": [
+        {
+          "const": "click",
+          "description": "Tap / click.",
+          "type": "string"
+        },
+        {
+          "const": "press",
+          "description": "Pointer pressed.",
+          "type": "string"
+        },
+        {
+          "const": "release",
+          "description": "Pointer released.",
+          "type": "string"
+        },
+        {
+          "const": "longPress",
+          "description": "Long press.",
+          "type": "string"
+        },
+        {
+          "const": "valueChanged",
+          "description": "Operator committed a new value.",
+          "type": "string"
+        },
+        {
+          "const": "show",
+          "description": "Screen became visible (screens only).",
+          "type": "string"
+        },
+        {
+          "const": "hide",
+          "description": "Screen was hidden (screens only).",
+          "type": "string"
+        }
+      ]
+    },
+    "EventOrigin": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "screen": {
+              "$ref": "#/$defs/ScreenId"
+            }
+          },
+          "required": [
+            "screen"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "node": {
+              "$ref": "#/$defs/NodeId"
+            }
+          },
+          "required": [
+            "node"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ExpressionBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "contractVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expression": {
+          "type": "string"
+        },
+        "node": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "property": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "property",
+        "contractVersion",
+        "expression"
+      ],
+      "type": "object"
+    },
+    "ExpressionEnumerationDeclarations": {
+      "additionalProperties": false,
+      "description": "Candidate declarations only, not a separately editable project format.",
+      "properties": {
+        "enumerations": {
+          "items": {
+            "$ref": "#/$defs/EnumerationDefinition"
+          },
+          "type": "array"
+        },
+        "expressions": {
+          "items": {
+            "$ref": "#/$defs/ExpressionBinding"
+          },
+          "type": "array"
+        },
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/EnumerationMapping"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "GridCell": {
+      "additionalProperties": false,
+      "description": "Placement inside an [`Element::Grid`] parent. Indices are zero-based.",
+      "properties": {
+        "column": {
+          "description": "Column index.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "columnSpan": {
+          "description": "Number of columns spanned (>= 1).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "row": {
+          "description": "Row index.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rowSpan": {
+          "description": "Number of rows spanned (>= 1).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "column",
+        "row"
+      ],
+      "type": "object"
+    },
+    "IndustrialSecurityDeclarations": {
+      "additionalProperties": false,
+      "description": "Staging representation for REUSE-03A. IDs refer to the existing project,\nand declarations are validated together before future v2 integration.\nNot a second editable project format or an accepted v2 wire schema.",
+      "properties": {
+        "connections": {
+          "items": {
+            "$ref": "#/$defs/ConnectionPolicy"
+          },
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/NodePermission"
+          },
+          "type": "array"
+        },
+        "screens": {
+          "items": {
+            "$ref": "#/$defs/ScreenPermission"
+          },
+          "type": "array"
+        },
+        "security": {
+          "$ref": "#/$defs/SecurityPolicy"
+        },
+        "tags": {
+          "items": {
+            "$ref": "#/$defs/TagWritePolicy"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "IndustrialSymbolKind": {
+      "description": "Industrial symbol identity; symbols are reusable component definitions,\nnot opaque renderer-specific components.",
+      "enum": [
+        "motor",
+        "valve",
+        "conveyor",
+        "sensor",
+        "pump",
+        "tank",
+        "pipe",
+        "thermalIndicator",
+        "flowIndicator"
+      ],
+      "type": "string"
+    },
+    "Insets": {
+      "additionalProperties": false,
+      "description": "Padding / insets in dp.",
+      "properties": {
+        "bottom": {
+          "description": "Bottom inset.",
+          "format": "double",
+          "type": "number"
+        },
+        "end": {
+          "description": "End (right in LTR) inset.",
+          "format": "double",
+          "type": "number"
+        },
+        "start": {
+          "description": "Start (left in LTR) inset.",
+          "format": "double",
+          "type": "number"
+        },
+        "top": {
+          "description": "Top inset.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "LayoutOverride": {
+      "additionalProperties": false,
+      "description": "Overrides applied by a responsive rule. Unset fields are unchanged.",
+      "properties": {
+        "columns": {
+          "description": "Replace grid column tracks (grid elements only).",
+          "items": {
+            "$ref": "#/$defs/Track"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Switch a row/column flow axis (row and column elements only)."
+        },
+        "gridCell": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridCell"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Replace grid placement (children of grids only)."
+        },
+        "height": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Size"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Height."
+        },
+        "maxHeight": {
+          "description": "Maximum height.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxWidth": {
+          "description": "Maximum width.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minHeight": {
+          "description": "Minimum height.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minWidth": {
+          "description": "Minimum width.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "padding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Insets"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Padding."
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Position"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Replace absolute position (children of absolute parents only)."
+        },
+        "spacing": {
+          "description": "Row/column spacing (row and column elements only).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Visibility"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Visibility."
+        },
+        "weight": {
+          "description": "Weight.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "width": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Size"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Width."
+        },
+        "zIndex": {
+          "description": "Z-order.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "LayoutParams": {
+      "additionalProperties": false,
+      "description": "Parameters a parent uses to size and place a child.",
+      "properties": {
+        "align": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Alignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Self alignment inside a box parent."
+        },
+        "aspectRatio": {
+          "description": "Width / height ratio (> 0).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "clip": {
+          "description": "Clip content to bounds.",
+          "type": "boolean"
+        },
+        "crossAlign": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CrossAlignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cross-axis self alignment inside a row/column parent."
+        },
+        "gridCell": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridCell"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cell inside a grid parent."
+        },
+        "height": {
+          "$ref": "#/$defs/Size",
+          "description": "Height mode."
+        },
+        "maxHeight": {
+          "description": "Maximum height (dp).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxWidth": {
+          "description": "Maximum width (dp).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minHeight": {
+          "description": "Minimum height (dp).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minWidth": {
+          "description": "Minimum width (dp).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "padding": {
+          "$ref": "#/$defs/Insets",
+          "description": "Inner padding."
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Position"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Coordinates inside an absolute parent."
+        },
+        "visibility": {
+          "$ref": "#/$defs/Visibility",
+          "description": "Static visibility (may be overridden by a `visible` binding)."
+        },
+        "weight": {
+          "description": "Flex weight along the parent row/column main axis (> 0).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "width": {
+          "$ref": "#/$defs/Size",
+          "description": "Width mode."
+        },
+        "zIndex": {
+          "description": "Paint order among siblings; higher draws above. Ties keep child order.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "Localization": {
+      "additionalProperties": false,
+      "description": "Localization tables.",
+      "properties": {
+        "defaultLocale": {
+          "description": "Fallback locale (BCP-47, e.g. `en`, `it-IT`).",
+          "type": "string"
+        },
+        "locales": {
+          "description": "Declared locales (must include the default).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "strings": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "description": "Key -> locale -> text.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "defaultLocale",
+        "locales"
+      ],
+      "type": "object"
+    },
+    "LocalizedText": {
+      "anyOf": [
+        {
+          "description": "Literal text (not translated).",
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/TextKeyRef",
+          "description": "Reference to a localization key."
+        }
+      ],
+      "description": "Text shown to operators: either a literal or a key into\n[`crate::model::Localization::strings`]."
+    },
+    "MapEntry": {
+      "additionalProperties": false,
+      "description": "One entry of a [`ValueTransform::Map`].",
+      "properties": {
+        "value": {
+          "description": "Resulting property value."
+        },
+        "when": {
+          "description": "Source value to match."
+        }
+      },
+      "required": [
+        "when",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Navigation": {
+      "additionalProperties": false,
+      "description": "Navigation model.",
+      "properties": {
+        "items": {
+          "description": "Main menu entries, in order.",
+          "items": {
+            "$ref": "#/$defs/NavigationItem"
+          },
+          "type": "array"
+        },
+        "startScreen": {
+          "$ref": "#/$defs/ScreenId",
+          "description": "Page shown at startup."
+        }
+      },
+      "required": [
+        "startScreen"
+      ],
+      "type": "object"
+    },
+    "NavigationItem": {
+      "additionalProperties": false,
+      "description": "A main-menu entry.",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Icon resource."
+        },
+        "id": {
+          "$ref": "#/$defs/NavigationItemId",
+          "description": "Stable identifier."
+        },
+        "label": {
+          "$ref": "#/$defs/LocalizedText",
+          "description": "Label."
+        },
+        "screen": {
+          "$ref": "#/$defs/ScreenId",
+          "description": "Target page."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "screen"
+      ],
+      "type": "object"
+    },
+    "NavigationItemId": {
+      "description": "Stable identifier (NavigationItemId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "NewAction": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "navigateStartup",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "definition": {
+              "$ref": "#/$defs/ComponentDefinitionId"
+            },
+            "parameters": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": {
+              "const": "openFaceplate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "definition"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "One element of a layout tree.",
+      "properties": {
+        "bindings": {
+          "description": "Live data bindings for properties.",
+          "items": {
+            "$ref": "#/$defs/PropertyBinding"
+          },
+          "type": "array"
+        },
+        "children": {
+          "description": "Child nodes, in paint order (later children are drawn above earlier\nones unless `layout.zIndex` says otherwise).",
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "type": "array"
+        },
+        "element": {
+          "$ref": "#/$defs/Element",
+          "description": "What this node is."
+        },
+        "events": {
+          "description": "Event handlers.",
+          "items": {
+            "$ref": "#/$defs/EventHandler"
+          },
+          "type": "array"
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Extensible engineering metadata.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/NodeId",
+          "description": "Stable identifier."
+        },
+        "layout": {
+          "$ref": "#/$defs/LayoutParams",
+          "description": "How the parent sizes and places this node."
+        },
+        "name": {
+          "description": "Optional designer-facing name (layer name). Never used for references.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "properties": {
+          "additionalProperties": true,
+          "description": "Typed properties (validated against the component catalog or the\nparameters of a component definition).",
+          "type": "object"
+        },
+        "responsive": {
+          "description": "Responsive overrides, applied in order; later matching rules win.",
+          "items": {
+            "$ref": "#/$defs/ResponsiveRule"
+          },
+          "type": "array"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StyleId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Named style applied before local properties."
+        }
+      },
+      "required": [
+        "id",
+        "element"
+      ],
+      "type": "object"
+    },
+    "NodeId": {
+      "description": "Stable identifier (NodeId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "NodePermission": {
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "requiredPermission": {
+          "$ref": "#/$defs/PermissionId"
+        }
+      },
+      "required": [
+        "node",
+        "requiredPermission"
+      ],
+      "type": "object"
+    },
+    "Orientation": {
+      "description": "Screen orientation.",
+      "oneOf": [
+        {
+          "const": "landscape",
+          "description": "Width >= height.",
+          "type": "string"
+        },
+        {
+          "const": "portrait",
+          "description": "Height > width.",
+          "type": "string"
+        }
+      ]
+    },
+    "ParameterDefinition": {
+      "additionalProperties": false,
+      "description": "Parameter of a reusable component definition.",
+      "properties": {
+        "default": {
+          "description": "Default value. Parameters without a default must be supplied."
+        },
+        "description": {
+          "description": "Engineer-facing description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Parameter name (`[A-Za-z][A-Za-z0-9_]*`), unique per definition.",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/PropertyType",
+          "description": "Parameter type."
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "type": "object"
+    },
+    "Permission": {
+      "additionalProperties": false,
+      "description": "Permission and role declarations only; no identity or credential store.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/PermissionId"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "PermissionId": {
+      "description": "Stable identifier (PermissionId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "Platform": {
+      "description": "Runtime platform.",
+      "oneOf": [
+        {
+          "const": "any",
+          "description": "Any platform.",
+          "type": "string"
+        },
+        {
+          "const": "windows",
+          "description": "Windows desktop / panel PC.",
+          "type": "string"
+        },
+        {
+          "const": "linux",
+          "description": "Linux desktop / embedded panel.",
+          "type": "string"
+        },
+        {
+          "const": "android",
+          "description": "Android tablet / panel.",
+          "type": "string"
+        }
+      ]
+    },
+    "Point": {
+      "additionalProperties": false,
+      "description": "Coordinates are local dp within a future component's layout box.",
+      "properties": {
+        "x": {
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "Position": {
+      "additionalProperties": false,
+      "description": "Explicit coordinates inside an [`Element::Absolute`] parent (dp, from\nthe parent's top-start corner).",
+      "properties": {
+        "x": {
+          "description": "X offset.",
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "description": "Y offset.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ProjectId": {
+      "description": "Stable identifier (ProjectId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "ProjectMetadata": {
+      "additionalProperties": false,
+      "description": "Descriptive project metadata. Timestamps are supplied by the caller; the\nmodel never stamps them implicitly, which keeps serialization\nreproducible.",
+      "properties": {
+        "author": {
+          "description": "Author / organization.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created": {
+          "description": "Creation time (RFC 3339).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "Description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "keywords": {
+          "description": "Search keywords.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "modified": {
+          "description": "Last modification time (RFC 3339).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Project name.",
+          "type": "string"
+        },
+        "revision": {
+          "description": "Engineer-managed project revision (free text, e.g. `1.4.0`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ProjectSettings": {
+      "additionalProperties": false,
+      "description": "Project-wide defaults.",
+      "properties": {
+        "defaultDeviceProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeviceProfileId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Profile used by the editor canvas when a screen has none."
+        },
+        "defaultTheme": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Theme used at startup."
+        }
+      },
+      "type": "object"
+    },
+    "PropertyBinding": {
+      "additionalProperties": false,
+      "description": "Binds a node property (or, on instances, a value parameter) to data.",
+      "properties": {
+        "member": {
+          "description": "Member path into a structured/array tag, e.g. `status.running` or\n`values[3]`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "$ref": "#/$defs/BindingMode",
+          "description": "Data flow direction."
+        },
+        "property": {
+          "description": "Target property name.",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/BindingSource",
+          "description": "Data source."
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueTransform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Value conversion between source and property."
+        }
+      },
+      "required": [
+        "property",
+        "source"
+      ],
+      "type": "object"
+    },
+    "PropertyType": {
+      "description": "Type of a property or component parameter.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "`true` / `false`.",
+          "properties": {
+            "kind": {
+              "const": "bool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any finite number, optionally bounded.",
+          "properties": {
+            "kind": {
+              "const": "number",
+              "type": "string"
+            },
+            "max": {
+              "description": "Inclusive maximum.",
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "description": "Inclusive minimum.",
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Integer, optionally bounded.",
+          "properties": {
+            "kind": {
+              "const": "integer",
+              "type": "string"
+            },
+            "max": {
+              "description": "Inclusive maximum.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "min": {
+              "description": "Inclusive minimum.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Plain, non-translated string.",
+          "properties": {
+            "kind": {
+              "const": "string",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Operator text: literal string or `{ \"textKey\": ... }`.",
+          "properties": {
+            "kind": {
+              "const": "text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Color: `#RRGGBB`, `#RRGGBBAA` or `{ \"token\": \"<theme color>\" }`.",
+          "properties": {
+            "kind": {
+              "const": "color",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Resource identifier, optionally restricted to some kinds.",
+          "properties": {
+            "kind": {
+              "const": "resource",
+              "type": "string"
+            },
+            "kinds": {
+              "description": "Accepted resource kinds; empty = any.",
+              "items": {
+                "$ref": "#/$defs/ResourceKind"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One of a fixed set of strings.",
+          "properties": {
+            "kind": {
+              "const": "enum",
+              "type": "string"
+            },
+            "options": {
+              "description": "Allowed values.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "options"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A tag reference (component definition parameters only). Lets a\nreusable faceplate be wired to different tags per instance.",
+          "properties": {
+            "dataType": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required data type of the supplied tag, if constrained."
+            },
+            "kind": {
+              "const": "tag",
+              "type": "string"
+            },
+            "writable": {
+              "description": "Whether the supplied tag must be writable.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RecipeDefinition": {
+      "additionalProperties": false,
+      "description": "A recipe definition: a set of tags written together.",
+      "properties": {
+        "description": {
+          "description": "Description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fields": {
+          "description": "Fields.",
+          "items": {
+            "$ref": "#/$defs/RecipeField"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/RecipeId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText",
+          "description": "Display name."
+        },
+        "sets": {
+          "description": "Stored value sets.",
+          "items": {
+            "$ref": "#/$defs/RecipeSet"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "RecipeField": {
+      "additionalProperties": false,
+      "description": "A recipe field mapped to a writable tag.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RecipeFieldId",
+          "description": "Stable identifier."
+        },
+        "member": {
+          "description": "Member path into the tag.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText",
+          "description": "Display name."
+        },
+        "tag": {
+          "$ref": "#/$defs/TagId",
+          "description": "Target tag (must be writable)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "tag"
+      ],
+      "type": "object"
+    },
+    "RecipeFieldId": {
+      "description": "Stable identifier (RecipeFieldId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "RecipeId": {
+      "description": "Stable identifier (RecipeId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "RecipeSet": {
+      "additionalProperties": false,
+      "description": "A stored recipe value set.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RecipeSetId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText",
+          "description": "Display name."
+        },
+        "values": {
+          "additionalProperties": false,
+          "description": "Field id -> value.",
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$": true
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "values"
+      ],
+      "type": "object"
+    },
+    "RecipeSetId": {
+      "description": "Stable identifier (RecipeSetId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "Resource": {
+      "additionalProperties": false,
+      "description": "A project asset. Bytes are stored next to the project document (or in\nthe bundle) at `path`; the model only references them.",
+      "properties": {
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Extensible metadata.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/ResourceId",
+          "description": "Stable identifier."
+        },
+        "kind": {
+          "$ref": "#/$defs/ResourceKind",
+          "description": "Resource kind."
+        },
+        "mediaType": {
+          "description": "IANA media type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "Relative, forward-slash path inside the project package\n(no `..`, no absolute paths, no URL schemes).",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Lowercase hex SHA-256 of the bytes, for integrity checks on publish.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path"
+      ],
+      "type": "object"
+    },
+    "ResourceId": {
+      "description": "Stable identifier (ResourceId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "ResourceKind": {
+      "description": "Resource kind.",
+      "oneOf": [
+        {
+          "const": "image",
+          "description": "Raster image (PNG, JPEG, WebP).",
+          "type": "string"
+        },
+        {
+          "const": "vector",
+          "description": "Vector image (SVG subset / Android vector drawable).",
+          "type": "string"
+        },
+        {
+          "const": "font",
+          "description": "Font file.",
+          "type": "string"
+        },
+        {
+          "const": "data",
+          "description": "Arbitrary data file.",
+          "type": "string"
+        }
+      ]
+    },
+    "ResponsiveCondition": {
+      "additionalProperties": false,
+      "description": "Criteria for a responsive rule. At least one criterion is required.",
+      "properties": {
+        "breakpoint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BreakpointId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Named breakpoint (window width class)."
+        },
+        "deviceProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeviceProfileId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Specific device profile."
+        },
+        "maxWidth": {
+          "description": "Maximum available window width (dp, inclusive).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minWidth": {
+          "description": "Minimum available window width (dp, inclusive).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Orientation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Device orientation."
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Platform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Runtime platform."
+        }
+      },
+      "type": "object"
+    },
+    "ResponsiveRule": {
+      "additionalProperties": false,
+      "description": "A responsive override rule.",
+      "properties": {
+        "set": {
+          "$ref": "#/$defs/LayoutOverride",
+          "description": "What changes when it applies."
+        },
+        "when": {
+          "$ref": "#/$defs/ResponsiveCondition",
+          "description": "When the rule applies. All present criteria must match."
+        }
+      },
+      "required": [
+        "when",
+        "set"
+      ],
+      "type": "object"
+    },
+    "Role": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RoleId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permissions": {
+          "items": {
+            "$ref": "#/$defs/PermissionId"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "RoleId": {
+      "description": "Stable identifier (RoleId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "Screen": {
+      "additionalProperties": false,
+      "description": "A screen or popup.",
+      "properties": {
+        "designProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeviceProfileId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Profile used for design-time preview."
+        },
+        "events": {
+          "description": "Screen-level handlers (`show`, `hide`).",
+          "items": {
+            "$ref": "#/$defs/EventHandler"
+          },
+          "type": "array"
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Extensible metadata.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/ScreenId",
+          "description": "Stable identifier."
+        },
+        "kind": {
+          "$ref": "#/$defs/ScreenKind",
+          "description": "Page or popup."
+        },
+        "name": {
+          "description": "Engineer-facing name.",
+          "type": "string"
+        },
+        "root": {
+          "$ref": "#/$defs/Node",
+          "description": "Root of the layout tree."
+        },
+        "title": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Operator-facing title."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "root"
+      ],
+      "type": "object"
+    },
+    "ScreenId": {
+      "description": "Stable identifier (ScreenId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "ScreenKind": {
+      "description": "Screen kind.",
+      "oneOf": [
+        {
+          "const": "page",
+          "description": "Full page, target of `navigate`.",
+          "type": "string"
+        },
+        {
+          "const": "popup",
+          "description": "Modal popup, target of `openPopup`.",
+          "type": "string"
+        }
+      ]
+    },
+    "ScreenPermission": {
+      "additionalProperties": false,
+      "properties": {
+        "requiredPermission": {
+          "$ref": "#/$defs/PermissionId"
+        },
+        "screen": {
+          "$ref": "#/$defs/ScreenId"
+        }
+      },
+      "required": [
+        "screen",
+        "requiredPermission"
+      ],
+      "type": "object"
+    },
+    "ScrollDirection": {
+      "description": "Scroll direction.",
+      "oneOf": [
+        {
+          "const": "vertical",
+          "description": "Vertical scrolling.",
+          "type": "string"
+        },
+        {
+          "const": "horizontal",
+          "description": "Horizontal scrolling.",
+          "type": "string"
+        },
+        {
+          "const": "both",
+          "description": "Both axes.",
+          "type": "string"
+        }
+      ]
+    },
+    "SecurityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "anonymousRole": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoleId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "autoLogoutSeconds": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "permissions": {
+          "items": {
+            "$ref": "#/$defs/Permission"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Size": {
+      "description": "Size along one axis.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Wrap content (Compose `wrapContentSize`, Figma \"hug\").",
+          "properties": {
+            "mode": {
+              "const": "auto",
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fill the available space (Compose `fillMaxWidth(fraction)`,\nFigma \"fill container\").",
+          "properties": {
+            "fraction": {
+              "description": "Fraction of the available space in `(0, 1]`.",
+              "format": "double",
+              "type": "number"
+            },
+            "mode": {
+              "const": "fill",
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fixed size in dp.",
+          "properties": {
+            "mode": {
+              "const": "fixed",
+              "type": "string"
+            },
+            "value": {
+              "description": "Size in dp (>= 0).",
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "mode",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StructMember": {
+      "additionalProperties": false,
+      "description": "A member of a [`StructType`].",
+      "properties": {
+        "dataType": {
+          "$ref": "#/$defs/DataType",
+          "description": "Member type."
+        },
+        "description": {
+          "description": "Description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Member name (`[A-Za-z_][A-Za-z0-9_]*`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "dataType"
+      ],
+      "type": "object"
+    },
+    "StructType": {
+      "additionalProperties": false,
+      "description": "A user-defined structured type (PLC UDT).",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/DataTypeId",
+          "description": "Stable identifier."
+        },
+        "members": {
+          "description": "Members in declaration order.",
+          "items": {
+            "$ref": "#/$defs/StructMember"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "members"
+      ],
+      "type": "object"
+    },
+    "Style": {
+      "additionalProperties": false,
+      "description": "A reusable set of property values.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/StyleId",
+          "description": "Stable identifier."
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "default": {},
+          "description": "Property values (validated like node properties).",
+          "type": "object"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Component kind this style is for. Unset = common properties only,\nusable on any node."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "StyleId": {
+      "description": "Stable identifier (StyleId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "Tag": {
+      "additionalProperties": false,
+      "description": "A tag: a typed process variable. Tags without a connection are internal\n(HMI memory) tags.",
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/TagAccess",
+          "description": "HMI access rights."
+        },
+        "address": {
+          "description": "Driver-specific address (required with a connection), e.g.\n`ns=3;s=\"DB_Filler\".\"Speed\"` or `DB10.DBD4`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "connection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConnectionId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Source connection; unset for internal tags."
+        },
+        "dataType": {
+          "$ref": "#/$defs/DataType",
+          "description": "Data type."
+        },
+        "description": {
+          "description": "Description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Extensible metadata.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/TagId",
+          "description": "Stable identifier."
+        },
+        "initialValue": {
+          "description": "Initial / simulation value."
+        },
+        "name": {
+          "description": "Display / browse name (may contain `/` for folders).",
+          "type": "string"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Engineering range (numeric tags only)."
+        },
+        "scanRateMs": {
+          "description": "Requested update interval in milliseconds (0 = driver default).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Engineering unit (numeric tags only)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "dataType"
+      ],
+      "type": "object"
+    },
+    "TagAccess": {
+      "description": "Tag access rights as seen by the HMI.",
+      "oneOf": [
+        {
+          "const": "read",
+          "description": "HMI may only read.",
+          "type": "string"
+        },
+        {
+          "const": "write",
+          "description": "HMI may only write.",
+          "type": "string"
+        },
+        {
+          "const": "readWrite",
+          "description": "HMI may read and write.",
+          "type": "string"
+        }
+      ]
+    },
+    "TagId": {
+      "description": "Stable identifier (TagId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "TagRef": {
+      "description": "A tag target for actions.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A project tag.",
+          "properties": {
+            "tag": {
+              "$ref": "#/$defs/TagId"
+            }
+          },
+          "required": [
+            "tag"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A `tag`-typed parameter of the enclosing component definition.",
+          "properties": {
+            "tagParameter": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tagParameter"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TagWritePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "$ref": "#/$defs/CommandKind"
+        },
+        "confirmationRequired": {
+          "type": "boolean"
+        },
+        "critical": {
+          "type": "boolean"
+        },
+        "limits": {
+          "$ref": "#/$defs/WriteLimits"
+        },
+        "pulseMs": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tag": {
+          "$ref": "#/$defs/TagId"
+        },
+        "writeConfirmed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "tag",
+        "command"
+      ],
+      "type": "object"
+    },
+    "TextKeyRef": {
+      "additionalProperties": false,
+      "description": "`{ \"textKey\": \"...\" }` reference to a localized string.",
+      "properties": {
+        "textKey": {
+          "description": "Localization key.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "textKey"
+      ],
+      "type": "object"
+    },
+    "TextStyle": {
+      "additionalProperties": false,
+      "description": "A typography token.",
+      "properties": {
+        "font": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Bundled font resource."
+        },
+        "fontFamily": {
+          "description": "Platform font family name (fallback when `font` is unset/unavailable).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "italic": {
+          "description": "Italic.",
+          "type": "boolean"
+        },
+        "lineHeight": {
+          "description": "Line height in sp.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "size": {
+          "description": "Size in sp (> 0).",
+          "format": "double",
+          "type": "number"
+        },
+        "weight": {
+          "description": "Weight, 100..=900.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size"
+      ],
+      "type": "object"
+    },
+    "Theme": {
+      "additionalProperties": false,
+      "description": "A theme: named design tokens. Components refer to colors with\n`{ \"token\": \"<name>\" }` so a project can switch between, e.g., day and\nnight themes without touching screens.",
+      "properties": {
+        "colors": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Color tokens: name -> `#RRGGBB` / `#RRGGBBAA`.",
+          "type": "object"
+        },
+        "dark": {
+          "description": "Dark theme hint for platform chrome.",
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/ThemeId",
+          "description": "Stable identifier."
+        },
+        "metrics": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "Numeric tokens (corner radii, spacing scale, stroke widths) in dp.",
+          "type": "object"
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        },
+        "typography": {
+          "additionalProperties": {
+            "$ref": "#/$defs/TextStyle"
+          },
+          "description": "Typography tokens.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ThemeId": {
+      "description": "Stable identifier (ThemeId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "Track": {
+      "description": "A grid track.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Fixed track size in dp.",
+          "properties": {
+            "mode": {
+              "const": "fixed",
+              "type": "string"
+            },
+            "value": {
+              "description": "Size in dp (> 0).",
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "mode",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Size to content.",
+          "properties": {
+            "mode": {
+              "const": "auto",
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Share of the remaining space (CSS `fr`, Compose weight).",
+          "properties": {
+            "mode": {
+              "const": "fraction",
+              "type": "string"
+            },
+            "weight": {
+              "description": "Relative weight (> 0).",
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "mode",
+            "weight"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "UnitId": {
+      "description": "Stable identifier (UnitId). Unique across the whole project; never derived from display names.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "type": "string"
+    },
+    "V2Declarations": {
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "$ref": "#/$defs/ExpressionEnumerationDeclarations"
+        },
+        "components": {
+          "$ref": "#/$defs/ComponentActionDeclarations"
+        },
+        "industrial": {
+          "$ref": "#/$defs/IndustrialSecurityDeclarations"
+        }
+      },
+      "type": "object"
+    },
+    "ValueRange": {
+      "additionalProperties": false,
+      "description": "Inclusive numeric range.",
+      "properties": {
+        "max": {
+          "description": "Upper bound.",
+          "format": "double",
+          "type": "number"
+        },
+        "min": {
+          "description": "Lower bound.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "type": "object"
+    },
+    "ValueTransform": {
+      "description": "Value conversion applied by a binding.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "`property = source * factor + offset` (invertible if factor != 0).",
+          "properties": {
+            "factor": {
+              "description": "Multiplier.",
+              "format": "double",
+              "type": "number"
+            },
+            "offset": {
+              "description": "Offset.",
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "linear",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "factor"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Boolean negation (invertible).",
+          "properties": {
+            "type": {
+              "const": "invert",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Extract one bit of an integer source as a boolean (read-only).",
+          "properties": {
+            "index": {
+              "description": "Bit index, 0 = least significant.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "bit",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "index"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Map discrete source values to property values (read-only).",
+          "properties": {
+            "default": {
+              "description": "Value when nothing matches."
+            },
+            "entries": {
+              "description": "Ordered entries; first match wins.",
+              "items": {
+                "$ref": "#/$defs/MapEntry"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "map",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entries"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Visibility": {
+      "description": "Visibility state.",
+      "oneOf": [
+        {
+          "const": "visible",
+          "description": "Laid out and drawn.",
+          "type": "string"
+        },
+        {
+          "const": "hidden",
+          "description": "Laid out (occupies space) but not drawn and not interactive.",
+          "type": "string"
+        },
+        {
+          "const": "collapsed",
+          "description": "Not laid out at all.",
+          "type": "string"
+        }
+      ]
+    },
+    "WriteLimits": {
+      "additionalProperties": false,
+      "description": "Exact JSON-number declarations, distinct from the display range.",
+      "properties": {
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "step": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "urn:hmi-studio:project:schema:v2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "HMI Studio project document, schemaVersion 2. Structural schema only; semantic rules are enforced by the hmi-project-model validator (see docs/PROJECT_MODEL_VALIDATION.md).",
+  "properties": {
+    "alarms": {
+      "description": "Alarm definitions.",
+      "items": {
+        "$ref": "#/$defs/AlarmDefinition"
+      },
+      "type": "array"
+    },
+    "breakpoints": {
+      "description": "Responsive width breakpoints.",
+      "items": {
+        "$ref": "#/$defs/Breakpoint"
+      },
+      "type": "array"
+    },
+    "components": {
+      "description": "Reusable component definitions.",
+      "items": {
+        "$ref": "#/$defs/ComponentDefinition"
+      },
+      "type": "array"
+    },
+    "connections": {
+      "description": "PLC / data-source connections.",
+      "items": {
+        "$ref": "#/$defs/Connection"
+      },
+      "type": "array"
+    },
+    "dataTypes": {
+      "description": "User-defined structured data types.",
+      "items": {
+        "$ref": "#/$defs/StructType"
+      },
+      "type": "array"
+    },
+    "deviceProfiles": {
+      "description": "Target device / resolution profiles.",
+      "items": {
+        "$ref": "#/$defs/DeviceProfile"
+      },
+      "type": "array"
+    },
+    "extensions": {
+      "additionalProperties": true,
+      "description": "Extensible engineering metadata.",
+      "type": "object"
+    },
+    "format": {
+      "const": "hmi-studio.project",
+      "description": "Format marker."
+    },
+    "id": {
+      "$ref": "#/$defs/ProjectId",
+      "description": "Stable project identifier."
+    },
+    "localization": {
+      "$ref": "#/$defs/Localization",
+      "description": "Localization tables."
+    },
+    "metadata": {
+      "$ref": "#/$defs/ProjectMetadata",
+      "description": "Descriptive metadata."
+    },
+    "navigation": {
+      "$ref": "#/$defs/Navigation",
+      "description": "Navigation model."
+    },
+    "recipes": {
+      "description": "Recipe definitions.",
+      "items": {
+        "$ref": "#/$defs/RecipeDefinition"
+      },
+      "type": "array"
+    },
+    "resources": {
+      "description": "Assets.",
+      "items": {
+        "$ref": "#/$defs/Resource"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "const": 2,
+      "description": "Schema version of this document."
+    },
+    "screens": {
+      "description": "Screens and popups.",
+      "items": {
+        "$ref": "#/$defs/Screen"
+      },
+      "type": "array"
+    },
+    "settings": {
+      "$ref": "#/$defs/ProjectSettings",
+      "description": "Project-wide defaults."
+    },
+    "styles": {
+      "description": "Named styles.",
+      "items": {
+        "$ref": "#/$defs/Style"
+      },
+      "type": "array"
+    },
+    "tags": {
+      "description": "Tags.",
+      "items": {
+        "$ref": "#/$defs/Tag"
+      },
+      "type": "array"
+    },
+    "themes": {
+      "description": "Themes.",
+      "items": {
+        "$ref": "#/$defs/Theme"
+      },
+      "type": "array"
+    },
+    "units": {
+      "description": "Engineering units.",
+      "items": {
+        "$ref": "#/$defs/EngineeringUnit"
+      },
+      "type": "array"
+    },
+    "v2": {
+      "$ref": "#/$defs/V2Declarations",
+      "description": "Typed version-2 declarations, normalized by stable project identifiers."
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "id",
+    "metadata",
+    "navigation",
+    "localization",
+    "screens"
+  ],
+  "title": "HMI Studio project",
+  "type": "object"
+}

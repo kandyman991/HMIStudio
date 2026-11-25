@@ -147,6 +147,20 @@ fn definition_index(p: &Project, id: &ComponentDefinitionId) -> Result<usize, Co
 
 /// Applies one command to the working copy.
 pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<(), CommandError> {
+    // Copying a v2 project subtree without remapping normalized security,
+    // expression and action references could silently drop restrictions.
+    if !p.v2.is_empty()
+        && matches!(
+            cmd,
+            Command::DuplicateScreen { .. }
+                | Command::DuplicateNode { .. }
+                | Command::DuplicateComponentDefinition { .. }
+        )
+    {
+        return Err(CommandError::InvalidArgument {
+            message: "v2 reference-aware duplication is not yet supported".into(),
+        });
+    }
     match cmd {
         // ------------------------------------------------------- screens
         Command::CreateScreen {
@@ -577,6 +591,18 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
         }
 
         // ------------------------------------------------------- project
+        Command::SetIndustrialSecurity { declarations } => {
+            p.v2.industrial = declarations.clone();
+            cx.changes.push(K::Modified, E::Project, None);
+        }
+        Command::SetExpressionEnumerations { declarations } => {
+            p.v2.bindings = declarations.clone();
+            cx.changes.push(K::Modified, E::Project, None);
+        }
+        Command::SetComponentActions { declarations } => {
+            p.v2.components = declarations.clone();
+            cx.changes.push(K::Modified, E::Project, None);
+        }
         Command::SetMetadata { metadata } => {
             p.metadata = metadata.clone();
             cx.changes.push(K::Modified, E::Metadata, None);

@@ -70,6 +70,19 @@ fn engineering_request(
     {
         return Err("Project session changed; refresh before editing".into());
     }
+    if let WorkspaceRequest::Execute { transaction } = &request {
+        use hmi_engineering_core::Command;
+        if transaction.commands.iter().any(|cmd| {
+            matches!(
+                cmd,
+                Command::SetIndustrialSecurity { .. }
+                    | Command::SetExpressionEnumerations { .. }
+                    | Command::SetComponentActions { .. }
+            )
+        }) {
+            return Err("V2 declaration editing is not supported by this workspace yet".into());
+        }
+    }
     let reply = session_host::request(&mut host.session, request);
     Ok(HostReply {
         reply,

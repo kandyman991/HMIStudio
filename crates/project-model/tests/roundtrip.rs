@@ -21,7 +21,12 @@ fn fixtures_round_trip_byte_for_byte() {
         let text = std::fs::read_to_string(&path).unwrap();
         let parsed = parse_project(&text).unwrap().project;
         let out = to_json_string(&parsed).unwrap();
-        assert_eq!(out, text, "{} is not in canonical form", path.display());
+        assert_eq!(
+            out,
+            text.replacen("\"schemaVersion\": 1", "\"schemaVersion\": 2", 1),
+            "{} migration changed more than the version",
+            path.display()
+        );
         let again = parse_project(&out).unwrap().project;
         assert_eq!(again, parsed);
     }

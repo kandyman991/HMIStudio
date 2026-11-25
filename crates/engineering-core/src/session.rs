@@ -381,7 +381,14 @@ impl ProjectSession {
         }
 
         let report = validate(&work);
-        let new_errors: Vec<Diagnostic> = match txn.validation {
+        // Candidate v2 validation is fail-closed even if a base project was
+        // previously invalid: do not admit unvalidated policy declarations.
+        let policy = if !work.v2.is_empty() || !self.current.project.v2.is_empty() {
+            ValidationPolicy::Strict
+        } else {
+            txn.validation
+        };
+        let new_errors: Vec<Diagnostic> = match policy {
             ValidationPolicy::Strict => report.errors().cloned().collect(),
             ValidationPolicy::RejectNewErrors => {
                 let before: BTreeSet<_> = self.current.report.errors().map(error_key).collect();

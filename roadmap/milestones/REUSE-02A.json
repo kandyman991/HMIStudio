@@ -1,0 +1,49 @@
+{
+  "id": "REUSE-02A",
+  "title": "Pinned engine preflight",
+  "track": "Reuse",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Rights, provenance, review and preflight for the exact approved payload merged in PR #15.",
+  "dependencies": [
+    {
+      "id": "REUSE-01",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify pinned file inventory, transfer rights, disclosure, advisories, notices and isolated protocol-3 contract fixtures.",
+    "Keep clearance limited to the exact approved allowlist."
+  ],
+  "prs": [
+    {
+      "number": 15,
+      "head": "700357f3c5ac07d520c4e4c926729713be75034c",
+      "branch": "docs/reuse-02a-engine-preflight",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45449616282,
+          "name": "Desktop CI",
+          "head": "700357f3c5ac07d520c4e4c926729713be75034c",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45449616387,
+          "name": "Engineering handoff snapshot",
+          "head": "700357f3c5ac07d520c4e4c926729713be75034c",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "5173d9a60ffb87b52edde1719043bfcbff4d3be5"
+    }
+  ],
+  "docs": [
+    "docs/reuse/REUSE_02A_PREFLIGHT.md",
+    "docs/reuse/REUSE_02A_NOTICE_REVIEW.md"
+  ],
+  "parent": "REUSE-02"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "RUST-04B.1",
+  "title": "Workspace visual alignment",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Complete remaining visual alignment with the preserved original HTML reference; do not ship its mock behavior.",
+  "dependencies": [
+    {
+      "id": "RUST-04B",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Compare actual desktop screenshots and interactions to the original HTML reference; record deviations and owner decisions.",
+    "Align menu/submenu hierarchy, project and engineering docks, inspector presentation and remaining visual details using real or explicitly disabled operations. Preserve native persistence and model-driven editor."
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md",
+    "docs/reference/README.md"
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04"
+}

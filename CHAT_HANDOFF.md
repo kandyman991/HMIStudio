@@ -1,5 +1,20 @@
 # HMI Studio — curated engineering handoff
 
+## DEV-01 acceptance — 2026-11-25
+- Verified PR #21 merge, owner-configured synchronization credential, automatic PR #22 merge and successful no-change post-merge reconciliation. See docs/DEV_01_ACCEPTANCE.md for exact evidence. Formal acceptance recorded in canonical roadmap source; this acceptance PR still requires independent review and exact-head CI.
+- Next: reconcile legacy PRs #20, #13 and #12 with current main and applicable claims; preserve scope and review each independently.
+
+## DEV-01 review corrections — 2026-11-25
+- PR #21 predecessor c08424c passed hosted Required CI and handoff. The corrected branch adds required scoped milestone changes and shared reservations, trusted GitHub reconciliation through reviewed PRs, explicit parent/related scopes and generated view consistency. No new application or installer work.
+- Reconciliation reads verified GitHub observations; publication requires an approved repository-scoped ROADMAP_SYNC_TOKEN. Offline dashboard remains supported; public hosting not authorized. Shared reservation race handling is conservative; coordinate legacy PRs #12, #13 and #20 before integration.
+- Next: independently inspect corrected head and exact-head CI, review synchronization permissions and activation. Do not claim a merge or acceptance before verified evidence.
+
+## DEV-01 completion proposal — 2026-11-25
+- Based on observed main `d1571fc5cd801a2b7d65b63dd3de7d25bf531817`. REUSE-02C.3 merged in [PR #19](https://github.com/kandyman991/HMIStudio/pull/19). Its exact source `9560d35eaae751a5352cb40c78015931f448a8f2` passed Desktop CI 45575498171, tag CI 45575498358 and handoff 45575498315. [PR #20](https://github.com/kandyman991/HMIStudio/pull/20) remains a separate draft in the observed snapshot. Preserve its handoff and roadmap changes when reconciling. PRs #12 and #13 remain separate.
+- DEV-01 uses per-milestone structured records. Generate the detailed plan and offline dashboard with `node roadmap/generate.mjs`. Three original plans are preserved as exact migration inputs. The prior roadmap HTML was unavailable. See [roadmap/README.md](roadmap/README.md) and D-DEV-01.
+- Next for DEV-01: verify exact-head hosted Required CI and handoff, resolve independent review findings and follow the existing merge policy. No desktop installer acceptance or public website deployment is needed. Issue #10 remains tracked under RUST-02/RUST-04.
+
+
 ## Current milestone: RUST-00/01 (2026-11-24)
 - Repository: this public HMIStudio repository. Main observed at 196d40fdb61a45c19883cf914c2c0f44af0343d9.
 - [PR #1](https://github.com/kandyman991/HMIStudio/pull/1) remains draft. Its prior observed source head b11912d600080e3c8176d15cd7e06a20ea244863 passed both hosted Windows MSI and Ubuntu DEB build/test/upload jobs in [Desktop CI run 45374916620](https://github.com/kandyman991/HMIStudio/actions/runs/45374916620).
@@ -55,10 +70,154 @@
 - RUST-04A preparatory draft from the merged source: nested row/column insertion and sibling order, typed engine transactions, pure selection-rule tests. No new dependencies, schema changes or native permissions. No local build/test claim. Existing #7/#9 are independent.
 ## RUST-04A merged / RUST-04B candidate — 2026-11-24
 - PR #11 merged at 58d83ca540463d9507c1cd76555d0bac5bb6378b. Reviewed source 6030fa387a3fee3bd2b13ae8779ff2c690db0db5; desktop CI 45421552926 and handoff 45421552619 passed, 7 frontend tests on both platforms, 9 Windows / 10 Linux native tests. No blocking findings.
-- Issue #10 records owner Windows checklist 9/9, Linux CI and isolated launch/close, waiver of duplicate Linux manual tests. Owner explicitly authorized #11 merge while rejecting current visual direction. Visual acceptance carried into RUST-04; original HTML artifact remains unavailable (F-001). D-009 records scope.
+- Issue #10 records owner Windows checklist 9/9, Linux CI and isolated launch/close, waiver of duplicate Linux manual tests. Owner explicitly authorized #11 merge while rejecting current visual direction. Visual acceptance carried into RUST-04; original HTML was unavailable at that historical observation, since recovered in PR #13. D-008 follow-up records scope.
 - RUST-04B branch feat/rust-04b-layout-rendering adds base flow CSS mapping, size/arrangement editing via Rust commands, grouped toolbars/library/ruler/inspector and pure tests. No new dependencies, native permissions or schema changes. Unsupported layout/live/responsive features explicitly marked; no visual parity or local test claim.
 ## Next exact action
-Verify exact-head hosted CI and independent review of RUST-04B, correct findings, then engineering merge; carry #10 visual acceptance into RUST-04 and recover actual reference or obtain approval of redesigned baseline. Next RUST-04C pointer manipulation.
+Verify fresh exact-head hosted CI and final review of corrected RUST-04B, then engineering merge when authorized. Continue RUST-04B.1 visual alignment before RUST-04C pointer manipulation; retain #10/RUST-04 visual acceptance.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.
+
+## CI-02 candidate — 2026-11-24
+- Started from verified main `58d83ca540463d9507c1cd76555d0bac5bb6378b`. Owner requested change-aware CI ahead of REUSE-02A; existing PRs #7/#9/#12/#13 left intact. PR #9 exact head `34ae0c6e73b54ac30b11e3b6f72f4306922ea9af` desktop run 45438220109 and handoff 45438220116 now passed; remaining independent audit scope is not waived.
+- CI-02 introduces routing tests, stable Required CI, conditional hosted jobs, manual installer dispatch, three-day artifact retention and pinned Rust cache. CI workflow changes deliberately force full validation on this PR. No local native or workflow execution claimed. Branch protection API returned 403; verify required contexts before transition. Existing #7 tag-engine audit must be preserved when reconciled. Next: independently review and verify CI-02 exact-head CI and branch-protection transition, then merge before REUSE-02A. No private source transferred.
+
+## REUSE-01 audit review observation — 2026-11-24
+- PR #9 predecessor `268a12dcc8ac9476616abc25f6b3566a2709b678` passed Desktop CI 45432107611 and handoff CI 45432107921; new reconciled head requires fresh CI. Main observed `58d83ca540463d9507c1cd76555d0bac5bb6378b` (#8 and #11 merged). See docs/reuse/AUDIT_SUMMARY.md for owner decisions and partial independent source verification, findings and limitations.
+- No private code transferred; no runtime or PLC acceptance. REUSE-01 remains candidate until final review and CI. Next: finish review and merge PR #9 after exact-head CI, then REUSE-02A source/provenance/advisory/sensitive-content preflight in a separate branch. Do not import before clearance or integrate a bridge before applicable decisions and PR #7 integration.
+
+## CI-02 merge and REUSE-01 reconciliation — 2026-11-24
+- CI-02 PR #14 independently reviewed at `de86b95bdea35f08e89963ec92cfefe002976a47`; Desktop CI 45440535709 (including Required CI and both installers) and handoff 45440535863 passed; merged as `39eba35a90fdfa27bc613a14b15b9e0bb461c639`. Read-only GitHub API verification found no enforced branch protection or active branch rules on main. Manual dispatch not exercised independently.
+- PR #9 predecessor `34ae0c6e73b54ac30b11e3b6f72f4306922ea9af` passed Desktop CI 45438220109 and handoff 45438220116. Reconciled four shared record conflicts retaining both tracks; new exact-head Required CI and handoff pending. Verify documentation-only routing without installer artifacts. Audit is a planning baseline, not transfer clearance. REUSE-02A remains separate after merge; no source transferred.
+
+## REUSE-01 merged; REUSE-02A started — 2026-11-24
+- PR #9 exact head `6d346ce` passed Required CI 45445225707 and handoff 45445226131; all non-applicable jobs skipped and zero installer artifacts. Merged as `238fd18a4006ced60b5459a37ff18ac1471a6e2c`. CI-02 documentation-only demonstration complete; independent manual dispatch remains pending.
+- REUSE-02A evidence-only branch: pinned source and lockfile verified, limited sensitive-content scans identified one fixture endpoint requiring disposition. See docs/reuse/REUSE_02A_PREFLIGHT.md for evidence and remaining rights, advisory, notice and isolated contract validation gates. No private source transferred. Next: finish preflight checks and independent review; no import until cleared. PR #7 remains a bridge dependency.
+
+## REUSE-02A technical validation follow-up — 2026-11-24
+- PR #15 predecessor `d26373a120c3ec6b77500f6022c4bb42581fcfa7` passed Desktop Required CI 45445542303 and handoff 45445542430; non-applicable jobs skipped. Pinned private engine `92a612d104693800d7119ee4dc0114636b19002f`: isolated offline locked suite 37/37 passed; sanitized candidate contract 4/4 passed; Gitleaks original/candidate zero findings; fresh RustSec audit 2 vulnerabilities/12 warnings; 222/222 archive checksums and license census verified. No private source transferred.
+- Controlled 27-file candidate allowlist and import steps: docs/reuse/REUSE_02A_IMPORT_PLAN.md; evidence and limitations: docs/reuse/REUSE_02A_PREFLIGHT.md. Transfer still blocked by substantive per-file rights/disclosure attestation and final dependency notice/license review; private Kotlin fixture parity pending. No production, device, release or bridge acceptance. PR #7 remains open; process/numeric safety and applicable owner decisions retained. Next: complete remaining clearance and review exact new #15 head/CI before separate import-only PR.
+
+## REUSE-02A notice and fixture follow-up — 2026-11-24
+- PR #15 predecessor `a8c7f9fedf8421621571a7106dfc3fd31d37ac0d` passed Required CI 45447543946 and snapshot 45447543876; unrelated jobs skipped. Private HMI Forge #57 `c8c7ef9b11729d0f603e9459946a596d1b10f2a1` contains matching sanitized fixture; Kotlin contract 3/3 and preflight routing passed locally; exact-head private CI and merge pending.
+- Exact dependency license selections and source provenance assessment recorded in docs/reuse/REUSE_02A_NOTICE_REVIEW.md. Source-only scope is distinct from binary notice/release gates. Owner rights attestation for exact 27-file allowlist remains required; no source pushed to public repo. Next: record attestation, finish #57 and #15 CI/review, then separate import-only PR; retain PR #7 and safety gates for bridge.
+
+## REUSE-02A owner rights attestation — 2026-11-24
+- Owner confirmed the exact 27-file allowlist rights and no unauthorized proprietary/customer material; see D-009 follow-up and REUSE_02A_NOTICE_REVIEW.md. No production/release clearance.
+- #15 predecessor `a82bc361f56087187264836dc961f8ec26a01c94` passed Required CI 45449132831 and snapshot 45449133015; new documentation head needs exact-head checks. Private #57 at `c8c7ef9b11729d0f603e9459946a596d1b10f2a1` still awaiting CI. Next: review/merge #57 and #15 after respective gates, then separate source-only import PR; no source transfer yet.
+
+## REUSE-02B source import — 2026-11-24
+- HMI Forge #57 merged `03a5887d1d763c936e5377741ee472680b700085` after exact-head Linux CI, Android API 26/34 and Android ARM passed. HMIStudio #15 merged `5173d9a60ffb87b52edde1719043bfcbff4d3be5` after Required CI and snapshot; owner authorization and both exact-head reviews recorded. Private main fixture checksums reverified.
+- Branch feat/reuse-02b-engine-import: only 27 approved payload files plus PROVENANCE.md, CI validation wiring and engineering documentation. Final destination hash/mode checks, disclosure scan, fmt, shell syntax and 222-package license inventory pass. Classifier 9/9 passed. Repeat pinned audit exit 1 with 2 vulnerabilities/12 warnings; hosted audit is enforced without ignores. No engine binary artifact, sidecar, Tauri/UI wiring, runtime publishing or physical PLC use.
+- Next exact action: verify import PR head, hosted Windows/Linux test-server suite and all applicable exact-head gates, address security advisories in separately reviewed changes as needed, independent review before merge; no bridge until PR #7 and supervision/numeric requirements are resolved. No manual installer acceptance for this scope. CI workflow changes trigger existing full fallback including unrelated installer checks; no engine is bundled.
+
+## REUSE-02B dependency remediation — 2026-11-24
+- PR #16 initial head `e14451343ed5bfe020d75ffde97fd557f872230b`: Desktop CI 45455020647 Windows/Linux functional tests and all other selected jobs passed except Linux engine audit and aggregate Required CI. Handoff 45455020664 passed. No merge.
+- Remediation batch: exact official public async-opcua Git revision `ca18bb73bac4ff2627943c760c97123062988468` (verified GitHub commit, tree `3b8b55a602b7c2818965625bacee645dc9c0fdc9`) with rsa 0.10.0, url 2.5.9, YAML and postcard dependency corrections. Local pinned RustSec DB audit exit 0, zero vulnerabilities; one chrono maintenance warning remains (no ignore). Source-only registry/Git inventory 211+9 and 37 new/changed registry license notices verified; strengthened exact source/checksum/license gate and 15 Python tests pass. Isolated locked test-server suite 37/37 passed, including encrypted OPC UA. Original 25 non-Cargo payload files unchanged, protocol/Kotlin unchanged.
+- See crates/hmi-engine/PROVENANCE.md, new dependency inventory and D-009 follow-up. This is a reviewed candidate using an unreleased upstream revision, not a new general Git-dependency policy. Return to compatible registry release when available. Next: verify new exact-head CI including audit, review the pinned upstream and dependency/notice changes, merge only after gates. No release, hardware, bridge or runtime publishing acceptance; retain PR #7 and process/numeric requirements for bridge.
+
+- Isolated fmt, Clippy and rustdoc passed; exact final lockfile repeat audit exit 0, zero vulnerabilities, one chrono maintenance warning.
+
+## RUST-06A review and reconciliation — 2026-11-24
+- REUSE-02B PR #16 merged at `78f3a64c06d00afcc392edccad9da9fd757d0392` preserving import and remediation commits; exact-head Desktop CI 45458106267 and handoff 45458106080 passed, review 6044916091. Chrono maintenance warning and pinned unreleased OPC UA dependency remain documented release limitations.
+- PR #7 reconciled from `de9e207a43b9c8ab322b1d3db33fd0832febe596` with that main, clean ordinary merge. Independent review fixes exact range/map integer comparison, safe linear transform limits, bounded operator input, shutdown/cancel admission and result handling, default allocation limit and extreme duration cancellation. See docs/TAG_ENGINE_VALIDATION.md; 50 local Rust tests, fmt/Clippy/rustdoc, 15 CI regressions passed; strict local RustSec audit zero vulnerabilities/warnings, 20 archive checksums/licenses verified. Dedicated CI exact-head checkout and cache align with CI-02; strict independent audit retained. No changed tag lockfile, UI, model, physical drivers or engine bridge.
+- Next exact action: verify reconciled PR #7 exact head, fresh Required CI, handoff and dedicated audit/checks, independent final review and merge. No manual installer acceptance. REUSE-02C bridge preflight thereafter: bounded/coalesced subscriptions/resync, process supervision, framing, exact numeric limits or safe refusal, no stale command replay; preserve simulator and production boundary.
+
+## REUSE-02C.1 bridge supervision — PR #17 candidate — 2026-11-24
+- Branch `feat/reuse-02c1-bridge-supervision` at base `5fa32afa14d2b5d765e6563bef9a840c4adf2b2a` (main after PR #7). Original candidate pushed at a7277f4e9f1ffb05a2c8e1824e481eec1269c47b; author results below are historical. Earlier uncommitted bounded-transport, event-sink, framing, supervisor and O-5 changes are preserved.
+- Added:
+  - bounded S7 command queue (8) with not-transmitted overflow and a coalesced demand wake;
+  - stop by flag rather than queue, with a bounded join;
+  - transmit-time refusal of stopping, withdrawn and pre-connection writes;
+  - engine supervision of in-flight `write`/`browse` against client disconnect, closed output, event failure and `shutdown`, with ordered deferral (max 32);
+  - `OUTCOME_UNKNOWN:` / `NOT_TRANSMITTED:` driver outcomes;
+  - immediate release of pulses whose start outcome is unknown;
+  - no replay or re-arming.
+  
+  Protocol 3 and Kotlin are unchanged. A test-only driver factory and a simulated PLC transport were also added. Details are in docs/reuse/REUSE_02C1_BRIDGE_SUPERVISION.md.
+- Local Linux results (rustc 1.100.0, `--locked`):
+  - fmt clean, and strict Clippy (`-D warnings`) clean for hmi-engine (default and test-server) and tag-engine;
+  - hmi-engine 53/53 with test-server, 35/35 with default features; tag-engine 61/61;
+  - 13 new deterministic tests; 7 of 8 re-introduced defects caught.
+  
+  The intermittent tag-engine `bridge_supervisor` failure (an `ETXTBSY` fixture race) was fixed: 0 failures in 200 parallel runs, against 41 in 100 before. Simulated drivers only.
+- Open findings F-1 to F-9: arming across reconnection, unconfirmed release after an unknown start, release bounds of non-S7 drivers, no explicit protocol-3 uncertain code, bridge still not wired. Next: verify corrected-head hosted CI and complete independent review; owner decisions on F-1 and F-2 before any physical write; then bounded subscription delivery, resync and request correlation.
+
+- Independent corrective review: found starvation of due pulses under deferred/ready traffic; added explicit dispatch-boundary deadline priority, fair ordinary-work selection preserving request FIFO, and a simulated deferred-browse regression. Corrected-head CI and final review required. No real PLC or installer acceptance. REUSE-02C.2 follows merge.
+
+- Independent corrective Linux preflight: 54 engine test-server, 36 default and 61 tag-engine tests passed, engine strict test-server Clippy and fmt passed; original-scheduler mutation failed the added regression as expected. No lockfile change. Hosted gate still required.
+
+## REUSE-02C.1 merged; REUSE-02C.2 dispatch foundation candidate — 2026-11-25
+- PR #17 merged at `dbdeeb2ea74555ba879380168e17c923a1c41da2`; exact source `8e900bc7c1883c0ad9fac3103e21cbb322915b97`, Required CI 45489970600 (Windows/Linux engine tests, Linux notice and advisory gate), dedicated tag CI/audit 45489971060 and handoff 45489970760 passed. Installer builds skipped. Independent review verdict recorded as GitHub review 6053509356 (comment; formal self-approval refused by GitHub). No hardware acceptance.
+- Branch feat/reuse-02c2-bridge-dispatch starts from that verified merge. Typed protocol-3 messages, single-flight request correlation, absolute reply deadline, bounded event mailbox, sticky failure and explicit resync-required invalidation, read-only browse fixture operation. No dependencies changed; 70 local locked tag-engine tests, strict Clippy, rustdoc and fmt passed. See docs/reuse/REUSE_02C2_BRIDGE_DISPATCH.md.
+- Next exact action: verify new PR exact-head CI and independent review, then implement coalesced bounded tag subscriptions, generation-scoped cache invalidation and authoritative resynchronization baseline in isolated simulation. No configure/start/writes or Studio wiring exposed; no complete resynchronization or milestone acceptance claimed.
+
+## REUSE-02C.2 PR #18 completion candidate — 2026-11-25
+- Predecessor d2b9b96 passed Desktop CI 45569339342, tag CI 45569339255 and handoff 45569339262. Main remained dbdeeb2; no concurrent branch changes observed.
+- Replaced unbounded tag subscriptions with bounded latest-state mailboxes (64 subscribers, 256 events and 4 MiB serialized payload per mailbox), ordered coalescing barriers, explicit baseline generation marker, overflow/resubscribe and discard on unsubscribe. Isolated read-only loopback bridge requires complete good/type-correct values for each expected point before publishing; generation-aware refresh and fresh process recovery reject stale data. Maximum four synthetic scalar points for this slice; no physical endpoints, write or arming controls.
+- Local locked/offline Linux: 80 ordinary tag-engine tests plus 1 explicitly invoked real freshly built engine-child test passed; strict Clippy, rustdoc and fmt passed. No dependency or protocol changes. Added cross-platform real-child check to dedicated hosted CI; exact-head CI pending. See docs/reuse/REUSE_02C2_BRIDGE_DISPATCH.md.
+- Next exact action: verify corrected exact-head hosted CI and dependency gates, independently review PR #18 and fix findings before merge; preserve isolated scope and subsequent general EngineDriver/numeric/termination/UI work. No hardware or production acceptance.
+
+- Independent corrective review on PR #18 predecessor e12569e: reproduced false initial publication from pre-acknowledgement loopback events; reject events queued before configure/start acknowledgements and invalidate. Added deterministic fixture covering both phases; original implementation failed regression, corrected passed. Isolated locked/offline Linux: 81 ordinary tag-engine tests, strict Clippy, fmt, diff and lockfile checks passed. Corrected exact-head hosted CI, final independent review and merge pending; real-child test required on hosted Windows/Linux.
+
+## REUSE-02C.2 merged; REUSE-02C.3 isolated EngineDriver candidate — 2026-11-25
+- PR #18 merged at 9dc343b052f456ad507dfc69e2a82fb28345f108; exact reviewed head 8d81c149dffdd5c0112356de9a76dbc9f4c03e95, review 6053747116, Desktop Required CI 45571815356, dedicated Windows/Linux real child and audit 45571815369, handoff 45571815372 passed. Installer jobs ran due workflow change; no manual or hardware acceptance.
+- Branch feat/reuse-02c3-engine-driver from verified merge: explicitly registered isolated read-only EngineDriverFactory, exact checked scalar protocol-3 conversions, cancellable startup, generation-aware reads, child-loss bad quality and fresh baseline recovery. No dependency/schema/wire changes or write/physical/UI functionality. See docs/reuse/REUSE_02C3_ENGINE_DRIVER.md.
+- Linux locked/offline: 85 ordinary tag-engine tests, strict Clippy, rustdoc, fmt, lockfile/diff checks passed. Two explicit real-child smoke tests passed with an existing previously built engine binary; exact-source fresh binary tests required on hosted Windows/Linux. Next exact action: independent review and exact-head CI before merge; preserve simulation scope and follow up with general mapping/quality/write termination.
+
+- Independent static review of PR #19 predecessor 8a78179c5f7b3a702ecf68c979168e2c3bf47e69: found that a post-baseline wire-valid but out-of-range scalar was returned as an item TypeMismatch without invalidating the generation. Corrected to validate the complete decoded snapshot before returning any read results and disconnect on failure, returning ConnectionLost. Added a deterministic synthetic child regression (negative Long for UInt32, bad quality/fault, fresh changed baseline). New regression and corrected source require hosted validation; no local execution claimed by reviewer. No physical endpoints, writes, dependencies or protocol changes. Next: verify exact corrected head Required CI, tag CI (including fresh children on Windows/Linux and audit), handoff and complete independent review before guarded merge.
+
+## REUSE-02C.4A write lifecycle — draft candidate — 2026-11-25
+- Branch `feat/reuse-02c4a-write-lifecycle` starts from verified main `9dc343b052f456ad507dfc69e2a82fb28345f108` (PR #18 merge). PR #19 then merged as `d1571fc5cd801a2b7d65b63dd3de7d25bf531817`; reconciled by ordinary merge (shared-record conflicts only, both entries kept). Open PRs observed: #19 REUSE-02C.3 (`8a78179`, draft, under independent review, branch untouched), #12, #13. Only `crates/hmi-engine/` and docs changed; `crates/tag-engine/` EngineDriver untouched. Protocol 3, Kotlin message set, dependencies and `Cargo.lock` unchanged.
+- Added:
+  - engine-side `Limits`, with every driver wait bounded: write/pulse start/browse 10 s, each release 5 s, each driver stop 5 s;
+  - write and pulse-start timeouts reported as `DRIVER_ERROR`/`OUTCOME_UNKNOWN:`, with a timed-out pulse start released at once;
+  - connection loss releases that source's pulses and disarms, and reconnection never re-arms (D-02C4A-1, resolves F-1);
+  - failed or timed-out releases reported and marked unconfirmed, then blocked with `BUSY` until an explicit re-arm, never rewritten automatically (D-02C4A-2, mitigates F-2);
+  - bounded termination with hung drivers (resolves F-3 for the engine).
+  
+  Details are in docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md.
+- Local Linux results (rustc 1.97.0, `--locked`):
+  - fmt clean; strict Clippy (default and test-server) and rustdoc `-D warnings` clean;
+  - hmi-engine 67/67 with test-server, 49/49 with default features;
+  - 13 new deterministic simulated tests, repeated 10× green; 8/8 re-introduced defects caught;
+  - `cargo audit`: 0 vulnerabilities, one known chrono warning.
+  
+  Simulated and synthetic drivers only. No hosted CI claimed.
+- After the #19 merge, on the merged tree: hmi-engine 67/67; tag-engine 86 passed (2 ignored by design); both real-child tests passed against an engine freshly built from this branch; lockfiles unchanged.
+- Open: owner confirmation of D-02C4A-1/2; whether to add a protocol-4 explicit outcome code or "release now" request; PLC-side command watchdog before physical use; Kotlin not exercised against the new disarm/BUSY behaviour; F-4/F-6/F-7 unchanged. Next: verify exact-head Required CI and handoff, independent review (reconcile with #19 if it merges first), then REUSE-02C.4B write-capable EngineDriver integration in isolated simulation.
+
+## REUSE-02C.4A owner decisions applied — 2026-11-25
+- Owner decisions:
+  - D-02C4A-1 accepted: global disarm on connection loss under protocol 3; healthy-source monitoring kept; no automatic re-arming or stale replay; per-connection arming is a protocol-4 requirement.
+  - D-02C4A-2 accepted with modifications: bounded release attempts and explicit uncertain outcomes; only the affected momentary command is blocked. Ordinary re-arming must not clear it, because authorization and command recovery are separate. Protocol 3 has no recovery operation, so the block is retained for the engine session. An explicit outcome-unknown status and command-specific recovery are protocol-4 requirements. PLC-side watchdogs are still required for physical momentary commands.
+  
+  Both are recorded in docs/ENGINEERING_DECISIONS.md.
+- Correction on PR #20, from the first candidate `26910c1`, whose CI does not carry over:
+  - `armWrites` no longer clears unconfirmed commands; nothing in protocol 3 clears them;
+  - the refusal message is now `COMMAND_UNCONFIRMED:`.
+  
+  Tests now cover two sources (one healthy), a second momentary command, re-arm/disarm/stop/start/configure/reconnection not clearing the block, and only the affected command being blocked. The superseded clear-on-arm rule is caught by a regression test.
+- Local Linux results (rustc 1.97.0, `--locked`):
+  - hmi-engine 71/71 with test-server, 53/53 with default features; `write_lifecycle` 17 tests, repeated 10× green; 11/11 re-introduced defects caught;
+  - fmt, strict Clippy and rustdoc clean; `cargo audit` 0 vulnerabilities (chrono warning);
+  - tag-engine 86 passed (2 ignored) plus 2 real-child tests against the branch engine;
+  - tag-engine and lockfiles unchanged.
+- Open: the block is per engine session (L-4, must be addressed before REUSE-02C.4B exposes writes); Kotlin not exercised. Next: corrected-head hosted CI and independent review before merge; REUSE-02C.4B only on separate authorization.
+
+## REUSE-02C.4A independent review and reconciliation — 2026-11-25
+- Verified PR #20 predecessor 7b0166c: all 17 hosted checks passed; main advanced to a4babf7 (DEV-01 acceptance). Reconciled generated dashboard conflict through canonical milestone inputs, preserving accepted DEV-01.
+- Integration remains blocked by static findings: ambiguous OPC UA pulse-start failures can skip release, queued requests can overtake connection loss, and startup/demand waits are not engine-bounded. See docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md §9 and canonical milestone blockers. Correct with scoped reservation and simulation regressions; require fresh exact-head CI and independent review. No physical connectivity or write-capable EngineDriver exposure.
+
+## REUSE-02C.4A review corrections — 2026-11-25
+- Scope extension: retained the REUSE-02C.4A reservation and atomically added only crates/hmi-engine/src/driver/opcua.rs. Corrected the three §9 findings (OPC UA ambiguous response markers and compensation, bounded event drain and invalidation of stale queued control requests, cancellable start/demand and bounded failed-start cleanup). No protocol/dependency/tag-engine changes.
+- Local Linux isolated locked test-server engine suite: 77 passed, including 22 write lifecycle and 7 session safety; formatting passed. See docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md §10. Fresh hosted Required CI, Tag engine CI, handoff and final exact-head review before guarded merge. L-4 remains a blocker before write-capable EngineDriver integration. No physical PLC or production acceptance.
+
+## PR #13 visual reference reconciliation — 2026-11-25
+- Reviewed original reference at de777d7368fa2ffe6c95c3f27c49a89802989c8d against main 9c09e363d5df08114202a42ec0c9aa8bca664b80. Verified 116579 bytes, documented SHA-256 and Git blob hash; no application code or dependencies changed. Previous Desktop CI 45431128554 and handoff 45431128532 passed on predecessor only.
+- RUST-04 scope reserved for docs/original-visual-reference; canonical milestone and generated views updated. PR #12 remains separate. Visual fidelity and issue #10 acceptance are not claimed. Re-review exact-head hosted checks before merge; do not release the reservation until merge or abandonment.
+
+## RUST-04B independent review corrections — 2026-11-25
+- PR #12 predecessor 1dd36b5 reconciled with main 0a74f65 (PR #13 original HTML reference merged). Scope reserved as RUST-04B under RUST-04. Corrected visual baseline, fit/zoom, hidden interaction and preview limits; no Rust/IPC/dependency changes.
+- Local 13 frontend tests, TypeScript, Vite and isolated Chromium fixture passed; details in docs/LAYOUT_DESIGNER.md. Original reference hash verified. No native visual acceptance, runtime parity or PLC operation claimed.
+- Fresh exact-head hosted Required CI and handoff required; previous passing runs do not carry over. Keep reservation until merge or explicit abandonment. RUST-04B.1 then RUST-04C planned in canonical roadmap.

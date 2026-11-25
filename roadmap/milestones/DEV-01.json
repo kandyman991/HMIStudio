@@ -1,0 +1,80 @@
+{
+  "id": "DEV-01",
+  "title": "Living development roadmap",
+  "track": "Developer workflow",
+  "phase": "accepted",
+  "counts": true,
+  "summary": "Structured roadmap owns milestone state and generates the detailed plan and dashboard.",
+  "dependencies": [],
+  "criteria": [
+    "Preserve milestone records, criteria, dependencies and history with deterministic generated views and schema validation.",
+    "Provide a local interactive graph, progress, filters, assignments, blockers, evidence, next eligible tasks, prompts and continuity.",
+    "Integrate stale-output and consistency checks without unrelated installer builds. Independently review the feature and verify exact-head hosted checks."
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "started",
+      "summary": "Started DEV-01 from observed main d1571fc. Active PRs #12, #13 and #20 kept separate."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Hand off the generated views, migration proof and privacy checks for independent review."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "completion_proposed",
+      "summary": "Submitted DEV-01 as a scoped candidate for exact-head CI and review."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Independent review identified enforcement, synchronization, reservation and scope accounting gaps; corrections in progress."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "GitHub verified designated completion PR #21 merged at 2ed018ae9641 with successful recorded exact-head workflows. Acceptance remains separate."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "accepted",
+      "summary": "Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op.",
+      "record": "docs/DEV_01_ACCEPTANCE.md"
+    }
+  ],
+  "prs": [
+    {
+      "number": 21,
+      "head": "4fd0f4261530b1ff0e3ab169de11b7b507e0665d",
+      "branch": "feat/dev-01-living-roadmap",
+      "state": "merged",
+      "runs": [
+        {
+          "id": 45587538404,
+          "name": "Desktop CI",
+          "head": "4fd0f4261530b1ff0e3ab169de11b7b507e0665d",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45587538625,
+          "name": "Engineering handoff snapshot",
+          "head": "4fd0f4261530b1ff0e3ab169de11b7b507e0665d",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "2ed018ae964183a35d5720886add717cc2f867bc",
+      "observedAt": "2026-11-25T10:08:30Z"
+    }
+  ],
+  "completionPr": 21,
+  "acceptance": {
+    "commit": "0221bbe8de604f349e894ec607b240d12e41dba6",
+    "date": "2026-11-25",
+    "summary": "Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op.",
+    "record": "docs/DEV_01_ACCEPTANCE.md"
+  }
+}

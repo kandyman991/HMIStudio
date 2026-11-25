@@ -1,0 +1,27 @@
+{
+  "id": "REUSE-02C",
+  "title": "Supervised bridge",
+  "track": "Reuse",
+  "phase": "in_progress",
+  "counts": false,
+  "summary": "Isolated read-only engine integration is merged. Write termination and broader mapping remain open.",
+  "dependencies": [
+    {
+      "id": "REUSE-02B",
+      "gate": "merged"
+    },
+    {
+      "id": "RUST-06A",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Enforce bounded framing and delivery, supervision, numeric limits or safe refusal, and simulation before physical PLC work.",
+    "Resolve applicable O-5/model/driver decisions and retain separate UI, hardware and production acceptance."
+  ],
+  "docs": [
+    "docs/ENGINEERING_DECISIONS.md",
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "parent": "REUSE-02"
+}

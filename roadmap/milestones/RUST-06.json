@@ -1,0 +1,22 @@
+{
+  "id": "RUST-06",
+  "title": "Engineering systems",
+  "track": "Engineering",
+  "phase": "in_progress",
+  "counts": false,
+  "summary": "The tag foundation and isolated bridge slices are merged. Drivers, bindings, alarms, recipes, search and simulation remain broader work.",
+  "dependencies": [
+    {
+      "id": "RUST-03B",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify tags, drivers, bindings, alarms, recipes, search and isolated simulation.",
+    "Keep hardware acceptance at explicitly scoped gates."
+  ],
+  "docs": [
+    "docs/TAG_ENGINE.md",
+    "docs/DEVELOPMENT_SIMULATION_POLICY.md"
+  ]
+}

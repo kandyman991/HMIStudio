@@ -1,0 +1,75 @@
+{
+  "id": "RUST-04",
+  "title": "Semantic layout editor",
+  "track": "Engineering",
+  "phase": "in_progress",
+  "counts": false,
+  "summary": "PR #13 integrated the recovered original visual reference. PR #12 is the separately reviewed RUST-04B model-backed preview candidate. Native visual acceptance remains outstanding.",
+  "dependencies": [
+    {
+      "id": "RUST-02",
+      "gate": "accepted",
+      "note": "Issue #10 covers desktop workspace acceptance."
+    },
+    {
+      "id": "RUST-03B",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify visual component operations, nested constraints, alignment and responsive preview.",
+    "Complete manual desktop designer acceptance."
+  ],
+  "prs": [
+    {
+      "number": 13,
+      "head": "f92a3af62d86df2eed15a8631d3a6d2bf7cb667b",
+      "branch": "docs/original-visual-reference",
+      "state": "merged",
+      "observedAt": "2026-11-25T13:29:16Z",
+      "runs": [
+        {
+          "id": 45619875538,
+          "name": "Desktop CI",
+          "head": "f92a3af62d86df2eed15a8631d3a6d2bf7cb667b",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45619875565,
+          "name": "Engineering handoff snapshot",
+          "head": "f92a3af62d86df2eed15a8631d3a6d2bf7cb667b",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "0a74f65558392ce7e8cfb67202244057d7d3a2d9"
+    }
+  ],
+  "issues": [
+    {
+      "number": 10,
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md",
+    "docs/reference/README.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Independently reviewed PR #13 and reconciled with main 9c09e363. Verified original HTML byte count, SHA-256 and Git blob; scoped reservation RUST-04. No application or acceptance change. PR #12 remains separate; exact-head hosted CI pending.",
+      "record": "docs/reference/README.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Verified PR #13 merged and its exact-head Desktop CI and handoff succeeded. Former reference reservation released; RUST-04B has its own active claim in the same group. Parent visual acceptance remains open.",
+      "record": "docs/reference/README.md"
+    }
+  ]
+}

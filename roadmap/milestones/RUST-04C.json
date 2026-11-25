@@ -1,0 +1,24 @@
+{
+  "id": "RUST-04C",
+  "title": "Direct graphical manipulation",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.",
+  "dependencies": [
+    {
+      "id": "RUST-04B.1",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Implement selection, drag/reorder/reparent and resize with an immutable gesture preview, one validated transaction on commit, cancellation and stale-revision/session checks.",
+    "Implement applicable snapping, alignment and pan behavior; retain semantic constraints and test unsupported operations explicitly."
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md",
+    "docs/reference/README.md"
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04"
+}

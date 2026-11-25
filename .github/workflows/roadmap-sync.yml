@@ -1,0 +1,61 @@
+name: Roadmap reconciliation
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+  issues: read
+concurrency:
+  group: roadmap-reconciliation-main
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconcile recorded GitHub state on trusted main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 roadmap/sync.py
+          node roadmap/generate.mjs
+          node roadmap/generate.mjs --check --verify-migration --base "$(git rev-parse origin/main)"
+          git diff --stat
+      - name: Open a reviewed synchronization PR if configured
+        env:
+          GH_TOKEN: ${{ secrets.ROADMAP_SYNC_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then exit 0; fi
+          if [ -z "$GH_TOKEN" ]; then
+            echo 'Roadmap changes found. Configure a least-privilege ROADMAP_SYNC_TOKEN to submit a reviewed PR, or run roadmap/sync.py locally.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "$(gh pr list --base main --state open --limit 100 --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/roadmap-sync-"))] | length')" != 0 ]; then
+            echo 'An existing synchronization PR awaits review; no overwrite.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name 'HMI Studio roadmap reconciliation'
+          git config user.email 'roadmap-reconciliation@users.noreply.github.com'
+          git add roadmap/milestones roadmap/context.json docs/MILESTONE_PLAN.md roadmap/dashboard.html
+          git commit -m 'Refresh observed roadmap GitHub evidence'
+          branch="automation/roadmap-sync-$RUN_ID"
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$branch"
+          gh pr create --base main --head "$branch" --title 'Roadmap: reconcile GitHub observations' --body 'Automated evidence-only refresh. Review actual PR/CI observations and exact-head CI before merge. No acceptance or production decision is implied.'

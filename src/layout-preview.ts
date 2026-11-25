@@ -6,7 +6,7 @@ export type Cross = "start"|"center"|"end";
 export type Arrangement = "start"|"center"|"end"|"spaceBetween"|"spaceAround"|"spaceEvenly";
 export type Element = {type:string;kind?:string;spacing?:number;arrangement?:Arrangement;alignment?:Cross;wrap?:boolean;[key:string]:unknown};
 export type Layout = {width?:Size;height?:Size;minWidth?:number;maxWidth?:number;minHeight?:number;maxHeight?:number;aspectRatio?:number;padding?:{top?:number;end?:number;bottom?:number;start?:number};weight?:number;crossAlign?:Cross;visibility?:"visible"|"hidden"|"collapsed";clip?:boolean;zIndex?:number;[key:string]:unknown};
-export type PreviewNode = {element:Element;layout?:Layout;responsive?:unknown[];bindings?:unknown[]};
+export type PreviewNode = {element:Element;layout?:Layout;responsive?:unknown[];bindings?:unknown[];style?:string;events?:unknown[];properties?:Record<string,unknown>};
 const number=(n:unknown):n is number=>typeof n==="number"&&Number.isFinite(n)&&n>=0;
 const positive=(n:unknown):n is number=>number(n)&&n>0;
 const cross=(a:Cross|undefined)=>a==="center"?"center":a==="end"?"flex-end":"flex-start";
@@ -26,7 +26,7 @@ export function nodeStyle(n:PreviewNode,parent?:Element):CSSProperties{
     paddingTop:number(l.padding?.top)?l.padding.top:0,paddingRight:number(l.padding?.end)?l.padding.end:0,
     paddingBottom:number(l.padding?.bottom)?l.padding.bottom:0,paddingLeft:number(l.padding?.start)?l.padding.start:0,
     flexShrink:0,position:"relative",overflow:l.clip?"hidden":"visible",
-    visibility:l.visibility==="hidden"?"hidden":undefined,zIndex:typeof l.zIndex==="number"&&Number.isSafeInteger(l.zIndex)?l.zIndex:undefined};
+    visibility:l.visibility==="hidden"?"hidden":undefined,pointerEvents:l.visibility==="hidden"?"none":undefined,zIndex:typeof l.zIndex==="number"&&Number.isSafeInteger(l.zIndex)?l.zIndex:undefined};
   if(l.visibility==="collapsed"){st.display="none";return st;}
   if(parent&&isFlow(parent)){
     if(l.crossAlign)st.alignSelf=cross(l.crossAlign);
@@ -34,7 +34,7 @@ export function nodeStyle(n:PreviewNode,parent?:Element):CSSProperties{
   }
   if(isFlow(e)){
     st.display="flex";st.flexDirection=e.type==="row"?"row":"column";
-    st.flexWrap=e.wrap?"wrap":"nowrap";st.alignItems=cross(e.alignment);
+    st.flexWrap=e.wrap?"wrap":"nowrap";st.alignContent="flex-start";st.alignItems=cross(e.alignment);
     st.justifyContent=arrangement(e.arrangement);
     st.gap=typeof e.arrangement==="string"&&e.arrangement.startsWith("space")?0:number(e.spacing)?e.spacing:0;
   }
@@ -46,10 +46,24 @@ export function previewLimit(n:PreviewNode):string[]{
   if(n.element.type==="component"&&!["text","button","gauge"].includes(n.element.kind??""))issues.push("Static placeholder: "+(n.element.kind??"component"));
   if(n.responsive?.length)issues.push("Responsive overrides not applied");
   if(n.bindings?.length)issues.push("Live bindings not evaluated");
+  if(n.style)issues.push("Named style not applied");
+  if(n.events?.length)issues.push("Events not executed");
+  if(n.properties?.text!==undefined&&typeof n.properties.text!=="string")issues.push("Localized or nonliteral text not resolved");
   return issues;
 }
 export function parseFixed(value:string):number|undefined{
-  if(!value.trim())return undefined;
+  if(!/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()))return undefined;
   const n=Number(value);
   return number(n)?n:undefined;
+}
+
+// Presentation only. Reserve space for the two rulers and the editor chrome;
+// the logical artboard stays 800 × 480 dp regardless of display zoom.
+export const PREVIEW_WIDTH=826, PREVIEW_HEIGHT=502;
+export function fitPreview(width:number,height:number):number{
+  if(!positive(width)||!positive(height))return 1;
+  return Math.max(.25,Math.min(1,Math.floor(100*Math.min(Math.max(0,width-32)/PREVIEW_WIDTH,Math.max(0,height-94)/PREVIEW_HEIGHT))/100));
+}
+export function changeZoom(current:number,delta:number):number{
+  return Math.max(.25,Math.min(2,Math.round((current+delta)*100)/100));
 }

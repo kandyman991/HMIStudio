@@ -1,0 +1,26 @@
+{
+  "id": "REUSE-02",
+  "title": "Engine bridge and delivery",
+  "track": "Reuse",
+  "phase": "in_progress",
+  "counts": false,
+  "summary": "Controlled source import and isolated bridge slices are complete at their recorded scopes. The proposed full bridge and distribution scope remains open.",
+  "dependencies": [
+    {
+      "id": "REUSE-01",
+      "gate": "merged"
+    },
+    {
+      "id": "RUST-06A",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Record O-1 licence, O-2 repository strategy and O-5 hosting. Require RUST-02C merge before packaging.",
+    "Validate hosted engine, client and bridge tests, advisories, notices and protocol 3 compatibility.",
+    "Preserve separate simulator, S7/loopback model decisions, OPC UA browse, Siemens presets and packaging proposals."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ]
+}

@@ -4,7 +4,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use async_trait::async_trait;
-use tokio::sync::mpsc::UnboundedSender;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use tokio::sync::{mpsc::Sender, Notify};
 
 use crate::protocol::{
     BrowseNode, PointValue, RuntimePoint, RuntimeSource, SourceCredential, SourceState, Value,
@@ -21,6 +25,39 @@ pub const DRIVERS: &[&str] = &["loopback", "opcua", "s7"];
 #[derive(Debug)]
 pub struct DriverError(pub String);
 
+/// Message prefix of a write that may already have reached the device: it was transmitted (or
+/// handed to the transport) and no definite answer came back. Never retried automatically.
+/// Protocol 3 carries it as a `DRIVER_ERROR` refusal; the prefix is the stable marker.
+pub const OUTCOME_UNKNOWN: &str = "OUTCOME_UNKNOWN: ";
+/// Message prefix of a write that was certainly not transmitted (queue full, stale, stopping).
+pub const NOT_TRANSMITTED: &str = "NOT_TRANSMITTED: ";
+
+impl DriverError {
+    pub fn outcome_unknown(message: impl AsRef<str>) -> Self {
+        Self(format!("{OUTCOME_UNKNOWN}{}", message.as_ref()))
+    }
+    pub fn not_transmitted(message: impl AsRef<str>) -> Self {
+        Self(format!("{NOT_TRANSMITTED}{}", message.as_ref()))
+    }
+    /// True when the device may have applied the write.
+    pub fn is_outcome_unknown(&self) -> bool {
+        self.0.starts_with(OUTCOME_UNKNOWN)
+    }
+}
+
+/// Builds the driver for one source. The engine uses [create]; tests may substitute simulated
+/// drivers through [crate::engine::run_with_drivers].
+pub type DriverFactory = std::sync::Arc<
+    dyn Fn(
+            &RuntimeSource,
+            Vec<RuntimePoint>,
+            Option<SourceCredential>,
+            EventSink,
+        ) -> Result<Box<dyn Driver>, DriverError>
+        + Send
+        + Sync,
+>;
+
 impl std::fmt::Display for DriverError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
@@ -34,7 +71,40 @@ pub enum DriverEvent {
     Values(Vec<PointValue>),
 }
 
-pub type EventSink = UnboundedSender<(String, DriverEvent)>;
+#[derive(Clone)]
+pub struct EventSink {
+    tx: Sender<(String, DriverEvent)>,
+    failed: Arc<AtomicBool>,
+    notify: Arc<Notify>,
+}
+impl EventSink {
+    pub fn new(tx: Sender<(String, DriverEvent)>) -> Self {
+        Self {
+            tx,
+            failed: Arc::new(AtomicBool::new(false)),
+            notify: Arc::new(Notify::new()),
+        }
+    }
+    pub fn send(
+        &self,
+        event: (String, DriverEvent),
+    ) -> Result<(), tokio::sync::mpsc::error::TrySendError<(String, DriverEvent)>> {
+        let result = self.tx.try_send(event);
+        if result.is_err() {
+            self.failed.store(true, Ordering::Release);
+            self.notify.notify_one();
+        }
+        result
+    }
+    pub fn failed(&self) -> bool {
+        self.failed.load(Ordering::Acquire)
+    }
+    pub async fn failure(&self) {
+        while !self.failed() {
+            self.notify.notified().await;
+        }
+    }
+}
 
 #[async_trait]
 pub trait Driver: Send {

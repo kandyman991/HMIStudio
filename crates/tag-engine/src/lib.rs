@@ -48,3 +48,9 @@ pub fn simulator_registry(hub: &SimulatorHub) -> DriverRegistry {
     );
     r
 }
+
+/// Bounded framing for the communication bridge.
+pub mod bridge_frame;
+
+/// Experimental communication child lifecycle.
+pub mod bridge_supervisor;

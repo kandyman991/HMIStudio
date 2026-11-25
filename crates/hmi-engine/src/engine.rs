@@ -1,9 +1,10 @@
 //! The engine's state machine: one task, driven by requests, driver events and a timer.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use std::future::Future;
 use std::time::{Duration, Instant};
 
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::driver::{self, Driver, DriverEvent};
 use crate::guard::{self, GuardState, MAX_ARM_SECONDS};
@@ -22,11 +23,74 @@ struct PendingPulse {
     point: crate::protocol::RuntimePoint,
     actor: String,
     due: Instant,
+    /// The TRUE was possibly applied (outcome unknown): released at once, and reported so.
+    after_unknown_start: bool,
+}
+
+/// Requests received while a driver operation was in progress are kept here, in arrival order,
+/// and handled afterwards. A `shutdown` is never queued behind them: it ends the operation's
+/// wait at once.
+pub(crate) struct Inbox {
+    rx: Receiver<Request>,
+    deferred: VecDeque<Request>,
+    shutdown: Option<u64>,
+}
+
+/// Requests held while one driver operation is in progress. A client that keeps sending beyond
+/// this is not read any further; its transport then saturates and ends the session.
+pub const DEFERRED_MAX: usize = 32;
+
+/// Message of a write the engine stopped waiting for because the session ended.
+const ABANDONED: &str = "the session ended (client disconnected or shutdown requested) while the write was in progress; the engine stopped waiting and whether the device applied it is unknown; it is not repeated";
+
+/// Awaits a driver operation while still watching the session. Returns `None` when the session
+/// ended first (client gone, output closed, event delivery failed, or `shutdown` received); the
+/// operation is then dropped. A driver that has not transmitted yet withdraws the request.
+async fn supervise<T>(
+    inbox: &mut Inbox,
+    out: &Sender<Message>,
+    events: &driver::EventSink,
+    op: impl Future<Output = T>,
+) -> Option<T> {
+    tokio::pin!(op);
+    let mut check = tokio::time::interval(Duration::from_millis(10));
+    loop {
+        let accept = inbox.shutdown.is_none() && inbox.deferred.len() < DEFERRED_MAX;
+        tokio::select! {
+            biased;
+            result = &mut op => return Some(result),
+            _ = out.closed() => return None,
+            _ = events.failure() => return None,
+            request = inbox.rx.recv(), if accept => match request {
+                None => return None,
+                Some(Request::Shutdown { id }) => {
+                    inbox.shutdown = Some(id);
+                    return None;
+                }
+                Some(other) => inbox.deferred.push_back(other),
+            },
+            _ = check.tick() => {
+                // Closed means the client is gone, even with requests still buffered.
+                if inbox.rx.is_closed() {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+enum Next {
+    End,
+    Request(Request),
+    Event(String, DriverEvent),
+    Tick,
+    Pulses,
 }
 
 pub struct Engine {
-    out: UnboundedSender<Message>,
-    events_tx: UnboundedSender<(String, DriverEvent)>,
+    out: Sender<Message>,
+    failed: std::sync::atomic::AtomicBool,
+    events_tx: driver::EventSink,
     greeted: bool,
     config: Option<RuntimeConfig>,
     credentials: BTreeMap<String, SourceCredential>,
@@ -40,16 +104,29 @@ pub struct Engine {
     latest: HashMap<String, PointValue>,
     /// Running pulses by variable; released by the engine, armed or not.
     pulses: BTreeMap<String, PendingPulse>,
+    factory: driver::DriverFactory,
 }
 
 /// Runs until the request channel closes (client gone) or a `shutdown` request arrives.
 /// Either way every source is disconnected before returning: an engine without its client
 /// must not stay connected to machinery.
-pub async fn run(mut requests: UnboundedReceiver<Request>, out: UnboundedSender<Message>) {
-    let (events_tx, mut events_rx) = unbounded_channel();
+pub async fn run(requests: Receiver<Request>, out: Sender<Message>) {
+    run_with_drivers(requests, out, std::sync::Arc::new(driver::create)).await
+}
+
+/// [run] with a substitute driver factory: used by tests with simulated drivers. Never used to
+/// reach real devices differently from [run].
+#[doc(hidden)]
+pub async fn run_with_drivers(
+    requests: Receiver<Request>,
+    out: Sender<Message>,
+    factory: driver::DriverFactory,
+) {
+    let (events_tx, mut events_rx) = channel(256);
     let mut engine = Engine {
         out,
-        events_tx,
+        failed: std::sync::atomic::AtomicBool::new(false),
+        events_tx: driver::EventSink::new(events_tx),
         greeted: false,
         config: None,
         credentials: BTreeMap::new(),
@@ -60,30 +137,72 @@ pub async fn run(mut requests: UnboundedReceiver<Request>, out: UnboundedSender<
         demand: None,
         latest: HashMap::new(),
         pulses: BTreeMap::new(),
+        factory,
+    };
+    let mut inbox = Inbox {
+        rx: requests,
+        deferred: VecDeque::new(),
+        shutdown: None,
     };
     let mut tick = tokio::time::interval(Duration::from_millis(500));
     loop {
-        tokio::select! {
-            request = requests.recv() => match request {
-                Some(Request::Shutdown { id }) => {
-                    engine.stop_all().await;
-                    engine.send(Message::Ok { id });
-                    break;
-                }
-                Some(request) => engine.handle(request).await,
-                None => break,
+        // A session that has ended executes nothing more: requests still buffered or deferred
+        // are stale and are dropped, never handled.
+        if inbox.rx.is_closed()
+            || engine.out.is_closed()
+            || engine.failed.load(std::sync::atomic::Ordering::Acquire)
+            || engine.events_tx.failed()
+        {
+            break;
+        }
+        if let Some(id) = inbox.shutdown.take() {
+            engine.stop_all().await;
+            engine.send(Message::Ok { id });
+            break;
+        }
+        // An elapsed pulse deadline wins at every dispatch boundary, including while
+        // deferred requests remain ready. A driver operation already in progress is not
+        // preempted: its cancellation/timeout semantics are driver-specific.
+        if engine
+            .next_pulse_due()
+            .is_some_and(|due| due <= Instant::now())
+        {
+            engine.release_due_pulses().await;
+            continue;
+        }
+        let has_deferred = !inbox.deferred.is_empty();
+        // Keep request FIFO order but let driver events and ticks make progress under
+        // request traffic. The explicit deadline check above does not rely on select fairness.
+        let next = tokio::select! {
+            _ = engine.out.closed() => Next::End,
+            _ = engine.events_tx.failure() => Next::End,
+            request = async { inbox.deferred.pop_front().expect("deferred request") }, if has_deferred => Next::Request(request),
+            request = inbox.rx.recv(), if !has_deferred => match request {
+                Some(request) => Next::Request(request),
+                None => Next::End,
             },
-            Some((source_id, event)) = events_rx.recv() => engine.on_driver_event(source_id, event),
-            _ = tick.tick() => engine.on_tick().await,
-            _ = sleep_until_due(engine.next_pulse_due()) => engine.release_due_pulses().await,
+            Some((source_id, event)) = events_rx.recv() => Next::Event(source_id, event),
+            _ = tick.tick() => Next::Tick,
+            _ = sleep_until_due(engine.next_pulse_due()) => Next::Pulses,
+        };
+        match next {
+            Next::End => break,
+            Next::Request(request) => engine.handle(request, &mut inbox).await,
+            Next::Event(source_id, event) => engine.on_driver_event(source_id, event),
+            Next::Tick => engine.on_tick().await,
+            Next::Pulses => engine.release_due_pulses().await,
         }
     }
+    // Always: release started pulses, disarm and disconnect every source.
     engine.stop_all().await;
 }
 
 impl Engine {
     fn send(&self, message: Message) {
-        let _ = self.out.send(message);
+        if self.out.try_send(message).is_err() {
+            self.failed
+                .store(true, std::sync::atomic::Ordering::Release);
+        }
     }
 
     fn error(&self, id: u64, code: &str, message: impl Into<String>) {
@@ -94,7 +213,7 @@ impl Engine {
         });
     }
 
-    async fn handle(&mut self, request: Request) {
+    async fn handle(&mut self, request: Request, inbox: &mut Inbox) {
         if let Request::Hello { id, protocol } = request {
             if protocol != PROTOCOL_VERSION {
                 self.greeted = false;
@@ -124,9 +243,9 @@ impl Engine {
             return;
         }
         match request {
-            Request::Hello { .. } | Request::Shutdown { .. } => {
-                unreachable!("handled by the caller")
-            }
+            Request::Hello { .. } => unreachable!("handled above"),
+            // Normally intercepted before reaching here; handled the same way regardless.
+            Request::Shutdown { id } => inbox.shutdown = Some(id),
             Request::Configure {
                 id,
                 config,
@@ -296,15 +415,27 @@ impl Engine {
                     Err(refusal) => (Some(refusal), None),
                     Ok(point) => match self.drivers.get_mut(&point.source_id) {
                         None => (Some(WriteRefusal::SourceNotConnected), None),
-                        Some(driver) => match driver.write(&point, &value).await {
-                            Ok(()) => (None, None),
-                            Err(error) => {
+                        Some(driver) => match supervise(
+                            inbox,
+                            &self.out,
+                            &self.events_tx,
+                            driver.write(&point, &value),
+                        )
+                        .await
+                        {
+                            Some(Ok(())) => (None, None),
+                            Some(Err(error)) => {
                                 (Some(WriteRefusal::DriverError), Some(error.to_string()))
                             }
+                            None => (
+                                Some(WriteRefusal::DriverError),
+                                Some(driver::DriverError::outcome_unknown(ABANDONED).to_string()),
+                            ),
                         },
                     },
                 };
                 let accepted = refusal.is_none();
+                // Best effort: the client may already be gone.
                 self.send(Message::WriteAudit {
                     variable_id,
                     actor,
@@ -354,24 +485,52 @@ impl Engine {
                     Err(refusal) => (Some(refusal), None),
                     Ok(point) => match self.drivers.get_mut(&point.source_id) {
                         None => (Some(WriteRefusal::SourceNotConnected), None),
-                        Some(driver) => match driver.write(&point, &value).await {
-                            Ok(()) => {
-                                let due = Instant::now()
-                                    + Duration::from_millis(point.pulse_ms.unwrap_or(0) as u64);
-                                self.pulses.insert(
-                                    variable_id.clone(),
-                                    PendingPulse {
-                                        point,
-                                        actor: actor.clone(),
-                                        due,
-                                    },
-                                );
-                                (None, None)
+                        Some(driver) => {
+                            let outcome = match supervise(
+                                inbox,
+                                &self.out,
+                                &self.events_tx,
+                                driver.write(&point, &value),
+                            )
+                            .await
+                            {
+                                Some(result) => result,
+                                None => Err(driver::DriverError::outcome_unknown(ABANDONED)),
+                            };
+                            match outcome {
+                                Ok(()) => {
+                                    let due = Instant::now()
+                                        + Duration::from_millis(point.pulse_ms.unwrap_or(0) as u64);
+                                    self.pulses.insert(
+                                        variable_id.clone(),
+                                        PendingPulse {
+                                            point,
+                                            actor: actor.clone(),
+                                            due,
+                                            after_unknown_start: false,
+                                        },
+                                    );
+                                    (None, None)
+                                }
+                                Err(error) => {
+                                    // TRUE may have reached the device: the release is still
+                                    // owed, so a possibly started pulse is always ended. It is
+                                    // released at once rather than after the pulse time.
+                                    if error.is_outcome_unknown() {
+                                        self.pulses.insert(
+                                            variable_id.clone(),
+                                            PendingPulse {
+                                                point,
+                                                actor: actor.clone(),
+                                                due: Instant::now(),
+                                                after_unknown_start: true,
+                                            },
+                                        );
+                                    }
+                                    (Some(WriteRefusal::DriverError), Some(error.to_string()))
+                                }
                             }
-                            Err(error) => {
-                                (Some(WriteRefusal::DriverError), Some(error.to_string()))
-                            }
-                        },
+                        }
                     },
                 };
                 let accepted = refusal.is_none();
@@ -400,9 +559,17 @@ impl Engine {
                     "SOURCE_NOT_STARTED",
                     format!("source '{source_id}' is not started"),
                 ),
-                Some(driver) => match driver.browse(node_id.as_deref()).await {
-                    Ok(nodes) => self.send(Message::BrowseResult { id, nodes }),
-                    Err(error) => self.error(id, "BROWSE_FAILED", error.to_string()),
+                Some(driver) => match supervise(
+                    inbox,
+                    &self.out,
+                    &self.events_tx,
+                    driver.browse(node_id.as_deref()),
+                )
+                .await
+                {
+                    Some(Ok(nodes)) => self.send(Message::BrowseResult { id, nodes }),
+                    Some(Err(error)) => self.error(id, "BROWSE_FAILED", error.to_string()),
+                    None => {} // session ended; nobody is waiting for the answer
                 },
             },
         }
@@ -422,7 +589,7 @@ impl Engine {
             .cloned()
             .collect();
         let credential = self.credentials.get(source_id).cloned();
-        let started = match driver::create(&source, points, credential, self.events_tx.clone()) {
+        let started = match (self.factory)(&source, points, credential, self.events_tx.clone()) {
             Ok(mut driver) => match driver.start().await {
                 Ok(()) => {
                     self.drivers.insert(source_id.to_owned(), driver);
@@ -531,11 +698,18 @@ impl Engine {
                     .await
                     .map_err(|error| error.to_string()),
             };
+            let message = match (&result, pulse.after_unknown_start) {
+                (Err(error), _) => Some(error.clone()),
+                (Ok(()), true) => {
+                    Some("released after a pulse start whose outcome is unknown".to_string())
+                }
+                (Ok(()), false) => None,
+            };
             self.send(Message::PulseReleased {
                 variable_id,
                 actor: pulse.actor,
                 released: result.is_ok(),
-                message: result.err(),
+                message,
             });
         }
     }

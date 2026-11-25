@@ -8,18 +8,18 @@ use hmi_engine::protocol::{
     Access, Message, Request, RuntimeConfig, RuntimePoint, RuntimeSource, Value, ValueType,
     WriteLimits, WriteRefusal, PROTOCOL_VERSION,
 };
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 struct Harness {
-    requests: UnboundedSender<Request>,
-    messages: UnboundedReceiver<Message>,
+    requests: Sender<Request>,
+    messages: Receiver<Message>,
     next_id: u64,
 }
 
 impl Harness {
     fn start() -> Self {
-        let (requests, request_rx) = unbounded_channel();
-        let (out, messages) = unbounded_channel();
+        let (requests, request_rx) = channel(256);
+        let (out, messages) = channel(256);
         tokio::spawn(engine::run(request_rx, out));
         Harness {
             requests,
@@ -48,7 +48,7 @@ impl Harness {
     }
 
     async fn ok(&mut self, request: Request, id: u64) {
-        self.requests.send(request).unwrap();
+        self.requests.try_send(request).unwrap();
         self.expect("ok", |m| match m {
             Message::Ok { id: got } if *got == id => Some(()),
             Message::Error {
@@ -60,7 +60,7 @@ impl Harness {
     }
 
     async fn result(&mut self, request: Request, id: u64) -> (bool, Option<WriteRefusal>) {
-        self.requests.send(request).unwrap();
+        self.requests.try_send(request).unwrap();
         self.expect("writeResult", |m| match m {
             Message::WriteResult {
                 id: got,
@@ -104,7 +104,7 @@ async fn configured(pulse_ms: u32) -> Harness {
     let mut h = Harness::start();
     let id = h.id();
     h.requests
-        .send(Request::Hello {
+        .try_send(Request::Hello {
             id,
             protocol: PROTOCOL_VERSION,
         })
@@ -290,7 +290,7 @@ async fn a_running_pulse_is_released_when_writes_are_disarmed_and_on_stop() {
     );
     // Disarm forces FALSE now, without waiting for the five-second pulse timer.
     let id = h.id();
-    h.requests.send(Request::DisarmWrites { id }).unwrap();
+    h.requests.try_send(Request::DisarmWrites { id }).unwrap();
     let released = h
         .expect("pulseReleased on disarm", |m| match m {
             Message::PulseReleased { released, .. } => Some(*released),

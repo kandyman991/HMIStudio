@@ -4,12 +4,12 @@
 use std::time::Duration;
 
 use hmi_engine::protocol::*;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::timeout;
 
 pub struct Harness {
-    tx: Option<UnboundedSender<Request>>,
-    rx: UnboundedReceiver<Message>,
+    tx: Option<Sender<Request>>,
+    rx: Receiver<Message>,
     next_id: u64,
     pub seen: Vec<Message>,
     /// Every message ever received (never cleared).
@@ -21,8 +21,8 @@ pub struct Harness {
 
 impl Harness {
     pub async fn new() -> Self {
-        let (tx, requests) = unbounded_channel();
-        let (out, rx) = unbounded_channel();
+        let (tx, requests) = channel(256);
+        let (out, rx) = channel(256);
         let engine = tokio::spawn(hmi_engine::engine::run(requests, out));
         let mut harness = Harness {
             tx: Some(tx),
@@ -44,7 +44,7 @@ impl Harness {
     pub fn send(&mut self, make: impl FnOnce(u64) -> Request) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
-        self.tx.as_ref().unwrap().send(make(id)).unwrap();
+        self.tx.as_ref().unwrap().try_send(make(id)).unwrap();
         id
     }
 

@@ -67,3 +67,22 @@ Validation on the changed working tree:
 - Fresh isolated checkout: locked npm install, 17 frontend tests, TypeScript/Vite build and generated/migration validation passed. Synthetic headless Chromium with unchanged Tauri CSP and in-memory IPC: select a fixed 120 x 90 column containing a same-size child via Layers; assert the visible corner hits the column, drag the grip 15 CSS px on each axis, verify zero execute requests before release and one setLayout for the column on release. Begin a second component drag, shift the viewport 12 CSS px horizontally without changing its size, release over the previous destination and assert no new execute request. No page errors. Browser evidence is not native desktop acceptance.
 - Predecessor hosted Required CI and handoff succeeded (45630370235, 45630370265). Corrected-head hosted CI must pass before merge. Combined RUST-04 native designer acceptance remains pending.
 - Final diff review of 0c52d8d identified the pseudo-element default content-box sizing; explicitly set border-box so the 12 dp hit extent includes its borders. Repeated the full frontend build and isolated browser regression, including a computed-style assertion. Fresh exact-head hosted CI required.
+
+## RUST-04 — Windows native acceptance, 2026-11-25
+
+Owner-reported results for exact main revision `a707bf568c9d71ade77fd3e6a9d457ef03f6f713`, [manual Desktop CI run 45640095067](https://github.com/kandyman991/HMIStudio/actions/runs/45640095067), Windows MSI artifact 15034219803. Hosted CI passed; the owner tested the installed application. This is partial native evidence, not overall milestone acceptance.
+
+| Check | Owner result |
+| --- | --- |
+| Installation, startup and shutdown | PASS |
+| Workspace visual fidelity against original HTML prototype | PASS |
+| Panel resizing and workspace organization | PASS |
+| Creating screens and inserting components | PASS |
+| Component selection, dragging and reordering | FAIL |
+| Moving components between nested containers | FAIL |
+| Graphical resizing, snapping and alignment | PASS |
+| Zooming and panning | PASS |
+| Undo and redo after graphical manipulation | PASS |
+| Saving and reopening projects without losing layout changes | PASS |
+
+Eight passed, two failed; no additional Windows or Linux acceptance is inferred. RUST-04C.1 is the scoped correction milestone. Preserve the accepted visual appearance. Reproduce and correct the failures, add regression tests, independently review with exact-head CI, generate a fresh installer, and retest the failed interactions before accepting RUST-04.

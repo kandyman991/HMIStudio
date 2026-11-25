@@ -1,0 +1,32 @@
+{
+  "id": "RUST-04C.1",
+  "title": "Native graphical manipulation corrections",
+  "track": "Engineering",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Correct Windows acceptance failures in semantic flow selection, drag/reorder and nested reparenting while preserving the accepted workspace appearance.",
+  "dependencies": [
+    {
+      "id": "RUST-04C",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Reproduce and correct supported flow drag/reorder and nested reparenting; cover actual pointer/drop behavior, empty destinations, zoom and cancellation with regression tests.",
+    "Preserve validated model transactions, undo/redo and persistence; verify exact-head hosted CI and independent review.",
+    "Generate a corrected Windows installer and retest the failed interactions at the parent RUST-04 acceptance gate."
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04",
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md"
+  ],
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Registered correction scope after owner reported two failures on native Windows build a707bf5; eight other checks including visual fidelity passed.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    }
+  ]
+}

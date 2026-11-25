@@ -24,7 +24,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-02C.4A](#reuse-02c.4a) Write lifecycle and termination safety | Reuse | Merged | [REUSE-02C.3](#reuse-02c.3) (merged) |
 | [REUSE-02C.4B](#reuse-02c.4b) Write-capable EngineDriver integration | Reuse | Planned | [REUSE-02C.4A](#reuse-02c.4a) (merged) |
 | [REUSE-02C](#reuse-02c) Supervised bridge | Reuse | In progress | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
-| [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | Planned | [REUSE-01](#reuse-01) (merged) |
+| [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | In progress | [REUSE-01](#reuse-01) (merged) |
 | [REUSE-04](#reuse-04) Runtime compatibility | Reuse | Planned | [REUSE-03](#reuse-03) (merged) |
 | [REUSE-05](#reuse-05) Deployment Modes A and B | Reuse | Planned | [REUSE-04](#reuse-04) (merged) |
 | [REUSE-06](#reuse-06) Migration acceptance and retirement | Reuse | Planned | [REUSE-02](#reuse-02) (merged), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged), [REUSE-05](#reuse-05) (merged) |
@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**Planned** · Proposed RUST-05A mapping.
+**In progress** · REUSE-03A started: O-3/O-4 and synthetic fixture scope approved; canonical model v2 contract and compatibility baseline first, then typed additions and migration.
 
 **Acceptance criteria**
 
@@ -748,9 +748,16 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Confirm owner decisions and fixture rights before implementation.
+- Schema v2 additions, typed commands, expression contract vectors and downstream validation are not implemented/frozen yet. Decoder mapping waits for the frozen schema.
 
-Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+**Assignment** · ChatGPT, feat/reuse-03a-canonical-v2 (recorded 2026-11-25T18:38:11Z)
+
+Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+
+**History**
+
+- 2026-11-25 · started · Owner approved O-3 model v2, O-4 expression contract 1, and O-1 synthetic-only initial fixtures. Reserved RUST-05 claim group for project-model/engineering-core on verified main f86f433. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · First compatibility test and schema contract slice; v1 remains current until complete v2 implementation. Existing SiemensS7 declaration retained. No private source or fixtures transferred. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
@@ -817,6 +824,10 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Parent** · RUST-08
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+
+## Shared reservation snapshot
+
+- REUSE-03 · ChatGPT · feat/reuse-03a-canonical-v2 · 2026-11-25T18:38:11Z
 
 ## Engineering decisions
 

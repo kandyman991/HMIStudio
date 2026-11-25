@@ -273,3 +273,7 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## Review depth decision — 2026-11-25
 
 Owner approved lightweight independent consistency review for documentation/roadmap-only PRs; full technical review remains required for implementation or control changes. Both retain exact-head Required CI, handoff and applicable gates. Apply to PR #34 evidence with explicit scrutiny of its owner-approved policy changes; do not self-exempt.
+
+## REUSE-03A started — 2026-11-25
+
+Owner approved O-3, O-4 and synthetic-only O-1 fixture scope. Reserved REUSE-03 in RUST-05 group from main f86f433; initial compatibility tests and proposed model contract in docs/reuse/REUSE_03A_MODEL_V2.md. Keep schema v1 active until v2 is complete. No private transfer, decoder or runtime work. Next exact action: typed industrial/security additions and validated commands, then expression/action/catalog contracts and migration freeze.

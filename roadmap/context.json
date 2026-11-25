@@ -74,5 +74,17 @@
       "title": "Original reuse proposal before DEV-01"
     }
   ],
-  "reservations": []
+  "reservations": [
+    {
+      "group": "RUST-05",
+      "milestone": "REUSE-03",
+      "owner": "ChatGPT",
+      "branch": "feat/reuse-03a-canonical-v2",
+      "scope": [
+        "crates/engineering-core/",
+        "crates/project-model/"
+      ],
+      "observedAt": "2026-11-25T18:38:11Z"
+    }
+  ]
 }

@@ -2,9 +2,9 @@
   "id": "REUSE-03",
   "title": "Legacy import and canonical model v2",
   "track": "Reuse",
-  "phase": "planned",
+  "phase": "in_progress",
   "counts": true,
-  "summary": "Proposed RUST-05A mapping.",
+  "summary": "REUSE-03A started: O-3/O-4 and synthetic fixture scope approved; canonical model v2 contract and compatibility baseline first, then typed additions and migration.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,11 +16,35 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Confirm owner decisions and fixture rights before implementation."
+    "Schema v2 additions, typed commands, expression contract vectors and downstream validation are not implemented/frozen yet. Decoder mapping waits for the frozen schema."
   ],
   "docs": [
-    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+    "docs/reuse/REUSE_MILESTONE_PLAN.md",
+    "docs/reuse/REUSE_03A_MODEL_V2.md"
   ],
   "parent": "RUST-05",
-  "claimGroup": "RUST-05"
+  "claimGroup": "RUST-05",
+  "assignment": {
+    "owner": "ChatGPT",
+    "branch": "feat/reuse-03a-canonical-v2",
+    "scope": [
+      "crates/engineering-core/",
+      "crates/project-model/"
+    ],
+    "observedAt": "2026-11-25T18:38:11Z"
+  },
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "started",
+      "summary": "Owner approved O-3 model v2, O-4 expression contract 1, and O-1 synthetic-only initial fixtures. Reserved RUST-05 claim group for project-model/engineering-core on verified main f86f433.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "First compatibility test and schema contract slice; v1 remains current until complete v2 implementation. Existing SiemensS7 declaration retained. No private source or fixtures transferred.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    }
+  ]
 }

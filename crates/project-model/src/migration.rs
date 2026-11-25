@@ -180,6 +180,38 @@ impl Migration for V1ToV2 {
                 message: "v2 declarations are not allowed in v1".into(),
             });
         }
+        // Reject new component kinds at semantic locations only. Extension
+        // payloads and ordinary text may contain the same words.
+        fn new_kind(v: &Value) -> bool {
+            matches!(
+                v.as_str(),
+                Some("line" | "arrow" | "polygon" | "textInput" | "dropDown")
+            )
+        }
+        let mut roots = Vec::new();
+        for key in ["screens", "components"] {
+            if let Some(items) = obj.get(key).and_then(Value::as_array) {
+                roots.extend(items.iter().filter_map(|v| v.get("root")));
+            }
+        }
+        let mut found = obj
+            .get("styles")
+            .and_then(Value::as_array)
+            .is_some_and(|styles| styles.iter().any(|s| new_kind(&s["target"])));
+        while let Some(node) = roots.pop() {
+            if node["element"]["type"] == "component" && new_kind(&node["element"]["kind"]) {
+                found = true;
+            }
+            if let Some(children) = node.get("children").and_then(Value::as_array) {
+                roots.extend(children);
+            }
+        }
+        if found {
+            return Err(MigrationError::Failed {
+                from: 1,
+                message: "v2 component kind in v1 project".into(),
+            });
+        }
         obj.insert("schemaVersion".into(), Value::from(2));
         Ok(doc)
     }

@@ -293,3 +293,7 @@ Added nine passive reusable symbol definitions and staged line/arrow/polygon/tex
 ## REUSE-03A canonical v2 candidate — 2026-11-25
 
 Draft branch now writes schema 2; v1 fixtures/schema immutable, additive strict migration and typed project groups integrated. Group replacement commands use strict validation, normalized references and existing persistence/undo; duplicate operations refused on nonempty v2 until remap is complete. Unsupported desktop and tag-engine consumers refuse nonempty v2; native Tauri offline dependency unavailable. Scope extended atomically to consumer paths. Next exact action: finish canonical component placement, copy/remap, consumer validation and cross-runtime parity before freezing v2. PR #35 remains draft.
+
+## REUSE-03A canonical placement and copying — 2026-11-25
+
+Five typed leaf kinds now occupy canonical nodes with one matching contract. insertV2Component is atomic; classified symbol creation persists metadata. Screen/node/definition copies preserve and remap declarations; inherited permissions cannot be lost on move/copy. Cross-definition reparenting remains refused and reference-bearing deletion requires explicit cleanup. Existing desktop/tag consumers reject unsupported features. Next exact action: downstream compatibility and expression conformance before freeze. PR #35 remains draft; reservation active.

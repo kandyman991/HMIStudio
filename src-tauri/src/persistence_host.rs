@@ -254,7 +254,7 @@ impl Host {
             &MigrationRegistry::builtin(),
         )
         .map_err(err)?;
-        if !opened.session.project().v2.is_empty() {
+        if opened.session.project().has_v2_features() {
             return Err("Project uses v2 declarations not yet supported by this workspace; original data preserved".into());
         }
         self.session = opened.session;
@@ -313,7 +313,7 @@ impl Host {
             )
         }
         .map_err(err)?;
-        if !opened.session.project().v2.is_empty() {
+        if opened.session.project().has_v2_features() {
             return Err("Project uses v2 declarations not yet supported by this workspace; original data preserved".into());
         }
         if has_recovery && !recover {

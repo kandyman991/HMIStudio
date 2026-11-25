@@ -188,7 +188,7 @@ impl std::fmt::Display for ValidationReport {
 
 /// Validates a project. See the module documentation.
 pub fn validate(project: &Project) -> ValidationReport {
-    if project.v2.is_empty() {
+    if !project.has_v2_features() {
         return validate_base(project);
     }
     let mut report = validate_v2_components(
@@ -197,15 +197,50 @@ pub fn validate(project: &Project) -> ValidationReport {
         &project.v2.bindings,
         &project.v2.components,
     );
-    if !project.v2.components.components.is_empty() {
-        report.diagnostics.push(Diagnostic {
-            severity: Severity::Error,
-            code: DiagnosticCode::InvalidHierarchy,
-            path: "/v2/components/components".into(),
-            message:
-                "new primitive/input declarations require canonical tree placement before admission"
-                    .into(),
+    use crate::model::Element;
+    use std::collections::BTreeMap;
+    let contracts: BTreeMap<_, _> = project
+        .v2
+        .components
+        .components
+        .iter()
+        .map(|c| (c.id.as_str(), c.contract.kind()))
+        .collect();
+    let mut placed = BTreeMap::new();
+    for root in project
+        .screens
+        .iter()
+        .map(|s| &s.root)
+        .chain(project.components.iter().map(|c| &c.root))
+    {
+        root.walk(&mut |n| {
+            if let Element::Component { kind } = n.element {
+                if kind.requires_v2_contract() {
+                    placed.insert(n.id.as_str(), kind);
+                    if contracts.get(n.id.as_str()) != Some(&kind) {
+                        report.diagnostics.push(Diagnostic {
+                            severity: Severity::Error,
+                            code: DiagnosticCode::InvalidHierarchy,
+                            path: "/v2/components/components".into(),
+                            message: format!(
+                                "node {} requires a matching component contract",
+                                n.id
+                            ),
+                        });
+                    }
+                }
+            }
         });
+    }
+    for (i, c) in project.v2.components.components.iter().enumerate() {
+        if placed.get(c.id.as_str()) != Some(&c.contract.kind()) {
+            report.diagnostics.push(Diagnostic {
+                severity: Severity::Error,
+                code: DiagnosticCode::InvalidHierarchy,
+                path: format!("/v2/components/components/{i}/id"),
+                message: "contract requires a matching placed node".into(),
+            });
+        }
     }
     report
 }

@@ -46,3 +46,47 @@ fn canonical_v2_sections_validate_and_roundtrip_together() {
     v["v2"]["components"]["components"] = json!([{"id":"detached","contract":{"kind":"line","start":{"x":0,"y":0},"end":{"x":1,"y":1},"strokeColor":"#000000","strokeWidth":1}}]);
     assert!(load_project(&v.to_string()).is_err());
 }
+
+#[test]
+fn all_five_placed_contracts_validate_and_strict_v1_admission_is_preserved() {
+    let mut v = base();
+    v["schemaVersion"] = json!(2);
+    v["tags"][3]["access"] = json!("readWrite");
+    v["tags"][4]["access"] = json!("readWrite");
+    let specs = json!([
+        {"id":"line-new","contract":{"kind":"line","start":{"x":0,"y":0},"end":{"x":12,"y":5},"strokeColor":"#000000","strokeWidth":1}},
+        {"id":"arrow-new","contract":{"kind":"arrow","start":{"x":0,"y":0},"end":{"x":12,"y":5},"strokeColor":"#000000","strokeWidth":1,"headLength":2}},
+        {"id":"poly-new","contract":{"kind":"polygon","points":[{"x":0,"y":0},{"x":10,"y":0},{"x":0,"y":10}],"fill":"#FFFFFF","strokeColor":"#000000","strokeWidth":1}},
+        {"id":"input-new","contract":{"kind":"textInput","tag":"tag-text","maxLength":24}},
+        {"id":"drop-new","contract":{"kind":"dropDown","tag":"tag-word","enumeration":"enum-word"}}
+    ]);
+    for spec in specs.as_array().unwrap() {
+        v["screens"][0]["root"]["children"].as_array_mut().unwrap().push(json!({"id":spec["id"],"element":{"type":"component","kind":spec["contract"]["kind"]}}));
+    }
+    v["v2"] = json!({"bindings":{"enumerations":[{"id":"enum-word","name":"State","dataType":"uint16","entries":[{"value":1,"label":"One"}]}]},"components":{"components":specs}});
+    let p = load_project(&v.to_string()).unwrap().project;
+    assert!(p.has_v2_features());
+    assert_eq!(load_project(&save_project(&p).unwrap()).unwrap().project, p);
+    let mut bad = v.clone();
+    bad["v2"]["components"]["components"][0]["id"] = json!("n-text");
+    assert!(load_project(&bad.to_string()).is_err());
+    bad = v.clone();
+    bad["v2"]["components"]["components"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    assert!(load_project(&bad.to_string()).is_err());
+    bad = v.clone();
+    bad["v2"]["components"]["components"]
+        .as_array_mut()
+        .unwrap()
+        .push(specs[0].clone());
+    assert!(load_project(&bad.to_string()).is_err());
+    v.as_object_mut().unwrap().remove("v2");
+    assert!(load_project(&v.to_string()).is_err());
+    v["schemaVersion"] = json!(1);
+    assert!(parse_project(&v.to_string()).is_err());
+    let mut extension = base();
+    extension["extensions"] = json!({"example":{"element":{"type":"component","kind":"line"}}});
+    assert!(load_project(&extension.to_string()).is_ok());
+}

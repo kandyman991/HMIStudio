@@ -388,7 +388,7 @@ impl TagEngine {
     ) -> (TagEngine, InitReport) {
         // This engine does not yet implement the v2 policy/authorization
         // semantics. Never start drivers or offer writes for such a project.
-        if !project.v2.is_empty()
+        if project.has_v2_features()
             || project.schema_version != hmi_project_model::CURRENT_SCHEMA_VERSION
         {
             let mut empty = project.clone();
@@ -396,6 +396,9 @@ impl TagEngine {
             empty.v2 = Default::default();
             empty.tags.clear();
             empty.connections.clear();
+            empty.screens.clear();
+            empty.components.clear();
+            empty.styles.clear();
             let mut safe_config = config;
             safe_config.scan_mode = ScanMode::Manual;
             let (engine, mut report) = Self::new(&empty, registry, clock, safe_config);

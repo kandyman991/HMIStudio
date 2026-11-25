@@ -75,10 +75,12 @@ fn engineering_request(
         if transaction.commands.iter().any(|cmd| {
             matches!(
                 cmd,
-                Command::SetIndustrialSecurity { .. }
+                Command::InsertV2Component { .. }
+                    | Command::CreateIndustrialSymbol { .. }
+                    | Command::SetIndustrialSecurity { .. }
                     | Command::SetExpressionEnumerations { .. }
                     | Command::SetComponentActions { .. }
-            )
+            ) || matches!(cmd, Command::UpsertStyle { style } if style.target.is_some_and(hmi_project_model::model::ComponentKind::requires_v2_contract))
         }) {
             return Err("V2 declaration editing is not supported by this workspace yet".into());
         }

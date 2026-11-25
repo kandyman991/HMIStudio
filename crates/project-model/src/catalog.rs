@@ -211,6 +211,12 @@ pub fn kind_properties(kind: ComponentKind) -> Vec<PropertySpec> {
             p("barColor", color(), Read),
         ],
         ComponentKind::Container => vec![p("elevation", number_range(Some(0.0), None), Static)],
+        // Geometry and input targets belong to the typed contract, not an untyped duplicate property bag.
+        ComponentKind::Line
+        | ComponentKind::Arrow
+        | ComponentKind::Polygon
+        | ComponentKind::TextInput
+        | ComponentKind::DropDown => vec![],
     };
     if matches!(
         kind,
@@ -251,9 +257,13 @@ pub fn events(kind: Option<ComponentKind>) -> &'static [EventKind] {
             EventKind::Release,
             EventKind::LongPress,
         ],
-        Some(ComponentKind::NumericInput | ComponentKind::Slider | ComponentKind::Switch) => {
-            &[EventKind::ValueChanged]
-        }
+        Some(
+            ComponentKind::NumericInput
+            | ComponentKind::Slider
+            | ComponentKind::Switch
+            | ComponentKind::TextInput
+            | ComponentKind::DropDown,
+        ) => &[EventKind::ValueChanged],
         _ => &[EventKind::Click],
     }
 }
@@ -278,5 +288,9 @@ pub fn compose_mapping(kind: ComponentKind) -> &'static str {
         ComponentKind::Switch => "Switch",
         ComponentKind::ProgressBar => "LinearProgressIndicator",
         ComponentKind::Container => "Surface / Card",
+        ComponentKind::Line | ComponentKind::Arrow | ComponentKind::Polygon => {
+            "Typed geometry (renderer pending)"
+        }
+        ComponentKind::TextInput | ComponentKind::DropDown => "Typed input (renderer pending)",
     }
 }

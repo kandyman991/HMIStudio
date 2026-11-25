@@ -1070,6 +1070,16 @@
       "description": "Built-in component kinds. The property catalog for each kind lives in\n[`crate::catalog`].",
       "oneOf": [
         {
+          "enum": [
+            "line",
+            "arrow",
+            "polygon",
+            "textInput",
+            "dropDown"
+          ],
+          "type": "string"
+        },
+        {
           "const": "button",
           "description": "Push button.",
           "type": "string"

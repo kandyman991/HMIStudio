@@ -122,6 +122,18 @@ pub enum ComponentContract {
         label: Option<LocalizedText>,
     },
 }
+impl ComponentContract {
+    pub fn kind(&self) -> super::ComponentKind {
+        use super::ComponentKind as K;
+        match self {
+            Self::Line { .. } => K::Line,
+            Self::Arrow { .. } => K::Arrow,
+            Self::Polygon { .. } => K::Polygon,
+            Self::TextInput { .. } => K::TextInput,
+            Self::DropDown { .. } => K::DropDown,
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ComponentCandidate {

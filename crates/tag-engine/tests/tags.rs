@@ -362,3 +362,20 @@ fn unsupported_v2_declarations_never_start_drivers_or_expose_tags() {
         .write_json(&tid("int-bool"), None, &json!(true))
         .is_err());
 }
+
+#[test]
+fn malformed_v2_node_without_contract_also_refuses_activation() {
+    use hmi_project_model::model::{ComponentKind, Element, Node, NodeId};
+    let mut p = project();
+    p.screens[0].root.children.push(Node::new(
+        NodeId::new("missing-contract").unwrap(),
+        Element::Component {
+            kind: ComponentKind::Line,
+        },
+    ));
+    assert!(p.v2.is_empty());
+    let r = rig_with(&p, ScanMode::Threaded);
+    assert!(!r.engine.is_running());
+    assert!(r.engine.tag_ids().is_empty());
+    assert!(r.report.issues[0].message.contains("activation refused"));
+}

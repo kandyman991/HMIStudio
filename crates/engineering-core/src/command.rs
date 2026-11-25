@@ -84,6 +84,18 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         assign_new_ids: bool,
     },
+    /// Insert a new primitive/input together with its typed contract.
+    #[serde(rename_all = "camelCase")]
+    InsertV2Component {
+        parent: NodeId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<NodeId>,
+        #[serde(default)]
+        layout: LayoutParams,
+        contract: hmi_project_model::model::v2_components::ComponentContract,
+    },
     /// Removes a node and its subtree. Roots cannot be removed.
     #[serde(rename_all = "camelCase")]
     RemoveNode {
@@ -350,6 +362,7 @@ impl Command {
             Command::DeleteScreen { .. } => "deleteScreen",
             Command::DuplicateScreen { .. } => "duplicateScreen",
             Command::InsertNode { .. } => "insertNode",
+            Command::InsertV2Component { .. } => "insertV2Component",
             Command::RemoveNode { .. } => "removeNode",
             Command::DuplicateNode { .. } => "duplicateNode",
             Command::MoveNode { .. } => "moveNode",

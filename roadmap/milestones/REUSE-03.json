@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A in progress: canonical v2 candidate owns typed industrial/security, expression/enum and component/action declarations; atomic group commands, strict migration and generated v2 schema in draft. Unsupported consumers refuse nonempty v2.",
+  "summary": "REUSE-03A in progress: canonical v2 candidate, strict migration/schema, placed primitive/input contracts and reference-aware screen/node/definition duplication implemented; downstream capability and conformance gates remain.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Canonical primitive/input tree placement, reference-aware duplication/remapping, downstream desktop compatibility and cross-runtime expression parity remain open; exact-head CI and review required. Decoder mapping waits for frozen schema."
+    "Desktop/editor/renderer and runtime capability integration, cross-runtime expression parity and exact-head CI/review remain open. Cross-definition reparenting requires scope mapping; reference-bearing deletion requires explicit declaration cleanup. Decoder mapping waits for frozen schema."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -70,6 +70,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Integrated typed v2 sections and group commands; added strict v1 admission/migration, generated v2 schema, persisted transaction regression and consumer capability refusal. Candidate remains draft, placement/remap/native validation outstanding.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Integrated five typed leaf kinds and atomic placement, symbol classification, reference-aware duplication, inherited permission preservation and strict v1 kind admission. Existing consumers refuse unsupported v2 features; downstream compatibility and parity remain open.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

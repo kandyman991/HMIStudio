@@ -139,7 +139,13 @@ pub fn validate_v2_components(
             def.root.walk(&mut |node| {
                 if !node.events.is_empty()
                     || node.bindings.iter().any(|b| b.mode.writes())
-                    || matches!(node.element, Element::Instance { .. })
+                    || matches!(
+                        node.element,
+                        Element::Instance { .. }
+                            | Element::Component {
+                                kind: ComponentKind::TextInput | ComponentKind::DropDown
+                            }
+                    )
                 {
                     error(
                         &mut r,
@@ -157,6 +163,20 @@ pub fn validate_v2_components(
         .iter()
         .map(|e| (e.id.as_str(), e))
         .collect();
+    let mut contract_ids = BTreeSet::new();
+    let mut placed = BTreeMap::new();
+    for root in p
+        .screens
+        .iter()
+        .map(|s| &s.root)
+        .chain(p.components.iter().map(|c| &c.root))
+    {
+        root.walk(&mut |n| {
+            if let Element::Component { kind } = n.element {
+                placed.insert(n.id.as_str(), kind);
+            }
+        });
+    }
     for (i, c) in d.components.iter().enumerate() {
         let path = format!("/v2/components/{i}");
         if validate_id(c.id.as_str()).is_err() {
@@ -167,7 +187,10 @@ pub fn validate_v2_components(
                 "invalid node identifier",
             );
         }
-        if !ids.insert(c.id.as_str().to_owned()) {
+        if !contract_ids.insert(c.id.as_str())
+            || (ids.contains(c.id.as_str())
+                && placed.get(c.id.as_str()) != Some(&c.contract.kind()))
+        {
             error(
                 &mut r,
                 C::DuplicateIdentifier,

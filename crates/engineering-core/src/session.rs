@@ -383,7 +383,7 @@ impl ProjectSession {
         let report = validate(&work);
         // Candidate v2 validation is fail-closed even if a base project was
         // previously invalid: do not admit unvalidated policy declarations.
-        let policy = if !work.v2.is_empty() || !self.current.project.v2.is_empty() {
+        let policy = if work.has_v2_features() || self.current.project.has_v2_features() {
             ValidationPolicy::Strict
         } else {
             txn.validation

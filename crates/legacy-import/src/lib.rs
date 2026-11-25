@@ -2,8 +2,8 @@
 //! No filesystem writes, archive extraction, I/O, or runtime authorization.
 use hmi_project_model::{model::Project, serialization::load_project};
 mod graphics;
-mod navigation;
 mod industrial;
+mod navigation;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};

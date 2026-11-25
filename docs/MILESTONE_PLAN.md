@@ -37,7 +37,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | Merged | [RUST-04B](#rust-04b) (merged) |
 | [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Merged | [RUST-04A](#rust-04a) (merged) |
-| [RUST-04C.1](#rust-04c.1) Native graphical manipulation corrections | Engineering | In progress | [RUST-04C](#rust-04c) (merged) |
+| [RUST-04C.1](#rust-04c.1) Native graphical manipulation corrections | Engineering | Proposed completion | [RUST-04C](#rust-04c) (merged) |
 | [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | Merged | [RUST-04B.1](#rust-04b.1) (merged) |
 | [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged) |
 | [RUST-06](#rust-06) Engineering systems | Engineering | In progress | [RUST-03B](#rust-03b) (merged) |
@@ -348,7 +348,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 <a id="rust-04c.1"></a>
 ### RUST-04C.1 — Native graphical manipulation corrections
 
-**In progress** · Correct Windows acceptance failures in semantic flow selection, drag/reorder and nested reparenting while preserving the accepted workspace appearance.
+**Proposed completion** · Correct Windows acceptance failures in semantic flow selection, drag/reorder and nested reparenting while preserving the accepted workspace appearance.
 
 **Acceptance criteria**
 
@@ -364,6 +364,10 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 
 **Assignment** · ChatGPT, fix/rust-04c1-native-drag (recorded 2026-11-25T15:42:06Z)
 
+**Proposal** · Corrected compact drag hit area, empty auto flow drop target and gap insertion; local frontend and rendered pointer regressions passed. Exact-head hosted CI and independent review pending; Windows acceptance retest belongs to RUST-04.
+
+[PR #32](https://github.com/kandyman991/HMIStudio/pull/32) · draft · head [9fc1e7c](https://github.com/kandyman991/HMIStudio/commit/9fc1e7c7515f3112afe7ebec6438ca0136fd44c7) · snapshot 2026-11-25T15:46:24Z · CI unrecorded
+
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 **History**
@@ -371,6 +375,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · note · Registered correction scope after owner reported two failures on native Windows build a707bf5; eight other checks including visual fidelity passed. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · started · Reserved exact frontend and regression test scope from verified main 55b3f04 after PR #30 recorded failed native acceptance. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Reproduced compact selected component center incorrectly issuing setLayout and empty auto flow collapsing to zero area in predecessor browser fixture. Corrected bounded resize hit area, focus/capture handling, visible empty targets and main-axis gap drop planning. 20 frontend tests, TypeScript/Vite and rendered browser pointer regressions passed; actual Windows retest remains required. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · completion proposed · Draft PR #32 opened for correction candidate; final exact-head hosted CI and independent review required. Native Windows retest remains open at RUST-04. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04c"></a>
 ### RUST-04C — Direct graphical manipulation

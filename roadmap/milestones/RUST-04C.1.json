@@ -2,7 +2,7 @@
   "id": "RUST-04C.1",
   "title": "Native graphical manipulation corrections",
   "track": "Engineering",
-  "phase": "in_progress",
+  "phase": "proposed",
   "counts": true,
   "summary": "Correct Windows acceptance failures in semantic flow selection, drag/reorder and nested reparenting while preserving the accepted workspace appearance.",
   "dependencies": [
@@ -39,6 +39,12 @@
       "type": "handoff",
       "summary": "Reproduced compact selected component center incorrectly issuing setLayout and empty auto flow collapsing to zero area in predecessor browser fixture. Corrected bounded resize hit area, focus/capture handling, visible empty targets and main-axis gap drop planning. 20 frontend tests, TypeScript/Vite and rendered browser pointer regressions passed; actual Windows retest remains required.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "completion_proposed",
+      "summary": "Draft PR #32 opened for correction candidate; final exact-head hosted CI and independent review required. Native Windows retest remains open at RUST-04.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "assignment": {
@@ -51,5 +57,17 @@
       "tests/designer.test.mjs"
     ],
     "observedAt": "2026-11-25T15:42:06Z"
-  }
+  },
+  "proposal": "Corrected compact drag hit area, empty auto flow drop target and gap insertion; local frontend and rendered pointer regressions passed. Exact-head hosted CI and independent review pending; Windows acceptance retest belongs to RUST-04.",
+  "completionPr": 32,
+  "prs": [
+    {
+      "number": 32,
+      "head": "9fc1e7c7515f3112afe7ebec6438ca0136fd44c7",
+      "branch": "fix/rust-04c1-native-drag",
+      "state": "draft",
+      "runs": [],
+      "observedAt": "2026-11-25T15:46:24Z"
+    }
+  ]
 }

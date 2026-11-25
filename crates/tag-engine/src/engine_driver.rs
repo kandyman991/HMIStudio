@@ -1,7 +1,7 @@
 //! Explicitly registered, isolated read-only communication-engine adapter.
 //! No physical endpoint, arbitrary command, arming or write replay is supported.
 use crate::bridge_dispatch::{Quality, Value, ValueType};
-use crate::bridge_simulation::{SimPoint, SimulationBridge, MAX_SIM_POINTS};
+use crate::bridge_simulation::{SimPoint, SimulationBridge, Snapshot, MAX_SIM_POINTS};
 use crate::driver::*;
 use crate::value::{TagValue, TypeContext};
 use hmi_project_model::model::{Connection, DataType, DriverKind, Tag, TagId};
@@ -186,6 +186,25 @@ fn operation_error(e: io::Error, fallback: DriverErrorKind) -> DriverError {
 }
 
 impl EngineDriver {
+    // Validate the whole generation before publishing any item, including tags
+    // outside the current read group. Wire variants alone do not check ranges.
+    fn decode_snapshot(
+        &self,
+        snapshot: &Snapshot,
+    ) -> Result<BTreeMap<TagId, TagValue>, DriverError> {
+        self.mappings
+            .iter()
+            .map(|(id, (_, kind))| {
+                let point = snapshot.values.get(&id.to_string()).ok_or_else(mismatch)?;
+                if point.quality != Quality::Good {
+                    return Err(err(DriverErrorKind::Protocol, "point quality not good"));
+                }
+                let value = decode(point.value.as_ref().ok_or_else(mismatch)?, kind)?;
+                Ok((id.clone(), value))
+            })
+            .collect()
+    }
+
     fn check_context(ctx: &OpContext) -> Result<(), DriverError> {
         if ctx.cancel.is_cancelled() {
             return Err(err(DriverErrorKind::Cancelled, "operation cancelled"));
@@ -221,17 +240,9 @@ impl Driver for EngineDriver {
             .resynchronize_cancellable(&self.executable, &self.points, ctx.timeout, &ctx.cancel)
             .map_err(|e| operation_error(e, DriverErrorKind::ConnectFailed))?;
         // Do not admit a generation whose complete baseline cannot be decoded.
-        for (id, (_, kind)) in &self.mappings {
-            let result = snapshot
-                .values
-                .get(&id.to_string())
-                .and_then(|p| p.value.as_ref())
-                .ok_or_else(mismatch)
-                .and_then(|v| decode(v, kind));
-            if let Err(e) = result {
-                self.disconnect();
-                return Err(e);
-            }
+        if let Err(e) = self.decode_snapshot(&snapshot) {
+            self.disconnect();
+            return Err(e);
         }
         if let Err(e) = Self::check_context(ctx) {
             self.disconnect();
@@ -270,6 +281,13 @@ impl Driver for EngineDriver {
                 return Err(operation_error(e, DriverErrorKind::ConnectionLost));
             }
         };
+        let decoded = match self.decode_snapshot(&snapshot) {
+            Ok(values) => values,
+            Err(e) => {
+                self.disconnect();
+                return Err(err(DriverErrorKind::ConnectionLost, &e.to_string()));
+            }
+        };
         Self::check_context(ctx)?;
         Ok(items
             .iter()
@@ -284,14 +302,7 @@ impl Driver for EngineDriver {
                 if &item.data_type != kind {
                     return Err(mismatch());
                 }
-                let point = snapshot
-                    .values
-                    .get(&item.tag.to_string())
-                    .ok_or_else(mismatch)?;
-                if point.quality != Quality::Good {
-                    return Err(err(DriverErrorKind::Protocol, "point quality not good"));
-                }
-                decode(point.value.as_ref().ok_or_else(mismatch)?, kind)
+                decoded.get(&item.tag).cloned().ok_or_else(mismatch)
             })
             .collect())
     }

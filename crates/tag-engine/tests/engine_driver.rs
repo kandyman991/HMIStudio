@@ -128,6 +128,17 @@ mod subprocess {
 
     #[test]
     fn child_loss_marks_bad_and_reconnect_requires_new_baseline() {
+        assert_fresh_baseline_after_fault("exit 0");
+    }
+
+    #[test]
+    fn invalid_numeric_update_invalidates_generation_and_requires_fresh_baseline() {
+        assert_fresh_baseline_after_fault(
+            r#"printf '%s\n' '{"type":"values","values":[{"variableId":"sim-count","quality":"GOOD","value":{"type":"long","value":-1}}]}'"#,
+        );
+    }
+
+    fn assert_fresh_baseline_after_fault(action: &str) {
         let _guard = FIXTURE_LOCK.lock().unwrap();
         let f = Fixture::new(&format!(
             r#"{HELLO}
@@ -137,7 +148,7 @@ read -r line; printf '%s\n' '{{"type":"ok","id":3}}'
 printf '%s\n' '{{"type":"sourceState","sourceId":"isolated-loopback","state":"CONNECTED"}}'
 if test -f "$dir/first"; then v=22; else v=11; touch "$dir/first"; fi
 printf '%s\n' "{{\"type\":\"values\",\"values\":[{{\"variableId\":\"sim-count\",\"quality\":\"GOOD\",\"value\":{{\"type\":\"long\",\"value\":$v}}}}]}}"
-if test "$v" = 11; then while ! test -f "$dir/lose"; do sleep 0.01; done; exit 0; fi
+if test "$v" = 11; then while ! test -f "$dir/lose"; do sleep 0.01; done; {action}; fi
 exec sleep 60"#
         ));
         let p = single_project();
@@ -176,7 +187,7 @@ exec sleep 60"#
                 assert_eq!(s.value, TagValue::UInt32(11)); // diagnostics only
                 break;
             }
-            assert!(Instant::now() < deadline, "child loss not observed");
+            assert!(Instant::now() < deadline, "generation fault not observed");
             std::thread::sleep(Duration::from_millis(5));
         }
         assert!(matches!(

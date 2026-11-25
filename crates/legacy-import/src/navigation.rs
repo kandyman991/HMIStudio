@@ -6,7 +6,7 @@ fn handlers(
     source: &Value,
     p: &str,
     origin: Value,
-    screen: bool,
+    doc: &Value,
     version: u64,
     out: &mut Vec<Value>,
     m: &mut Mapping,
@@ -24,6 +24,7 @@ fn handlers(
         m.fail(&ap, "actions-version-mismatch");
         return None;
     }
+    let screen = origin.get("screen").is_some();
     for (event, values) in actions {
         let ep = path(&ap, event);
         let kind = match (screen, event.as_str()) {
@@ -64,6 +65,9 @@ fn handlers(
                 "navigate.back" => json!({"type":"back"}),
                 "navigate.startup" => json!({"type":"navigateStartup"}),
                 "popup.close" if version >= 10 => json!({"type":"closePopup"}),
+                "value.set" | "value.toggle" | "value.pulse" if version >= 10 => {
+                    typed_action(a, &sp, &tp, doc, m)?
+                }
                 _ => {
                     m.fail(&path(&sp, "action"), "action-kind-not-representable");
                     return None;
@@ -77,18 +81,63 @@ fn handlers(
     Some(())
 }
 
+// Declarations only. An admitted write policy must agree with the action.
+fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Option<Value> {
+    let old = a.get("variableId")?.as_str()?;
+    let id = m.ids.get(&path(&path("/variables", old), "id"))?.clone();
+    let tag = doc["tags"].as_array()?.iter().find(|x| x["id"] == id)?;
+    let policy = doc["v2"]["industrial"]["tags"]
+        .as_array()?
+        .iter()
+        .find(|x| x["tag"] == id)?;
+    if tag["dataType"] != "bool"
+        || tag["access"] != "readWrite"
+        || policy["writeConfirmed"] != true
+    {
+        return None;
+    }
+    let target = json!({"tag":id});
+    let action = match a["action"].as_str()? {
+        "value.set" if policy["command"] == "maintained" => {
+            let val = a.get("value")?;
+            if val["valueType"] != "bool" {
+                return None;
+            }
+            let value = val.get("value")?.as_bool()?;
+            m.mark(&format!("{p}/value/valueType"), &path(t, "value"));
+            m.mark(&format!("{p}/value/value"), &path(t, "value"));
+            json!({"type":"writeTag","target":target,"value":value})
+        }
+        "value.toggle" if policy["command"] == "maintained" => {
+            json!({"type":"toggleTag","target":target})
+        }
+        "value.pulse" if policy["command"] == "momentary" => {
+            let ms = a.get("ms").map(Value::as_u64).unwrap_or(Some(500))?;
+            if !(100..=5000).contains(&ms) || policy["pulseMs"].as_u64() != Some(ms) {
+                m.fail(&path(p, "ms"), "pulse-action-policy-mismatch");
+                return None;
+            }
+            m.mark(&path(p, "ms"), &path(t, "durationMs"));
+            json!({"type":"pulseTag","target":target,"durationMs":ms})
+        }
+        _ => return None,
+    };
+    m.mark(&path(p, "variableId"), &format!("{t}/target/tag"));
+    Some(action)
+}
+
 pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let version = v["schemaVersion"].as_u64()?;
     let mut out = Vec::new();
     for (key, s) in v["screens"].as_object()? {
         let p = path("/screens", key);
         let id = m.ids.get(&path(&p, "id"))?.clone();
-        handlers(s, &p, json!({"screen":id}), true, version, &mut out, m)?;
+        handlers(s, &p, json!({"screen":id}), doc, version, &mut out, m)?;
         if let Some(cs) = s.get("components") {
             for (key, c) in cs.as_object()? {
                 let cp = path(&path(&p, "components"), key);
                 let id = m.ids.get(&path(&cp, "id"))?.clone();
-                handlers(c, &cp, json!({"node":id}), false, version, &mut out, m)?;
+                handlers(c, &cp, json!({"node":id}), doc, version, &mut out, m)?;
             }
         }
     }

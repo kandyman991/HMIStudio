@@ -642,3 +642,31 @@ fn passive_pipe_and_tank_slot_conversion() {
         );
     }
 }
+
+#[test]
+fn typed_boolean_action_policy_and_pulse_agreement() {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["variables"]["label-a"]["type"] = json!("BOOL");
+    f["variables"]["label-a"]["access"] = json!("COMMAND");
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"MAINTAINED"});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("button");
+    c["actions"] = json!({"press":[{"action":"value.set","variableId":"label-a","value":{"valueType":"bool","value":true}},{"action":"value.toggle","variableId":"label-a"}]});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let actions = &d["v2"]["components"]["handlers"][0]["actions"];
+    assert_eq!(actions[0]["type"], "writeTag");
+    assert_eq!(actions[0]["target"]["tag"], d["tags"][0]["id"]);
+    assert_eq!(actions[1]["type"], "toggleTag");
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"MOMENTARY","pulseMs":300});
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"] =
+        json!({"press":{"action":"value.pulse","variableId":"label-a","ms":300}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"]["press"]["ms"] = json!(500);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

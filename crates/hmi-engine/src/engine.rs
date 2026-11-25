@@ -43,39 +43,97 @@ pub const DEFERRED_MAX: usize = 32;
 /// Message of a write the engine stopped waiting for because the session ended.
 const ABANDONED: &str = "the session ended (client disconnected or shutdown requested) while the write was in progress; the engine stopped waiting and whether the device applied it is unknown; it is not repeated";
 
-/// Awaits a driver operation while still watching the session. Returns `None` when the session
-/// ended first (client gone, output closed, event delivery failed, or `shutdown` received); the
-/// operation is then dropped. A driver that has not transmitted yet withdraws the request.
+/// Time bounds of the write lifecycle (REUSE-02C.4A). Every wait the engine performs on a driver
+/// is bounded, so a stuck driver can delay but never block a session, a release or termination.
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    /// Longest wait for a driver to answer a `write`, `pulse` start or `browse`. When it passes
+    /// the request is withdrawn; a write whose transmission may have begun is reported as
+    /// outcome unknown and is never repeated.
+    pub write_timeout: Duration,
+    /// Longest wait for the FALSE of one pulse release.
+    pub release_timeout: Duration,
+    /// Longest wait for one driver to stop; after it the driver is dropped.
+    pub stop_timeout: Duration,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            write_timeout: Duration::from_secs(10),
+            release_timeout: Duration::from_secs(5),
+            stop_timeout: Duration::from_secs(5),
+        }
+    }
+}
+
+/// How a supervised driver operation ended.
+enum Supervised<T> {
+    Done(T),
+    /// The session ended first; the operation was dropped.
+    SessionEnded,
+    /// [Limits::write_timeout] passed first; the operation was dropped.
+    TimedOut,
+}
+
+/// Message prefix of a pulse whose release was not confirmed: further pulses of that command are
+/// refused until writes are armed again (an explicit operator acknowledgement).
+const RELEASE_UNCONFIRMED: &str = "the release (FALSE) of the previous pulse of this command was not confirmed; it may still be asserted. Check the device, then arm writes again before pulsing it";
+
+/// Awaits a driver operation while still watching the session and the deadline. The operation
+/// is dropped when the session ends first (client gone, output closed, event delivery failed, or
+/// `shutdown` received) or the deadline passes. A driver that has not transmitted yet withdraws
+/// the request when dropped.
 async fn supervise<T>(
     inbox: &mut Inbox,
     out: &Sender<Message>,
     events: &driver::EventSink,
+    timeout: Duration,
     op: impl Future<Output = T>,
-) -> Option<T> {
+) -> Supervised<T> {
     tokio::pin!(op);
+    let deadline = tokio::time::sleep(timeout);
+    tokio::pin!(deadline);
     let mut check = tokio::time::interval(Duration::from_millis(10));
     loop {
         let accept = inbox.shutdown.is_none() && inbox.deferred.len() < DEFERRED_MAX;
         tokio::select! {
             biased;
-            result = &mut op => return Some(result),
-            _ = out.closed() => return None,
-            _ = events.failure() => return None,
+            result = &mut op => return Supervised::Done(result),
+            _ = out.closed() => return Supervised::SessionEnded,
+            _ = events.failure() => return Supervised::SessionEnded,
+            _ = &mut deadline => return Supervised::TimedOut,
             request = inbox.rx.recv(), if accept => match request {
-                None => return None,
+                None => return Supervised::SessionEnded,
                 Some(Request::Shutdown { id }) => {
                     inbox.shutdown = Some(id);
-                    return None;
+                    return Supervised::SessionEnded;
                 }
                 Some(other) => inbox.deferred.push_back(other),
             },
             _ = check.tick() => {
                 // Closed means the client is gone, even with requests still buffered.
                 if inbox.rx.is_closed() {
-                    return None;
+                    return Supervised::SessionEnded;
                 }
             }
         }
+    }
+}
+
+/// The driver result of a supervised write, with session end and timeout turned into an
+/// outcome-unknown error (the engine cannot tell whether the device applied it).
+fn write_outcome(
+    supervised: Supervised<Result<(), driver::DriverError>>,
+    limits: &Limits,
+) -> Result<(), driver::DriverError> {
+    match supervised {
+        Supervised::Done(result) => result,
+        Supervised::SessionEnded => Err(driver::DriverError::outcome_unknown(ABANDONED)),
+        Supervised::TimedOut => Err(driver::DriverError::outcome_unknown(format!(
+            "the driver did not answer within {} ms; the engine stopped waiting and whether the device applied the write is unknown; it is not repeated",
+            limits.write_timeout.as_millis()
+        ))),
     }
 }
 
@@ -104,7 +162,11 @@ pub struct Engine {
     latest: HashMap<String, PointValue>,
     /// Running pulses by variable; released by the engine, armed or not.
     pulses: BTreeMap<String, PendingPulse>,
+    /// Momentary commands whose last release was not confirmed (failed, timed out or no
+    /// driver). Never written again automatically; cleared by the next explicit arming.
+    unconfirmed: BTreeSet<String>,
     factory: driver::DriverFactory,
+    limits: Limits,
 }
 
 /// Runs until the request channel closes (client gone) or a `shutdown` request arrives.
@@ -122,6 +184,17 @@ pub async fn run_with_drivers(
     out: Sender<Message>,
     factory: driver::DriverFactory,
 ) {
+    run_with_limits(requests, out, factory, Limits::default()).await
+}
+
+/// [run_with_drivers] with explicit [Limits]: used by tests to keep timeouts short.
+#[doc(hidden)]
+pub async fn run_with_limits(
+    requests: Receiver<Request>,
+    out: Sender<Message>,
+    factory: driver::DriverFactory,
+    limits: Limits,
+) {
     let (events_tx, mut events_rx) = channel(256);
     let mut engine = Engine {
         out,
@@ -137,7 +210,9 @@ pub async fn run_with_drivers(
         demand: None,
         latest: HashMap::new(),
         pulses: BTreeMap::new(),
+        unconfirmed: BTreeSet::new(),
         factory,
+        limits,
     };
     let mut inbox = Inbox {
         rx: requests,
@@ -188,7 +263,7 @@ pub async fn run_with_drivers(
         match next {
             Next::End => break,
             Next::Request(request) => engine.handle(request, &mut inbox).await,
-            Next::Event(source_id, event) => engine.on_driver_event(source_id, event),
+            Next::Event(source_id, event) => engine.on_driver_event(source_id, event).await,
             Next::Tick => engine.on_tick().await,
             Next::Pulses => engine.release_due_pulses().await,
         }
@@ -363,6 +438,9 @@ impl Engine {
                 // Re-arming is a new control period: release any pulse belonging to the
                 // previous period before changing the named actor.
                 self.release_pulses(true).await;
+                // Explicit arming is the operator's acknowledgement of earlier unconfirmed
+                // releases; it is the only thing that clears them.
+                self.unconfirmed.clear();
                 self.armed = Some(Armed {
                     actor: actor.clone(),
                     until: Instant::now() + Duration::from_secs(ttl_seconds as u64),
@@ -415,22 +493,21 @@ impl Engine {
                     Err(refusal) => (Some(refusal), None),
                     Ok(point) => match self.drivers.get_mut(&point.source_id) {
                         None => (Some(WriteRefusal::SourceNotConnected), None),
-                        Some(driver) => match supervise(
-                            inbox,
-                            &self.out,
-                            &self.events_tx,
-                            driver.write(&point, &value),
-                        )
-                        .await
-                        {
-                            Some(Ok(())) => (None, None),
-                            Some(Err(error)) => {
+                        Some(driver) => match write_outcome(
+                            supervise(
+                                inbox,
+                                &self.out,
+                                &self.events_tx,
+                                self.limits.write_timeout,
+                                driver.write(&point, &value),
+                            )
+                            .await,
+                            &self.limits,
+                        ) {
+                            Ok(()) => (None, None),
+                            Err(error) => {
                                 (Some(WriteRefusal::DriverError), Some(error.to_string()))
                             }
-                            None => (
-                                Some(WriteRefusal::DriverError),
-                                Some(driver::DriverError::outcome_unknown(ABANDONED).to_string()),
-                            ),
                         },
                     },
                 };
@@ -466,7 +543,9 @@ impl Engine {
                     .is_some_and(|armed| armed.actor == actor)
                 {
                     Err(WriteRefusal::WritesDisarmed)
-                } else if self.pulses.contains_key(&variable_id) {
+                } else if self.pulses.contains_key(&variable_id)
+                    || self.unconfirmed.contains(&variable_id)
+                {
                     Err(WriteRefusal::Busy)
                 } else {
                     guard::check_write(
@@ -481,22 +560,27 @@ impl Engine {
                     )
                     .cloned()
                 };
+                let blocked = self.unconfirmed.contains(&variable_id);
                 let (refusal, message) = match decision {
+                    Err(WriteRefusal::Busy) if blocked => (
+                        Some(WriteRefusal::Busy),
+                        Some(RELEASE_UNCONFIRMED.to_string()),
+                    ),
                     Err(refusal) => (Some(refusal), None),
                     Ok(point) => match self.drivers.get_mut(&point.source_id) {
                         None => (Some(WriteRefusal::SourceNotConnected), None),
                         Some(driver) => {
-                            let outcome = match supervise(
-                                inbox,
-                                &self.out,
-                                &self.events_tx,
-                                driver.write(&point, &value),
-                            )
-                            .await
-                            {
-                                Some(result) => result,
-                                None => Err(driver::DriverError::outcome_unknown(ABANDONED)),
-                            };
+                            let outcome = write_outcome(
+                                supervise(
+                                    inbox,
+                                    &self.out,
+                                    &self.events_tx,
+                                    self.limits.write_timeout,
+                                    driver.write(&point, &value),
+                                )
+                                .await,
+                                &self.limits,
+                            );
                             match outcome {
                                 Ok(()) => {
                                     let due = Instant::now()
@@ -563,13 +647,24 @@ impl Engine {
                     inbox,
                     &self.out,
                     &self.events_tx,
+                    self.limits.write_timeout,
                     driver.browse(node_id.as_deref()),
                 )
                 .await
                 {
-                    Some(Ok(nodes)) => self.send(Message::BrowseResult { id, nodes }),
-                    Some(Err(error)) => self.error(id, "BROWSE_FAILED", error.to_string()),
-                    None => {} // session ended; nobody is waiting for the answer
+                    Supervised::Done(Ok(nodes)) => self.send(Message::BrowseResult { id, nodes }),
+                    Supervised::Done(Err(error)) => {
+                        self.error(id, "BROWSE_FAILED", error.to_string())
+                    }
+                    Supervised::TimedOut => self.error(
+                        id,
+                        "BROWSE_FAILED",
+                        format!(
+                            "the driver did not answer within {} ms",
+                            self.limits.write_timeout.as_millis()
+                        ),
+                    ),
+                    Supervised::SessionEnded => {} // nobody is waiting for the answer
                 },
             },
         }
@@ -613,23 +708,33 @@ impl Engine {
         }
     }
 
-    fn on_driver_event(&mut self, source_id: String, event: DriverEvent) {
+    async fn on_driver_event(&mut self, source_id: String, event: DriverEvent) {
         // Late events from a driver that was already stopped are dropped.
         if !self.running {
             return;
         }
         match event {
             DriverEvent::State(state, message) => {
+                let lost = state != SourceState::Connected && self.connected.contains(&source_id);
                 if state == SourceState::Connected {
                     self.connected.insert(source_id.clone());
                 } else {
                     self.connected.remove(&source_id);
                 }
                 self.send(Message::SourceState {
-                    source_id,
+                    source_id: source_id.clone(),
                     state,
                     message,
                 });
+                if lost {
+                    // REUSE-02C.4A (F-1): losing a connection ends the control period. Arming is
+                    // never carried over to the next connection; the operator arms again after
+                    // reconnecting. Pulses of that source are released now (the release is
+                    // reported, and marked unconfirmed if it cannot be written).
+                    self.release_pulses_where(true, |pulse| pulse.point.source_id == source_id)
+                        .await;
+                    self.disarm();
+                }
             }
             DriverEvent::Values(values) => {
                 for value in &values {
@@ -680,24 +785,47 @@ impl Engine {
     /// Writes FALSE for every pulse that is due (all of them when [force]). The release does not
     /// depend on arming: a started pulse is always ended.
     async fn release_pulses(&mut self, force: bool) {
+        self.release_pulses_where(force, |_| true).await;
+    }
+
+    /// [release_pulses] limited to the pulses selected by `which`. Each release is bounded by
+    /// [Limits::release_timeout]; one that fails or times out is reported (`released: false`)
+    /// and its command is marked unconfirmed. It is never written again automatically.
+    async fn release_pulses_where(&mut self, force: bool, which: impl Fn(&PendingPulse) -> bool) {
         let now = Instant::now();
         let due: Vec<String> = self
             .pulses
             .iter()
-            .filter(|(_, pulse)| force || pulse.due <= now)
+            .filter(|(_, pulse)| (force || pulse.due <= now) && which(pulse))
             .map(|(variable, _)| variable.clone())
             .collect();
         for variable_id in due {
             let Some(pulse) = self.pulses.remove(&variable_id) else {
                 continue;
             };
+            let limit = self.limits.release_timeout;
             let result = match self.drivers.get_mut(&pulse.point.source_id) {
-                None => Err("the source is not connected".to_string()),
-                Some(driver) => driver
-                    .write(&pulse.point, &crate::protocol::Value::Bool(false))
-                    .await
-                    .map_err(|error| error.to_string()),
+                None => Err(driver::DriverError::not_transmitted(
+                    "the source is not started; the release was not written",
+                )
+                .to_string()),
+                Some(driver) => match tokio::time::timeout(
+                    limit,
+                    driver.write(&pulse.point, &crate::protocol::Value::Bool(false)),
+                )
+                .await
+                {
+                    Ok(result) => result.map_err(|error| error.to_string()),
+                    Err(_) => Err(driver::DriverError::outcome_unknown(format!(
+                        "the release was not answered within {} ms; whether FALSE was applied is unknown",
+                        limit.as_millis()
+                    ))
+                    .to_string()),
+                },
             };
+            if result.is_err() {
+                self.unconfirmed.insert(variable_id.clone());
+            }
             let message = match (&result, pulse.after_unknown_start) {
                 (Err(error), _) => Some(error.clone()),
                 (Ok(()), true) => {
@@ -756,7 +884,9 @@ impl Engine {
         self.running = false;
         let drivers = std::mem::take(&mut self.drivers);
         for (source_id, mut driver) in drivers {
-            driver.stop().await;
+            // Bounded: a driver that does not stop in time is dropped; termination continues.
+            let _ = tokio::time::timeout(self.limits.stop_timeout, driver.stop()).await;
+            drop(driver);
             if was_running {
                 self.send(Message::SourceState {
                     source_id,

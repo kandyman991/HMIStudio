@@ -2,7 +2,7 @@
   "id": "DEV-01",
   "title": "Living development roadmap",
   "track": "Developer workflow",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
   "summary": "Structured roadmap owns milestone state and generates the detailed plan and dashboard.",
   "dependencies": [],
@@ -11,11 +11,6 @@
     "Provide a local interactive graph, progress, filters, assignments, blockers, evidence, next eligible tasks, prompts and continuity.",
     "Integrate stale-output and consistency checks without unrelated installer builds. Independently review the feature and verify exact-head hosted checks."
   ],
-  "assignment": {
-    "owner": "Codex",
-    "branch": "feat/dev-01-living-roadmap",
-    "observedAt": "2026-11-25T09:01:59Z"
-  },
   "history": [
     {
       "date": "2026-11-25",
@@ -36,32 +31,37 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Independent review identified enforcement, synchronization, reservation and scope accounting gaps; corrections in progress."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "GitHub verified designated completion PR #21 merged at 2ed018ae9641 with successful recorded exact-head workflows. Acceptance remains separate."
     }
   ],
-  "proposal": "Completion proposal for the structured roadmap and its two generated views. Verify the PR head, hosted checks and independent review before integration.",
   "prs": [
     {
       "number": 21,
-      "head": "c08424c7669fa339e69a937aef5d7653af694c8f",
+      "head": "4fd0f4261530b1ff0e3ab169de11b7b507e0665d",
       "branch": "feat/dev-01-living-roadmap",
-      "state": "open",
+      "state": "merged",
       "runs": [
         {
-          "id": 45584143534,
+          "id": 45587538404,
           "name": "Desktop CI",
-          "head": "c08424c7669fa339e69a937aef5d7653af694c8f",
+          "head": "4fd0f4261530b1ff0e3ab169de11b7b507e0665d",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45584143470,
+          "id": 45587538625,
           "name": "Engineering handoff snapshot",
-          "head": "c08424c7669fa339e69a937aef5d7653af694c8f",
+          "head": "4fd0f4261530b1ff0e3ab169de11b7b507e0665d",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-25T09:38:51Z"
+      "merge": "2ed018ae964183a35d5720886add717cc2f867bc",
+      "observedAt": "2026-11-25T10:08:30Z"
     }
   ],
   "completionPr": 21

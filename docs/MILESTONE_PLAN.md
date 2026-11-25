@@ -12,7 +12,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | Milestone | Track | Phase | Dependencies |
 | --- | --- | --- | --- |
 | [CI-02](#ci-02) Change-aware CI | Developer workflow | Merged | — |
-| [DEV-01](#dev-01) Living development roadmap | Developer workflow | Proposed completion | — |
+| [DEV-01](#dev-01) Living development roadmap | Developer workflow | Merged | — |
 | [REUSE-01](#reuse-01) Inventory and compatibility audit | Reuse | Merged | — |
 | [REUSE-02](#reuse-02) Engine bridge and delivery | Reuse | In progress | [REUSE-01](#reuse-01) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02A](#reuse-02a) Pinned engine preflight | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
@@ -67,7 +67,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 <a id="dev-01"></a>
 ### DEV-01 — Living development roadmap
 
-**Proposed completion** · Structured roadmap owns milestone state and generates the detailed plan and dashboard.
+**Merged** · Structured roadmap owns milestone state and generates the detailed plan and dashboard.
 
 **Acceptance criteria**
 
@@ -75,11 +75,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 - Provide a local interactive graph, progress, filters, assignments, blockers, evidence, next eligible tasks, prompts and continuity.
 - Integrate stale-output and consistency checks without unrelated installer builds. Independently review the feature and verify exact-head hosted checks.
 
-**Assignment** · Codex, feat/dev-01-living-roadmap (recorded 2026-11-25T09:01:59Z)
-
-**Proposal** · Completion proposal for the structured roadmap and its two generated views. Verify the PR head, hosted checks and independent review before integration.
-
-[PR #21](https://github.com/kandyman991/HMIStudio/pull/21) · open · head [c08424c](https://github.com/kandyman991/HMIStudio/commit/c08424c7669fa339e69a937aef5d7653af694c8f) · snapshot 2026-11-25T09:38:51Z · [Desktop CI #45584143534](https://github.com/kandyman991/HMIStudio/actions/runs/45584143534) success, [Engineering handoff snapshot #45584143470](https://github.com/kandyman991/HMIStudio/actions/runs/45584143470) success
+[PR #21](https://github.com/kandyman991/HMIStudio/pull/21) · merged · head [4fd0f42](https://github.com/kandyman991/HMIStudio/commit/4fd0f4261530b1ff0e3ab169de11b7b507e0665d) · merged [2ed018a](https://github.com/kandyman991/HMIStudio/commit/2ed018ae964183a35d5720886add717cc2f867bc) · snapshot 2026-11-25T10:08:30Z · [Desktop CI #45587538404](https://github.com/kandyman991/HMIStudio/actions/runs/45587538404) success, [Engineering handoff snapshot #45587538625](https://github.com/kandyman991/HMIStudio/actions/runs/45587538625) success
 
 **History**
 
@@ -87,6 +83,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 - 2026-11-25 · handoff · Hand off the generated views, migration proof and privacy checks for independent review.
 - 2026-11-25 · completion proposed · Submitted DEV-01 as a scoped candidate for exact-head CI and review.
 - 2026-11-25 · handoff · Independent review identified enforcement, synchronization, reservation and scope accounting gaps; corrections in progress.
+- 2026-11-25 · merged · GitHub verified designated completion PR #21 merged at 2ed018ae9641 with successful recorded exact-head workflows. Acceptance remains separate.
 
 ## Engineering
 

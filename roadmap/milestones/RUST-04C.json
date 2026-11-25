@@ -35,7 +35,7 @@
     "observedAt": "2026-11-25T14:02:11Z"
   },
   "blockers": [
-    "Independent final-head review and exact-head hosted CI pending.",
+    "Corrected-head hosted CI pending after independent review fixes.",
     "Native desktop interaction and prototype comparison deferred to RUST-04 acceptance; non-flow layouts and runtime parity remain explicitly unsupported in this slice."
   ],
   "history": [
@@ -55,6 +55,12 @@
       "date": "2026-11-25",
       "type": "completion_proposed",
       "summary": "Draft PR #26 opened for the supported base-flow implementation candidate. Final independent review and fresh exact-head CI required; actual native designer acceptance remains open.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Independent review of c7f384c corrected nested resize grip hit-testing, stale viewport/source geometry detection and layout-affecting feedback. Isolated frontend build and synthetic browser regression passed; corrected-head CI remains required.",
       "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],

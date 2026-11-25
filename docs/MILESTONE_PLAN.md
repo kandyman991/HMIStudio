@@ -334,7 +334,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 
 **Blockers**
 
-- Independent final-head review and exact-head hosted CI pending.
+- Corrected-head hosted CI pending after independent review fixes.
 - Native desktop interaction and prototype comparison deferred to RUST-04 acceptance; non-flow layouts and runtime parity remain explicitly unsupported in this slice.
 
 **Assignment** · ChatGPT, feat/rust-04c-direct-manipulation (recorded 2026-11-25T14:02:11Z)
@@ -350,6 +350,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · started · Reserved RUST-04C from verified main bfd81fc; reconciled PR #25 engineering integration and carried native validation to RUST-04. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Implemented selection, flow reorder/reparent, resize with snap, pan and semantic cross-axis alignment through existing typed transactions; local 17 frontend tests, TypeScript/Vite and isolated browser gesture fixture passed. No native acceptance claimed. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · completion proposed · Draft PR #26 opened for the supported base-flow implementation candidate. Final independent review and fresh exact-head CI required; actual native designer acceptance remains open. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · handoff · Independent review of c7f384c corrected nested resize grip hit-testing, stale viewport/source geometry detection and layout-affecting feedback. Isolated frontend build and synthetic browser regression passed; corrected-head CI remains required. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-05"></a>
 ### RUST-05 — Import and Compose interoperability

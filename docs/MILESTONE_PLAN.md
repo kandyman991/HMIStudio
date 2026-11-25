@@ -13,7 +13,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | --- | --- | --- | --- |
 | [CI-02](#ci-02) Change-aware CI | Developer workflow | Merged | — |
 | [DEV-01](#dev-01) Living development roadmap | Developer workflow | Accepted | — |
-| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | In progress | [DEV-01](#dev-01) (accepted) |
+| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | Proposed completion | [DEV-01](#dev-01) (accepted) |
 | [REUSE-01](#reuse-01) Inventory and compatibility audit | Reuse | Merged | — |
 | [REUSE-02](#reuse-02) Engine bridge and delivery | Reuse | In progress | [REUSE-01](#reuse-01) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02A](#reuse-02a) Pinned engine preflight | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
@@ -94,7 +94,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 <a id="dev-02"></a>
 ### DEV-02 — Roadmap reconciliation regression fix
 
-**In progress** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
+**Proposed completion** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
 
 **Acceptance criteria**
 
@@ -107,11 +107,16 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 
 **Assignment** · ChatGPT, fix/dev-02-roadmap-regression (recorded 2026-11-25T14:23:35Z)
 
+**Proposal** · Corrected regression fixtures and verified PR #20 reconciliation candidate; 10 JavaScript and 9 Python roadmap tests passed, exact-head hosted CI and independent review pending.
+
+[PR #28](https://github.com/kandyman991/HMIStudio/pull/28) · draft · head [8f970ff](https://github.com/kandyman991/HMIStudio/commit/8f970ff9a63a74232a033385847e213687e309a7) · snapshot 2026-11-25T14:24:31Z · CI unrecorded
+
 **History**
 
 - 2026-11-25 · note · Reconciliation after PR #26 found roadmap test 6 fails when REUSE-02C.4A moves from proposed to verified merged. Register a scoped follow-up before editing the executable test; leave the original observation unchanged until the fix merges. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 - 2026-11-25 · started · Reserved exact roadmap test scope from verified main 3ab9d46; reproduced mutable proposal regression and identified additional live reservation dependence in validator fixtures. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 - 2026-11-25 · handoff · Replaced mutable milestone fixtures with synthetic proposal and merge evidence, isolated fixture validation from live claims, added explicit reservation regression and reconciled verified PR #20. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
+- 2026-11-25 · completion proposed · Draft PR #28 opened after all local roadmap regressions passed. Verify final-head hosted CI and independent review before integration. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 
 ## Engineering
 

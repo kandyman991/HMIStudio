@@ -2,7 +2,7 @@
   "id": "RUST-04B.1",
   "title": "Workspace visual alignment",
   "track": "Engineering",
-  "phase": "in_progress",
+  "phase": "merged",
   "counts": true,
   "summary": "Complete remaining visual alignment with the preserved original HTML reference; do not ship its mock behavior.",
   "dependencies": [
@@ -21,19 +21,6 @@
   ],
   "parent": "RUST-04",
   "claimGroup": "RUST-04",
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "feat/rust-04b1-workspace-alignment",
-    "scope": [
-      "CHAT_HANDOFF.md",
-      "docs/LAYOUT_DESIGNER.md",
-      "src/main.tsx",
-      "src/style.css",
-      "src/workspace.ts",
-      "tests/workspace.test.mjs"
-    ],
-    "observedAt": "2026-11-25T13:44:30Z"
-  },
   "history": [
     {
       "date": "2026-11-25",
@@ -58,31 +45,37 @@
       "type": "handoff",
       "summary": "Independent review of 5c8459f corrected outside menu dismissal, command focus and compact dock resize; frontend and isolated browser regression tests passed. Native comparison and corrected-head hosted CI remain pending.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "PR #25 integrated at bfd81fc with corrected-head Required CI and handoff successful. Engineering integration only under D-008; native visual comparison remains part of combined RUST-04 acceptance. Reservation released after verified merge.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "blockers": [
-    "Actual native desktop screenshot/interaction comparison remains pending; browser fixture is not native evidence.",
-    "Corrected-head hosted CI and final-head review pending."
+    "Native desktop visual and interaction comparison deferred to combined RUST-04 designer acceptance; no acceptance claimed."
   ],
   "prs": [
     {
       "number": 25,
-      "head": "5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c",
+      "head": "9efb5e12b580be0bdc9084a5267731525f43a207",
       "branch": "feat/rust-04b1-workspace-alignment",
-      "state": "draft",
-      "observedAt": "2026-11-25T13:55:19Z",
+      "state": "merged",
+      "merge": "bfd81fcde03b87aeb5d0e20c33ee4846a292785e",
+      "observedAt": "2026-11-25T14:04:53Z",
       "runs": [
         {
-          "id": 45627392049,
+          "id": 45628584254,
           "name": "Desktop CI",
-          "head": "5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c",
+          "head": "9efb5e12b580be0bdc9084a5267731525f43a207",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45627392150,
+          "id": 45628583943,
           "name": "Engineering handoff snapshot",
-          "head": "5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c",
+          "head": "9efb5e12b580be0bdc9084a5267731525f43a207",
           "state": "completed",
           "result": "success"
         }

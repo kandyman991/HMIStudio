@@ -5,7 +5,8 @@ import "./style.css";
 import { clampSize, restorePreferences, preset, DEFAULTS, STORAGE_KEY, reconcileTabs, openTab, closeTab, cycleTab, matchesCatalog } from "./workspace";
 import type { Preferences, Tabs, Panel } from "./workspace";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { insertionParent, siblingDestination } from "./designer";
+import { insertionParent, siblingDestination, canDrag, canResize, canAlign, planDrop, resizeDimensions, sameGestureContext } from "./designer";
+import type { DropPlan, DropZone, Dimensions, GestureContext } from "./designer";
 import { nodeStyle, previewLimit, isFlow, parseFixed, fitPreview, changeZoom, PREVIEW_WIDTH, PREVIEW_HEIGHT } from "./layout-preview";
 import type { Element, Layout, Size, Arrangement, Cross } from "./layout-preview";
 
@@ -16,6 +17,7 @@ type Command =
   | { op: "insertNode"; parent: string; node: Node; assignNewIds: true }
   | { op: "removeNode"; node: string }
   | { op: "reorderNode"; node: string; index: number }
+  | DropPlan
   | { op: "setLayout"; node: string; layout: Layout }
   | { op: "setElement"; node: string; element: Element }
   | { op: "createScreen"; name: string }
@@ -48,14 +50,15 @@ function label(n: Node): string { return n.name ?? (typeof n.properties?.text ==
 function Tree({node,selected,select,depth=0}:{node:Node;selected:string|null;select:(id:string)=>void;depth?:number}) {
   return <><button className={"layer depth-"+Math.min(depth,5)+(selected===node.id?" active":"")} onClick={()=>select(node.id)}>{node.children?.length?"▾":"·"} {label(node)}</button>{node.children?.map(n=><Tree key={n.id} node={n} selected={selected} select={select} depth={depth+1}/>)}</>;
 }
-function Preview({node,selected,select,parent}:{node:Node;selected:string|null;select:(id:string)=>void;parent?:Element}) {
+function Preview({node,selected,select,parent,resizable,mark}:{node:Node;selected:string|null;select:(id:string)=>void;parent?:Element;resizable:string|null;mark?:{id:string;zone:DropZone}}) {
   const kind=node.element.kind??node.element.type, limits=previewLimit(node);
   const style=nodeStyle(node,parent);
   // Selection chrome is an outline, never a participating child of the flow.
   const cls="preview-node"+(selected===node.id?" preview-selected":"");
-  if(isFlow(node.element))return <div className={cls+" preview-flow"} style={style} title={label(node)+(limits.length?" · "+limits.join("; "):"")} onClick={e=>{e.stopPropagation();select(node.id);}}>{node.children?.map(n=><Preview key={n.id} node={n} parent={node.element} selected={selected} select={select}/>)}</div>;
-  if(node.element.type!=="component")return <button type="button" className={cls+" preview-unsupported"} style={style} onClick={e=>{e.stopPropagation();select(node.id);}} title={limits.join("; ")}>Unsupported · {label(node)} (see layers)</button>;
-  return <button type="button" className={cls+" preview-component "+(["text","button","gauge"].includes(kind)?kind:"placeholder")} style={style} title={limits.join("; ")||label(node)} onClick={e=>{e.stopPropagation();select(node.id);}}>{kind==="gauge"?<><small>Static gauge</small><strong>{String(node.properties?.value??0)}</strong></>:kind==="text"||kind==="button"?(typeof node.properties?.text==="string"?node.properties.text:node.properties?.text!==undefined?"[Unresolved text]":label(node)):"Placeholder · "+kind}</button>;
+  const attrs={"data-node-id":node.id,"data-resizable":resizable===node.id?"true":undefined,"data-drop":mark?.id===node.id?mark.zone:undefined};
+  if(isFlow(node.element))return <div {...attrs} className={cls+" preview-flow"} style={style} title={label(node)+(limits.length?" · "+limits.join("; "):"")} onClick={e=>{e.stopPropagation();select(node.id);}}>{node.children?.map(n=><Preview key={n.id} node={n} parent={node.element} selected={selected} select={select} resizable={resizable} mark={mark}/>)}</div>;
+  if(node.element.type!=="component")return <button {...attrs} type="button" className={cls+" preview-unsupported"} style={style} onClick={e=>{e.stopPropagation();select(node.id);}} title={limits.join("; ")}>Unsupported · {label(node)} (see layers)</button>;
+  return <button {...attrs} type="button" className={cls+" preview-component "+(["text","button","gauge"].includes(kind)?kind:"placeholder")} style={style} title={limits.join("; ")||label(node)} onClick={e=>{e.stopPropagation();select(node.id);}}>{kind==="gauge"?<><small>Static gauge</small><strong>{String(node.properties?.value??0)}</strong></>:kind==="text"||kind==="button"?(typeof node.properties?.text==="string"?node.properties.text:node.properties?.text!==undefined?"[Unresolved text]":label(node)):"Placeholder · "+kind}</button>;
 }
 function countLimits(node:Node):number{return previewLimit(node).length+(node.children??[]).reduce((sum,n)=>sum+countLimits(n),0);}
 function SizeEditor({axis,size,disabled,commit}:{axis:string;size:Size|undefined;disabled:boolean;commit:(s:Size)=>void}){
@@ -218,6 +221,91 @@ function Studio(){
   };
   type Action = {run:()=>void; enabled:boolean; shortcut?:string; checked?:boolean};
   const ready=!!snapshot&&!busy&&!pendingRecovery;
+  type Gesture = {kind:"pan";pointer:number;x:number;y:number;left:number;top:number}
+    | {kind:"move"|"resize";pointer:number;x:number;y:number;node:Node;context:GestureContext;start:Dimensions;rect:{left:number;top:number;width:number;height:number};snap:boolean;viewportLeft:number;viewportTop:number;viewportWidth:number;viewportHeight:number;scrollLeft:number;scrollTop:number};
+  type Feedback={mark?:{id:string;zone:DropZone};size?:Dimensions;rect?:{left:number;top:number};text:string};
+  const [tool,setTool]=useState<"select"|"pan">("select");
+  const [snap,setSnap]=useState(true);
+  const [feedback,setFeedback]=useState<Feedback|null>(null);
+  const gesture=useRef<Gesture|null>(null);
+  const suppressClick=useRef(false);
+  const context=():GestureContext|undefined=>screen&&snapshot?{screen:screen.id,revision:snapshot.revision,generation:generation.current,zoom}:undefined;
+  function cancelGesture(){
+    const g=gesture.current;gesture.current=null;setFeedback(null);
+    if(g&&viewportRef.current?.hasPointerCapture(g.pointer))viewportRef.current.releasePointerCapture(g.pointer);
+  }
+  function currentGesture(g:Extract<Gesture,{kind:"move"|"resize"}>){
+    const now=context(),v=viewportRef.current;
+    if(!now||!v||!ready||inFlight.current||!sameGestureContext(g.context,now))return false;
+    const bounds=v.getBoundingClientRect();
+    const source=v.querySelector<HTMLElement>('[data-node-id="'+CSS.escape(g.node.id)+'"]')?.getBoundingClientRect();
+    return !!source&&g.viewportLeft===bounds.left&&g.viewportTop===bounds.top&&g.viewportWidth===v.clientWidth&&g.viewportHeight===v.clientHeight&&g.scrollLeft===v.scrollLeft&&g.scrollTop===v.scrollTop&&source.left===g.rect.left&&source.top===g.rect.top&&source.width===g.rect.width&&source.height===g.rect.height;
+  }
+  useEffect(()=>{cancelGesture();},[screen?.id,snapshot?.revision,zoom,ready,tool]);
+  useEffect(()=>{
+    const blur=()=>cancelGesture();
+    window.addEventListener("blur",blur);
+    return()=>window.removeEventListener("blur",blur);
+  },[]);
+  function beginGesture(e:ReactPointerEvent<HTMLDivElement>){
+    if(gesture.current||!e.isPrimary||e.button!==0)return;
+    suppressClick.current=false;
+    const v=e.currentTarget;
+    if(tool==="pan"){
+      e.preventDefault();v.setPointerCapture(e.pointerId);gesture.current={kind:"pan",pointer:e.pointerId,x:e.clientX,y:e.clientY,left:v.scrollLeft,top:v.scrollTop};suppressClick.current=true;return;
+    }
+    if(!screen||!ready||inFlight.current)return;
+    const target=(e.target as HTMLElement).closest<HTMLElement>("[data-node-id]");
+    const node=target?.dataset.nodeId?findNode(screen.root,target.dataset.nodeId):undefined,ctx=context();
+    if(!target||!node||!ctx)return;
+    setSelected(node.id);
+    if(!canDrag(screen.root,node.id))return;
+    const rect=target.getBoundingClientRect(),bounds=v.getBoundingClientRect();
+    const resize=selected===node.id&&canResize(screen.root,node.id)&&e.clientX>=rect.right-12*zoom&&e.clientY>=rect.bottom-12*zoom;
+    e.preventDefault();target.focus();v.setPointerCapture(e.pointerId);
+    gesture.current={kind:resize?"resize":"move",pointer:e.pointerId,x:e.clientX,y:e.clientY,node,context:ctx,start:{width:rect.width/zoom,height:rect.height/zoom},rect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height},snap,viewportLeft:bounds.left,viewportTop:bounds.top,viewportWidth:v.clientWidth,viewportHeight:v.clientHeight,scrollLeft:v.scrollLeft,scrollTop:v.scrollTop};
+  }
+  function proposal(g:Extract<Gesture,{kind:"move"|"resize"}>,x:number,y:number):{command?:Command;feedback:Feedback}|undefined {
+    if(!screen||!currentGesture(g)||Math.hypot(x-g.x,y-g.y)<4)return;
+    const viewport=viewportRef.current!;
+    const bounds=viewport.getBoundingClientRect();
+    if(x<bounds.left||x>=bounds.right||y<bounds.top||y>=bounds.bottom)return;
+    if(g.kind==="resize"){
+      const size=resizeDimensions(g.start,x-g.x,y-g.y,g.context.zoom,g.snap,g.node.layout);
+      if(!size)return;
+      const original=g.node.layout;
+      const width={mode:"fixed" as const,value:size.width},height={mode:"fixed" as const,value:size.height};
+      const unchanged=original?.width?.mode==="fixed"&&original.width.value===size.width&&original?.height?.mode==="fixed"&&original.height.value===size.height;
+      return {command:unchanged?undefined:{op:"setLayout",node:g.node.id,layout:{...original,width,height}},feedback:{size,rect:g.rect,text:size.width+" × "+size.height+" dp"}};
+    }
+    const hit=document.elementFromPoint(x,y)?.closest<HTMLElement>("[data-node-id]");
+    const target=hit?.dataset.nodeId?findNode(screen.root,hit.dataset.nodeId):undefined;
+    if(!hit||!target||!viewport.contains(hit))return;
+    const rect=hit.getBoundingClientRect(),p=hit.parentElement?.closest<HTMLElement>("[data-node-id]");
+    const parentNode=p?.dataset.nodeId?findNode(screen.root,p.dataset.nodeId):undefined;
+    const row=parentNode?.element.type==="row",fraction=row?(x-rect.left)/Math.max(1,rect.width):(y-rect.top)/Math.max(1,rect.height);
+    const zone:DropZone=isFlow(target.element)&&(!parentNode||(fraction>=.25&&fraction<=.75))?"inside":fraction<.5?"before":"after";
+    const command=planDrop(screen.root,g.node.id,target.id,zone);
+    return {command,feedback:{mark:command?{id:target.id,zone}:undefined,text:command?(zone+" "+label(target)):"Unsupported or unchanged destination"}};
+  }
+  function moveGesture(e:ReactPointerEvent<HTMLDivElement>){
+    const g=gesture.current;if(!g||g.pointer!==e.pointerId)return;
+    if(g.kind==="pan"){e.currentTarget.scrollLeft=g.left-(e.clientX-g.x);e.currentTarget.scrollTop=g.top-(e.clientY-g.y);return;}
+    if(!currentGesture(g)){cancelGesture();return;}
+    const next=proposal(g,e.clientX,e.clientY);
+    if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>=4)suppressClick.current=true;
+    setFeedback(next?.feedback??null);
+  }
+  function endGesture(e:ReactPointerEvent<HTMLDivElement>){
+    const g=gesture.current;if(!g||g.pointer!==e.pointerId)return;
+    const result=g.kind==="pan"?undefined:proposal(g,e.clientX,e.clientY);
+    if(g.kind!=="pan"&&Math.hypot(e.clientX-g.x,e.clientY-g.y)>=4)suppressClick.current=true;
+    cancelGesture();
+    if(result?.command)execute(result.command,g.kind==="resize"?"Resize component":"Move component");
+  }
+  const resizable=tool==="select"&&ready&&screen&&chosen&&canResize(screen.root,chosen.id)?chosen.id:null;
+  const align=(crossAlign:Cross)=>{if(chosen&&screen&&chosen.layout?.crossAlign!==crossAlign&&canAlign(screen.root,chosen.id))execute({op:"setLayout",node:chosen.id,layout:{...chosen.layout,crossAlign}},"Align component");};
+
   const actions:Record<string,Action>={
     "New screen":{run:()=>execute({op:"createScreen",name:"Screen "+((snapshot?.project.screens.length??0)+1)},"New screen"),enabled:ready},
     "Undo":{run:()=>history("undo"),enabled:ready&&!!snapshot?.status.canUndo,shortcut:"Mod+Z"},
@@ -235,6 +323,12 @@ function Studio(){
     "Zoom in":{run:()=>setManualZoom(changeZoom(zoom,.1)),enabled:!!screen&&zoom<2},
     "Zoom out":{run:()=>setManualZoom(changeZoom(zoom,-.1)),enabled:!!screen&&zoom>.25},
     "Toggle grid":{run:()=>setGrid(v=>!v),enabled:true,checked:grid},
+    "Select tool":{run:()=>setTool("select"),enabled:true,checked:tool==="select"},
+    "Pan tool":{run:()=>setTool("pan"),enabled:true,checked:tool==="pan"},
+    "Snap size to 10 dp":{run:()=>setSnap(v=>!v),enabled:true,checked:snap},
+    "Align start":{run:()=>align("start"),enabled:ready&&!!screen&&!!chosen&&canAlign(screen.root,chosen.id),checked:chosen?.layout?.crossAlign==="start"},
+    "Align center":{run:()=>align("center"),enabled:ready&&!!screen&&!!chosen&&canAlign(screen.root,chosen.id),checked:chosen?.layout?.crossAlign==="center"},
+    "Align end":{run:()=>align("end"),enabled:ready&&!!screen&&!!chosen&&canAlign(screen.root,chosen.id),checked:chosen?.layout?.crossAlign==="end"},
     "Project explorer":{run:()=>toggle("left"),enabled:!busy,checked:panels.left},
     "Inspector":{run:()=>toggle("right"),enabled:!busy,checked:panels.right},
     "Diagnostics":{run:()=>toggle("diagnostics"),enabled:!busy,checked:panels.diagnostics},
@@ -263,7 +357,8 @@ function Studio(){
   useEffect(()=>{
     function keys(e:KeyboardEvent){
       if(e.defaultPrevented||e.isComposing)return;
-      if(e.key==="Escape"){if(menu){e.preventDefault();closeMenu(true);}return;}
+      if(e.key==="Escape"){if(gesture.current){e.preventDefault();cancelGesture();return;}if(menu){e.preventDefault();closeMenu(true);}return;}
+      if(gesture.current)return;
       if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==="k"){e.preventDefault();setMenu("Commands");setSubmenu(null);setCommandQuery("");commandRef.current?.focus();return;}
       if(e.altKey||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement||(e.target instanceof HTMLElement&&e.target.isContentEditable))return;
       const key=(e.ctrlKey||e.metaKey?"Mod+":"")+(e.shiftKey?"Shift+":"")+(e.key.length===1?e.key.toUpperCase():e.key);
@@ -273,7 +368,7 @@ function Studio(){
     window.addEventListener("keydown",keys);return()=>window.removeEventListener("keydown",keys);
   });
   type MenuEntry=string|{label:string;items:string[]};
-  const menus:Record<string,MenuEntry[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Copy component (planned)","Paste component (planned)","Duplicate component (planned)","Delete selection",{label:"Arrange",items:["Move earlier","Move later","Align (planned)"]}],View:[{label:"Docks",items:["Project explorer","Inspector","Diagnostics","Swap side docks","Reset workspace"]},{label:"Canvas",items:["Fit preview","Zoom in","Zoom out","Toggle grid","Snap (planned)"]},{label:"Workspace presets",items:["Standard layout","Design layout","Diagnostics layout"]},"Next tab","Previous tab"],Insert:[{label:"Components",items:["Button","Text","Gauge"]},{label:"Containers",items:["Row","Column"]}],Engineering:["Tag monitor (planned)","Engineering search (planned)","Alarm monitor (planned)","Event log (planned)","Connections (planned)","Validate project"],Runtime:["Preview (planned)","Simulation (planned)","Export (planned)","Publish (planned)"],Help:["About (planned)"]};
+  const menus:Record<string,MenuEntry[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Copy component (planned)","Paste component (planned)","Duplicate component (planned)","Delete selection",{label:"Arrange",items:["Move earlier","Move later","Align start","Align center","Align end"]}],View:[{label:"Docks",items:["Project explorer","Inspector","Diagnostics","Swap side docks","Reset workspace"]},{label:"Canvas",items:["Fit preview","Zoom in","Zoom out","Toggle grid","Select tool","Pan tool","Snap size to 10 dp"]},{label:"Workspace presets",items:["Standard layout","Design layout","Diagnostics layout"]},"Next tab","Previous tab"],Insert:[{label:"Components",items:["Button","Text","Gauge"]},{label:"Containers",items:["Row","Column"]}],Engineering:["Tag monitor (planned)","Engineering search (planned)","Alarm monitor (planned)","Event log (planned)","Connections (planned)","Validate project"],Runtime:["Preview (planned)","Simulation (planned)","Export (planned)","Publish (planned)"],Help:["About (planned)"]};
   useEffect(()=>{if(menu==="Commands")commandRef.current?.focus();},[menu]);
   // Capture outside presses even when a preview component stops click propagation.
   useEffect(()=>{
@@ -292,7 +387,7 @@ function Studio(){
     <nav ref={navRef} aria-label="Main menu" onClick={e=>e.stopPropagation()}>{Object.entries(menus).map(([name,items])=><div className="menu" key={name}><button data-menu-trigger={name} aria-expanded={menu===name} onClick={()=>{setMenu(menu===name?null:name);setSubmenu(null);}}>{name}</button>{menu===name&&<div className="dropdown">{items.map(item=>typeof item==="string"?menuAction(item):<div className="submenu" key={item.label}><button aria-expanded={submenu===item.label} onClick={()=>setSubmenu(submenu===item.label?null:item.label)}>{item.label}<Icon name="chevron"/></button>{submenu===item.label&&<div className="dropdown nested">{item.items.map(menuAction)}</div>}</div>)}</div>}</div>)}<span className="grow"/><div className="menu command-menu"><button data-menu-trigger="Commands" aria-expanded={menu==="Commands"} onClick={()=>{setMenu(menu==="Commands"?null:"Commands");setSubmenu(null);setCommandQuery("");}}><Icon name="search"/> Find action <kbd>Ctrl K</kbd></button>{menu==="Commands"&&<div className="dropdown command-list"><input ref={commandRef} aria-label="Find action" placeholder="Search actions…" value={commandQuery} onChange={e=>setCommandQuery(e.currentTarget.value)}/>{matchingActions.map(menuAction)}{!matchingActions.length&&<p role="status">No matching actions.</p>}</div>}</div></nav>
     <div className="toolbar ribbon" aria-label="Engineering toolbar">
       {([[["Open project","folder"],["Save project","save"],["Undo","undo"],["Redo","redo"]],[["New screen","plus"],["Delete selection","trash"],["Move earlier","up"],["Move later","down"]],[["Validate project","check"]]] as [string,Glyph][][]).map((group,i)=><div className="tool-group" key={i}>{group.map(([name,icon])=><button key={name} title={name} aria-label={name} disabled={disabled(name)} onClick={()=>action(name)}><Icon name={icon}/></button>)}</div>)}
-      <div className="tool-group"><button onClick={()=>{setLeftView("components");setPanels(p=>({...p,left:true}));}} disabled={busy}><Icon name="plus"/> Insert</button><button aria-pressed="true" disabled title="Selection is the current editor tool"><Icon name="cursor"/> Select</button><button disabled title="Pan planned for direct manipulation"><Icon name="hand"/> Pan</button><button aria-label="Toggle grid" title="Toggle grid" aria-pressed={grid} onClick={()=>action("Toggle grid")}><Icon name="grid"/></button><button disabled aria-label="Snap (planned)" title="Snapping planned"><Icon name="snap"/></button></div><div className="tool-group zoom-tools"><button aria-label="Zoom out" title="Zoom out" disabled={!screen||zoom<=.25} onClick={()=>setManualZoom(changeZoom(zoom,-.1))}>−</button><button aria-label="Fit preview" title="Fit preview" disabled={!screen} onClick={()=>setManualZoom(null)}>{Math.round(zoom*100)}%</button><button aria-label="Zoom in" title="Zoom in" disabled={!screen||zoom>=2} onClick={()=>setManualZoom(changeZoom(zoom,.1))}>+</button><button aria-label="Fit to workspace" title="Fit to workspace" disabled={!screen} onClick={()=>action("Fit preview")}><Icon name="fit"/></button></div>
+      <div className="tool-group"><button onClick={()=>{setLeftView("components");setPanels(p=>({...p,left:true}));}} disabled={busy}><Icon name="plus"/> Insert</button><button aria-pressed={tool==="select"} onClick={()=>action("Select tool")} title="Select, drag or resize supported flow components"><Icon name="cursor"/> Select</button><button aria-pressed={tool==="pan"} onClick={()=>action("Pan tool")} title="Pan scrollable workspace"><Icon name="hand"/> Pan</button><button aria-label="Toggle grid" title="Toggle grid" aria-pressed={grid} onClick={()=>action("Toggle grid")}><Icon name="grid"/></button><button aria-label="Snap size to 10 dp" aria-pressed={snap} onClick={()=>action("Snap size to 10 dp")} title="Snap resized dimensions to 10 dp"><Icon name="snap"/></button></div><div className="tool-group zoom-tools"><button aria-label="Zoom out" title="Zoom out" disabled={!screen||zoom<=.25} onClick={()=>setManualZoom(changeZoom(zoom,-.1))}>−</button><button aria-label="Fit preview" title="Fit preview" disabled={!screen} onClick={()=>setManualZoom(null)}>{Math.round(zoom*100)}%</button><button aria-label="Zoom in" title="Zoom in" disabled={!screen||zoom>=2} onClick={()=>setManualZoom(changeZoom(zoom,.1))}>+</button><button aria-label="Fit to workspace" title="Fit to workspace" disabled={!screen} onClick={()=>action("Fit preview")}><Icon name="fit"/></button></div>
       <span className="grow"/><span className="workspace-label">Workspace</span><div className="tool-group">{([["Project explorer","layers"],["Diagnostics","terminal"],["Inspector","inspector"]] as [string,Glyph][]).map(([name,icon])=><button key={name} title={name} aria-label={name} disabled={disabled(name)} aria-pressed={actions[name].checked} onClick={()=>action(name)}><Icon name={icon}/></button>)}</div>
     </div>
     {pendingRecovery&&snapshot&&<div className="recovery-banner" role="status">Resolve untitled recovery before editing. <button disabled={busy} onClick={()=>action("Resolve untitled recovery")}>Review recovery</button></div>}
@@ -300,7 +395,7 @@ function Studio(){
     <aside className="activity-rail" aria-label="Workspace tools">{([["project","folder","Project"],["layers","layers","Layers"],["components","palette","Components"]] as const).map(([view,icon,label])=><button key={view} aria-label={label} title={label} aria-pressed={panels.left&&leftView===view} onClick={()=>{setLeftView(view);setPanels(p=>({...p,left:!(p.left&&leftView===view)}));}}><Icon name={icon}/></button>)}<span className="grow"/><button aria-label="Diagnostics" title="Diagnostics" aria-pressed={panels.diagnostics} onClick={()=>action("Diagnostics")}><Icon name="terminal"/></button></aside>
     {panels.left&&<aside className={"left dock-panel size-"+panels.explorerSize}><h3 className="dock-title"><Icon name={leftView==="project"?"folder":leftView==="layers"?"layers":"palette"}/>{leftView==="project"?"Project explorer":leftView==="layers"?"Layers":"Component library"}<span className="grow"/><button aria-label="Hide project dock" onClick={()=>toggle("left")}><Icon name="close"/></button></h3>{leftView==="project"&&<><div className="dock-heading">SCREENS <span>{snapshot?.project.screens.length??0}</span></div><div className="tree"><div className="project-root"><Icon name="folder"/> {snapshot?.project.metadata.name??"Loading"}</div>{snapshot?.project.screens.map(s=><button key={s.id} className={"layer "+(screen?.id===s.id?"active":"")} disabled={busy} onClick={()=>activate(s.id)}><Icon name="page"/> {s.name}</button>)}</div><button className="dock-add" disabled={disabled("New screen")} onClick={()=>action("New screen")}><Icon name="plus"/> New screen</button><div className="dock-heading">LAYERS</div>{screen&&<Tree node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/>}</>}{leftView==="project"&&<><div className="dock-heading">COMPONENTS</div>{palette}</>}{leftView==="components"&&<><input className="palette-filter" aria-label="Filter components" placeholder="Filter components…" value={catalogQuery} onChange={e=>setCatalogQuery(e.currentTarget.value)}/>{palette}</>}{leftView==="layers"&&screen&&<Tree node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/>}</aside>}
     {panels.left&&<div className="explorer-split"><Splitter label="Resize explorer" size={panels.explorerSize} vertical direction={panels.swapped?-1:1} change={n=>resize("explorerSize",n)}/></div>}
-    <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}><Icon name="page"/> {s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}<button className="tab-add" aria-label="New screen tab" title="New screen" disabled={disabled("New screen")} onClick={()=>action("New screen")}><Icon name="plus"/></button><span className="editor-head">SCREEN EDITOR</span></div><div className={"viewport"+(grid?"":" no-grid")} ref={viewportRef}>{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="artboard-wrap" style={{width:PREVIEW_WIDTH*zoom}}><div className="artboard-caption">{parent?"Insert into "+label(findNode(screen.root,parent)??screen.root):"Select a row or column to insert"}<span>{countLimits(screen.root)} preview limitations</span></div><div className="artboard-scale" style={{width:PREVIEW_WIDTH*zoom,height:PREVIEW_HEIGHT*zoom}}><div className="artboard-logical" style={{transform:"scale("+zoom+")"}}><div className="artboard-ruler" aria-hidden="true">{[0,100,200,300,400,500,600,700].map(n=><span key={n}>{n}</span>)}</div><div className="artboard-row"><div className="artboard-ruler-y" aria-hidden="true">{[0,100,200,300,400].map(n=><span key={n}>{n}</span>)}</div><div className="artboard"><Preview node={screen.root} selected={selected} select={id=>{if(!inFlight.current)setSelected(id);}}/></div></div></div></div><p className="preview-note">Base semantic flow preview · static components · responsive, non-flow and live semantics not evaluated. Not runtime parity.</p></div>}</div><div className="canvas-foot"><Icon name="page"/><span>{screen?.name??"No screen"}</span><span className="muted">{chosen?label(chosen):"No selection"}</span><span className="grow"/><span>800 × 480 dp · {Math.round(zoom*100)}%</span></div></section>
+    <section className="designer"><div className="screen-tabs" aria-label="Open screens">{tabs.open.map(id=>{const s=snapshot?.project.screens.find(x=>x.id===id);return s&&<div className="screen-tab" key={id}><button aria-current={tabs.active===id?"page":undefined} className={tabs.active===id?"active":""} disabled={busy} onClick={()=>activate(id)}><Icon name="page"/> {s.name}</button><button aria-label={"Close "+s.name} disabled={busy} onClick={()=>close(id)}>×</button></div>;})}<button className="tab-add" aria-label="New screen tab" title="New screen" disabled={disabled("New screen")} onClick={()=>action("New screen")}><Icon name="plus"/></button><span className="editor-head">SCREEN EDITOR</span></div><div className={"viewport"+(grid?"":" no-grid")+(tool==="pan"?" pan-tool":"")} ref={viewportRef} onScroll={()=>{if(gesture.current&&gesture.current.kind!=="pan")cancelGesture();}} onPointerDown={beginGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={e=>{if(gesture.current?.pointer===e.pointerId)cancelGesture();}} onLostPointerCapture={e=>{if(gesture.current?.pointer===e.pointerId)cancelGesture();}} onClickCapture={e=>{if(suppressClick.current&&e.detail!==0){suppressClick.current=false;e.preventDefault();e.stopPropagation();}}}>{!screen&&<p className="muted">Open a screen in Project Explorer or create a new screen.</p>}{screen&&<div className="artboard-wrap" style={{width:PREVIEW_WIDTH*zoom}}><div className="artboard-caption">{parent?"Insert into "+label(findNode(screen.root,parent)??screen.root):"Select a row or column to insert"}<span>{countLimits(screen.root)} preview limitations</span></div><div className="artboard-scale" style={{width:PREVIEW_WIDTH*zoom,height:PREVIEW_HEIGHT*zoom}}><div className="artboard-logical" style={{transform:"scale("+zoom+")"}}><div className="artboard-ruler" aria-hidden="true">{[0,100,200,300,400,500,600,700].map(n=><span key={n}>{n}</span>)}</div><div className="artboard-row"><div className="artboard-ruler-y" aria-hidden="true">{[0,100,200,300,400].map(n=><span key={n}>{n}</span>)}</div><div className="artboard"><Preview node={screen.root} selected={selected} select={id=>{if(tool==="select"&&!inFlight.current)setSelected(id);}} resizable={resizable} mark={feedback?.mark}/></div></div></div></div><p className="preview-note">Base semantic flow preview · static components · responsive, non-flow and live semantics not evaluated. Not runtime parity.</p></div>}{feedback?.size&&feedback.rect&&<div className="gesture-resize-preview" style={{left:feedback.rect.left,top:feedback.rect.top,width:feedback.size.width*zoom,height:feedback.size.height*zoom}} aria-hidden="true"/>}</div>{feedback&&<div className="gesture-feedback" role="status">{feedback.text}</div>}<div className="canvas-foot"><Icon name="page"/><span>{screen?.name??"No screen"}</span><span className="muted">{chosen?label(chosen):"No selection"}</span><span className="grow"/><span>800 × 480 dp · {Math.round(zoom*100)}%</span></div></section>
     {panels.right&&<div className="inspector-split"><Splitter label="Resize inspector" size={panels.inspectorSize} vertical direction={panels.swapped?1:-1} change={n=>resize("inspectorSize",n)}/></div>}
     {panels.right&&<aside className={"right dock-panel size-"+panels.inspectorSize}><h3 className="dock-title"><Icon name="inspector"/> Inspector<span className="grow"/><button aria-label="Hide inspector" onClick={()=>toggle("right")}><Icon name="close"/></button></h3><div className="inspector-tabs">{(["properties","layout","bindings","events"] as const).map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div>{chosen&&<div className="inspect-card"><Icon name="layers"/><div><strong>{label(chosen)}</strong><small>{chosen.element.kind??chosen.element.type}</small></div></div>}{tab==="properties"?<>{screen&&<EditField key={generation.current+":"+screen.id+":"+snapshot?.revision} label="Screen name" value={screen.name} disabled={busy||pendingRecovery} normalize={v=>v.trim()} commit={name=>execute({op:"renameScreen",screen:screen.id,name},"Rename screen")}/>}{chosen?<><dl><dt>ID</dt><dd>{chosen.id}</dd><dt>Type</dt><dd>{chosen.element.kind??chosen.element.type}</dd></dl>{(chosen.element.kind==="text"||chosen.element.kind==="button")&&<EditField key={generation.current+":"+chosen.id+":"+snapshot?.revision} label="Text" value={typeof chosen.properties?.text==="string"?chosen.properties.text:""} disabled={busy||pendingRecovery||typeof chosen.properties?.text==="object"} commit={value=>execute({op:"setProperty",node:chosen.id,name:"text",value},"Edit text")}/>}</>:<p>Select a layer.</p>}</>:tab==="layout"?chosen?<><h3>SIZE / FLOW</h3>{(isFlow(chosen.element)||chosen.element.type==="component")?<div key={generation.current+":"+chosen.id+":"+snapshot?.revision}><SizeEditor axis="Width" size={chosen.layout?.width} disabled={!ready} commit={width=>execute({op:"setLayout",node:chosen.id,layout:{...chosen.layout,width}},"Set width")}/><SizeEditor axis="Height" size={chosen.layout?.height} disabled={!ready} commit={height=>execute({op:"setLayout",node:chosen.id,layout:{...chosen.layout,height}},"Set height")}/>{isFlow(chosen.element)&&<FlowEditor element={chosen.element} disabled={!ready} commit={element=>execute({op:"setElement",node:chosen.id,element},"Set flow arrangement")}/>}</div>:<p>Layout editing is not available for this element.</p>}{previewLimit(chosen).map(l=><p className="layout-warning" key={l}>{l}</p>)}</>:<p>Select a layer to edit its layout.</p>:<p>Editing {tab} is planned.</p>}</aside>}
     </section>

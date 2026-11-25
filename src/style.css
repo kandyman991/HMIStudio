@@ -237,3 +237,16 @@ footer{background:#141c28}
   .editor-head{display:none}.studio nav{gap:0}.menu>button{padding-inline:5px}
 }
 @media(max-height:600px){.dock-diagnostics{max-height:max(64px,calc(100vh - 436px))}.viewport{padding:8px}.artboard-caption{font-size:11px;gap:4px}.preview-note{font-size:10px;margin:5px 0}.studio .studio-top{height:48px}}
+
+
+/* RUST-04C: presentation-only gesture feedback, never part of semantic flow. */
+.viewport .preview-node{touch-action:none;user-select:none}
+.viewport.pan-tool{cursor:grab;touch-action:none;user-select:none}
+.viewport.pan-tool:active{cursor:grabbing}
+.viewport.pan-tool .preview-node{cursor:inherit}
+.preview-node[data-resizable=true]::after{content:"";position:absolute;right:0;bottom:0;width:12px;height:12px;box-sizing:border-box;background:var(--mint);border:2px solid var(--shell);pointer-events:auto;cursor:nwse-resize;z-index:2147483647}
+.preview-node[data-drop=inside]{outline:2px solid var(--mint);outline-offset:-2px}
+.preview-node[data-drop=before],.preview-node[data-drop=after]{outline:2px dashed var(--mint);outline-offset:-2px}
+.gesture-resize-preview{position:fixed;pointer-events:none;border:2px dashed var(--mint);background:#62e2c31c;z-index:12}
+.designer{position:relative}
+.gesture-feedback{position:absolute;bottom:32px;left:8px;width:max-content;max-width:calc(100% - 16px);padding:5px 8px;color:var(--mint);background:var(--shell);border:1px solid var(--edge);pointer-events:none;z-index:13}

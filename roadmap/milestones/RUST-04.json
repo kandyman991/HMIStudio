@@ -4,7 +4,7 @@
   "track": "Engineering",
   "phase": "in_progress",
   "counts": false,
-  "summary": "PR #13 integrated the recovered original visual reference. PR #12 is the separately reviewed RUST-04B model-backed preview candidate. Native visual acceptance remains outstanding.",
+  "summary": "Original HTML reference and workspace alignment are integrated (PRs #13, #12, #25). Direct semantic manipulation is under development; combined native designer acceptance remains open.",
   "dependencies": [
     {
       "id": "RUST-02",
@@ -70,6 +70,15 @@
       "type": "note",
       "summary": "Verified PR #13 merged and its exact-head Desktop CI and handoff succeeded. Former reference reservation released; RUST-04B has its own active claim in the same group. Parent visual acceptance remains open.",
       "record": "docs/reference/README.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "PR #25 engineering integration verified; native visual comparison remains deferred to this parent milestone under D-008. Continue RUST-04C without claiming acceptance.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
+  ],
+  "blockers": [
+    "Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 evidence."
   ]
 }

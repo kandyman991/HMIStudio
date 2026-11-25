@@ -32,8 +32,26 @@ struct PendingPulse {
 /// wait at once.
 pub(crate) struct Inbox {
     rx: Receiver<Request>,
-    deferred: VecDeque<Request>,
+    deferred: VecDeque<(Request, bool)>,
+    stale_rx: usize,
     shutdown: Option<u64>,
+}
+
+impl Inbox {
+    // Preserve FIFO and replies, but invalidate control requests already queued when
+    // a connection is lost. A queued arm must not authorize a queued stale write.
+    fn invalidate_control(&mut self) {
+        for (_, stale) in &mut self.deferred {
+            *stale = true;
+        }
+        self.stale_rx = self.rx.len();
+    }
+
+    fn received(&mut self, request: Request) -> (Request, bool) {
+        let stale = self.stale_rx > 0;
+        self.stale_rx = self.stale_rx.saturating_sub(1);
+        (request, stale)
+    }
 }
 
 /// Requests held while one driver operation is in progress. A client that keeps sending beyond
@@ -51,6 +69,8 @@ pub struct Limits {
     /// the request is withdrawn; a write whose transmission may have begun is reported as
     /// outcome unknown and is never repeated.
     pub write_timeout: Duration,
+    /// Longest wait for one driver start or demand update.
+    pub lifecycle_timeout: Duration,
     /// Longest wait for the FALSE of one pulse release.
     pub release_timeout: Duration,
     /// Longest wait for one driver to stop; after it the driver is dropped.
@@ -61,6 +81,7 @@ impl Default for Limits {
     fn default() -> Self {
         Self {
             write_timeout: Duration::from_secs(10),
+            lifecycle_timeout: Duration::from_secs(10),
             release_timeout: Duration::from_secs(5),
             stop_timeout: Duration::from_secs(5),
         }
@@ -72,7 +93,7 @@ enum Supervised<T> {
     Done(T),
     /// The session ended first; the operation was dropped.
     SessionEnded,
-    /// [Limits::write_timeout] passed first; the operation was dropped.
+    /// The operation's deadline passed first; the operation was dropped.
     TimedOut,
 }
 
@@ -110,7 +131,10 @@ async fn supervise<T>(
                     inbox.shutdown = Some(id);
                     return Supervised::SessionEnded;
                 }
-                Some(other) => inbox.deferred.push_back(other),
+                Some(other) => {
+                    let queued = inbox.received(other);
+                    inbox.deferred.push_back(queued);
+                },
             },
             _ = check.tick() => {
                 // Closed means the client is gone, even with requests still buffered.
@@ -140,7 +164,7 @@ fn write_outcome(
 
 enum Next {
     End,
-    Request(Request),
+    Request(Request, bool),
     Event(String, DriverEvent),
     Tick,
     Pulses,
@@ -198,7 +222,8 @@ pub async fn run_with_limits(
     factory: driver::DriverFactory,
     limits: Limits,
 ) {
-    let (events_tx, mut events_rx) = channel(256);
+    const EVENT_CAPACITY: usize = 256;
+    let (events_tx, mut events_rx) = channel(EVENT_CAPACITY);
     let mut engine = Engine {
         out,
         failed: std::sync::atomic::AtomicBool::new(false),
@@ -220,6 +245,7 @@ pub async fn run_with_limits(
     let mut inbox = Inbox {
         rx: requests,
         deferred: VecDeque::new(),
+        stale_rx: 0,
         shutdown: None,
     };
     let mut tick = tokio::time::interval(Duration::from_millis(500));
@@ -249,24 +275,51 @@ pub async fn run_with_limits(
             continue;
         }
         let has_deferred = !inbox.deferred.is_empty();
-        // Keep request FIFO order but let driver events and ticks make progress under
-        // request traffic. The explicit deadline check above does not rely on select fairness.
+        // Retain fair dispatch under sustained event/request traffic. When a request
+        // wins, the bounded event drain below establishes the control dispatch barrier.
         let next = tokio::select! {
             _ = engine.out.closed() => Next::End,
             _ = engine.events_tx.failure() => Next::End,
-            request = async { inbox.deferred.pop_front().expect("deferred request") }, if has_deferred => Next::Request(request),
-            request = inbox.rx.recv(), if !has_deferred => match request {
-                Some(request) => Next::Request(request),
-                None => Next::End,
-            },
-            Some((source_id, event)) = events_rx.recv() => Next::Event(source_id, event),
             _ = tick.tick() => Next::Tick,
             _ = sleep_until_due(engine.next_pulse_due()) => Next::Pulses,
+            Some((source_id, event)) = events_rx.recv() => Next::Event(source_id, event),
+            (request, stale) = async { inbox.deferred.pop_front().expect("deferred request") }, if has_deferred => Next::Request(request, stale),
+            request = inbox.rx.recv(), if !has_deferred => match request {
+                Some(request) => {
+                    let (request, stale) = inbox.received(request);
+                    Next::Request(request, stale)
+                },
+                None => Next::End,
+            },
         };
         match next {
             Next::End => break,
-            Next::Request(request) => engine.handle(request, &mut inbox).await,
-            Next::Event(source_id, event) => engine.on_driver_event(source_id, event).await,
+            Next::Request(request, mut stale) => {
+                // Observe already queued state transitions before handling a request,
+                // including one that has just been selected out of the inbox. Limit
+                // the drain so a value-event flood cannot starve stop/shutdown. If
+                // events keep arriving, fail closed for control requests this turn.
+                if !matches!(&request, Request::Shutdown { .. }) {
+                    for _ in 0..EVENT_CAPACITY {
+                        let Ok((source_id, event)) = events_rx.try_recv() else {
+                            break;
+                        };
+                        stale |= engine.on_driver_event(source_id, event, &mut inbox).await;
+                    }
+                    stale |= !events_rx.is_empty();
+                }
+                if inbox.rx.is_closed()
+                    || engine.out.is_closed()
+                    || engine.failed.load(std::sync::atomic::Ordering::Acquire)
+                    || engine.events_tx.failed()
+                {
+                    break;
+                }
+                engine.handle(request, stale, &mut inbox).await;
+            }
+            Next::Event(source_id, event) => {
+                engine.on_driver_event(source_id, event, &mut inbox).await;
+            }
             Next::Tick => engine.on_tick().await,
             Next::Pulses => engine.release_due_pulses().await,
         }
@@ -291,7 +344,7 @@ impl Engine {
         });
     }
 
-    async fn handle(&mut self, request: Request, inbox: &mut Inbox) {
+    async fn handle(&mut self, request: Request, stale: bool, inbox: &mut Inbox) {
         if let Request::Hello { id, protocol } = request {
             if protocol != PROTOCOL_VERSION {
                 self.greeted = false;
@@ -355,14 +408,14 @@ impl Engine {
                 self.running = true;
                 self.send(Message::Ok { id });
                 for source in &config.sources {
-                    self.start_source(&source.id).await;
+                    if !self.start_source(&source.id, inbox).await {
+                        return; // session ended; do not start another source
+                    }
                 }
                 if let Some(demand) = self.demand.clone() {
                     let unused = self.not_polled(|variable| !demand.contains(variable));
                     self.send_values(unused);
-                    for driver in self.drivers.values_mut() {
-                        driver.set_demand(Some(&demand)).await;
-                    }
+                    let _ = self.update_demand(Some(&demand), inbox).await;
                 }
             }
             Request::SetDemand { id, variable_ids } => {
@@ -380,8 +433,8 @@ impl Engine {
                 };
                 let dropped = self.not_polled(|v| wanted(&previous, v) && !wanted(&next, v));
                 self.send_values(dropped);
-                for driver in self.drivers.values_mut() {
-                    driver.set_demand(next.as_ref()).await;
+                if !self.update_demand(next.as_ref(), inbox).await {
+                    return;
                 }
                 // Variables that come into use on a source that is not connected get no fresh
                 // reading: say so instead of leaving them at "not polled".
@@ -417,6 +470,13 @@ impl Engine {
                 actor,
                 ttl_seconds,
             } => {
+                if stale {
+                    return self.error(
+                        id,
+                        "WRITES_DISARMED",
+                        "queued arming invalidated by connection loss; send a new armWrites",
+                    );
+                }
                 if !self.running {
                     return self.error(
                         id,
@@ -472,10 +532,11 @@ impl Engine {
                 }
                 // The actor must match the person who armed the engine, not merely be a
                 // non-empty string supplied by the client.
-                let decision = if self
-                    .armed
-                    .as_ref()
-                    .is_some_and(|armed| armed.actor == actor)
+                let decision = if !stale
+                    && self
+                        .armed
+                        .as_ref()
+                        .is_some_and(|armed| armed.actor == actor)
                 {
                     guard::check_write(
                         &GuardState {
@@ -539,10 +600,11 @@ impl Engine {
                     self.release_pulses(true).await;
                 }
                 let value = crate::protocol::Value::Bool(true);
-                let decision = if !self
-                    .armed
-                    .as_ref()
-                    .is_some_and(|armed| armed.actor == actor)
+                let decision = if stale
+                    || !self
+                        .armed
+                        .as_ref()
+                        .is_some_and(|armed| armed.actor == actor)
                 {
                     Err(WriteRefusal::WritesDisarmed)
                 } else if self.pulses.contains_key(&variable_id)
@@ -672,12 +734,38 @@ impl Engine {
         }
     }
 
-    async fn start_source(&mut self, source_id: &str) {
+    // Demand is best effort at the driver layer; the engine filters values immediately.
+    // A timed-out driver update is dropped, and its existing retry behavior is unchanged.
+    // Session end cancels the wait and stops further lifecycle dispatch.
+    async fn update_demand(
+        &mut self,
+        demand: Option<&BTreeSet<String>>,
+        inbox: &mut Inbox,
+    ) -> bool {
+        for driver in self.drivers.values_mut() {
+            if matches!(
+                supervise(
+                    inbox,
+                    &self.out,
+                    &self.events_tx,
+                    self.limits.lifecycle_timeout,
+                    driver.set_demand(demand)
+                )
+                .await,
+                Supervised::SessionEnded
+            ) {
+                return false;
+            }
+        }
+        true
+    }
+
+    async fn start_source(&mut self, source_id: &str, inbox: &mut Inbox) -> bool {
         let Some(config) = self.config.as_ref() else {
-            return;
+            return true;
         };
         let Some(source) = config.sources.iter().find(|s| s.id == source_id).cloned() else {
-            return;
+            return true;
         };
         let points = config
             .points
@@ -687,16 +775,33 @@ impl Engine {
             .collect();
         let credential = self.credentials.get(source_id).cloned();
         let started = match (self.factory)(&source, points, credential, self.events_tx.clone()) {
-            Ok(mut driver) => match driver.start().await {
-                Ok(()) => {
-                    self.drivers.insert(source_id.to_owned(), driver);
-                    Ok(())
+            Ok(mut driver) => {
+                let outcome = supervise(
+                    inbox,
+                    &self.out,
+                    &self.events_tx,
+                    self.limits.lifecycle_timeout,
+                    driver.start(),
+                )
+                .await;
+                match outcome {
+                    Supervised::Done(Ok(())) => {
+                        self.drivers.insert(source_id.to_owned(), driver);
+                        Ok(())
+                    }
+                    other => {
+                        let _ = tokio::time::timeout(self.limits.stop_timeout, driver.stop()).await;
+                        match other {
+                            Supervised::Done(Err(error)) => Err(error),
+                            Supervised::TimedOut => {
+                                Err(driver::DriverError("driver start timed out".into()))
+                            }
+                            Supervised::SessionEnded => return false,
+                            Supervised::Done(Ok(())) => unreachable!(),
+                        }
+                    }
                 }
-                Err(error) => {
-                    driver.stop().await;
-                    Err(error)
-                }
-            },
+            }
             Err(error) => Err(error),
         };
         // Drivers connect and retry in the background; an error here is a configuration problem
@@ -708,12 +813,19 @@ impl Engine {
                 message: Some(format!("cannot start: {error}")),
             });
         }
+        true
     }
 
-    async fn on_driver_event(&mut self, source_id: String, event: DriverEvent) {
-        // Late events from a driver that was already stopped are dropped.
-        if !self.running {
-            return;
+    // Returns true when this event invalidates the control period.
+    async fn on_driver_event(
+        &mut self,
+        source_id: String,
+        event: DriverEvent,
+        inbox: &mut Inbox,
+    ) -> bool {
+        // Late events from failed startup or already stopped sources are dropped.
+        if !self.running || !self.drivers.contains_key(&source_id) {
+            return false;
         }
         match event {
             DriverEvent::State(state, message) => {
@@ -735,7 +847,10 @@ impl Engine {
                     // reported, and marked unconfirmed if it cannot be written).
                     self.release_pulses_where(true, |pulse| pulse.point.source_id == source_id)
                         .await;
+                    // Requests queued before/during the release belong to the old period.
+                    inbox.invalidate_control();
                     self.disarm();
+                    return true;
                 }
             }
             DriverEvent::Values(values) => {
@@ -752,6 +867,7 @@ impl Engine {
                 self.send_values(in_use);
             }
         }
+        false
     }
 
     fn send_values(&self, values: Vec<PointValue>) {
@@ -817,7 +933,15 @@ impl Engine {
                 )
                 .await
                 {
-                    Ok(result) => result.map_err(|error| error.to_string()),
+                    Ok(result) => result.map_err(|error| {
+                        if error.is_outcome_unknown() || error.0.starts_with(driver::NOT_TRANSMITTED) {
+                            error.to_string()
+                        } else {
+                            // A definite rejection of FALSE still leaves the earlier
+                            // TRUE's state unconfirmed.
+                            driver::DriverError::outcome_unknown(format!("release not confirmed: {error}")).to_string()
+                        }
+                    }),
                     Err(_) => Err(driver::DriverError::outcome_unknown(format!(
                         "the release was not answered within {} ms; whether FALSE was applied is unknown",
                         limit.as_millis()

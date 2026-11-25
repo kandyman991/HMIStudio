@@ -239,3 +239,52 @@ predecessor checks successful (Desktop CI 45594448967, Tag engine CI
 No physical PLC testing or fresh engine test execution claimed by this review.
 Do not integrate until these findings are resolved, scope coordinated for any
 additional driver paths, and fresh exact-head checks and review are complete.
+
+## 10. Corrections to the independent review — 2026-11-25
+
+The §9 findings are addressed by this candidate; the §9 findings and earlier
+test results remain historical evidence, not validation of the new head.
+
+- **OPC UA write outcomes:** failure before handing the request to the
+  transport is explicitly NOT_TRANSMITTED. A timeout, service/transport error,
+  missing/extra operation result or ambiguous operation status (including
+  GoodCompletesAsynchronously) is OUTCOME_UNKNOWN. Only an exact Good result
+  confirms the server's response; a short allowlist of definite per-node
+  rejections remains a definite refusal. An ambiguous pulse start schedules
+  one immediate compensating release. If a release is rejected without an
+  explicit marker, the engine reports the command state as unconfirmed.
+- **Connection loss:** the request dispatcher drains queued driver events
+  before executing a selected request. A loss invalidates both the selected
+  control request and arm/write/pulse requests already queued in the deferred
+  buffer or request channel, including a queued arm followed by a stale write
+  after reconnection. Requests still receive correlated replies/audits; they
+  are not replayed. Fair selection and a bounded event drain preserve stop
+  and shutdown progress; control requests fail closed if the event backlog
+  persists. The boundary does not recall a transmission already underway.
+- **Lifecycle:** start and demand use a cancellable per-operation
+  lifecycle_timeout (default 10 s). Failed/timed-out startup stops the
+  candidate driver with stop_timeout (5 s); late events for absent sources
+  are ignored. Shutdown interrupts supervised startup/demand and no later
+  source operation is dispatched after an observed session end. Demand
+  remains best effort at the driver layer (the protocol acknowledges the
+  engine's selection, not confirmation of a driver subscription update).
+  Time bounds apply to cooperative asynchronous futures; they are not an
+  OS-level guarantee against synchronous blocking or a detached transport.
+  Aggregate cleanup scales with the number of sources and pulses.
+
+The claim was extended atomically to include the OPC UA driver file, preserving
+the two existing paths. No protocol, dependency, tag-engine or physical
+connectivity changes. The pre-existing L-4/L-5 and PLC-watchdog limitations
+remain; a server reply is not proof of physical command state.
+
+Validation on isolated Linux, rustc 1.100.0: cargo fmt --check and
+cargo test --locked --offline --features test-server passed (77 tests:
+17 library, 4 contract, 9 OPC UA, 5 process, 4 pulse, 9 S7, 7 session safety,
+22 write lifecycle). The six new tests cover OPC UA response classification,
+ambiguous pulse start/failed release, queued arm/write/pulse including a
+saturated deferred buffer, hung/failed startup and cleanup, shutdown during
+startup, and hung demand/cancellation. OPC UA and S7 servers are synthetic
+local test fixtures; no physical endpoints were used. Hosted exact-head
+Required CI, dedicated tag workflow and handoff are still required.
+
+Strict local Clippy (all targets, test-server, -D warnings) and rustdoc (-D warnings) also passed. Generated roadmap verification and all nine roadmap tests passed.

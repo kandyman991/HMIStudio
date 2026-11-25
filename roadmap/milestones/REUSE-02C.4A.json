@@ -15,33 +15,33 @@
     "Verify simulation-only write and release handling, bounded termination, outcomes and startup/lifecycle protections scoped by draft PR #20.",
     "Require independent review and exact-head Required CI, dedicated tag checks and handoff before merge."
   ],
-  "proposal": "PR #20 remains a draft; predecessor exact-head CI succeeded, but review found unresolved lifecycle gaps. The reconciled head requires fresh hosted CI.",
+  "proposal": "PR #20 incorporates the three independent-review corrections; all 77 local locked test-server engine tests passed. Fresh hosted CI and final review are required on the corrected head.",
   "prs": [
     {
       "number": 20,
-      "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
+      "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
       "branch": "feat/reuse-02c4a-write-lifecycle",
       "state": "draft",
-      "observedAt": "2026-11-25T12:40:05Z",
+      "observedAt": "2026-11-25T12:46:48Z",
       "runs": [
         {
-          "id": 45594448967,
+          "id": 45615999970,
           "name": "Desktop CI",
-          "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
+          "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45594448963,
+          "id": 45615999960,
           "name": "Tag engine CI",
-          "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
+          "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45594448982,
+          "id": 45616000143,
           "name": "Engineering handoff snapshot",
-          "head": "7b0166cccd0657104a440fec0fb7c628170c364e",
+          "head": "2e9e9951f011a39d6e1d9bb943cb67883d27e830",
           "state": "completed",
           "result": "success"
         }
@@ -57,10 +57,11 @@
     "owner": "ChatGPT",
     "branch": "feat/reuse-02c4a-write-lifecycle",
     "scope": [
+      "crates/hmi-engine/src/driver/opcua.rs",
       "crates/hmi-engine/src/engine.rs",
       "crates/hmi-engine/tests/write_lifecycle.rs"
     ],
-    "observedAt": "2026-11-25T10:22:51Z"
+    "observedAt": "2026-11-25T12:43:08Z"
   },
   "history": [
     {
@@ -74,15 +75,18 @@
       "type": "handoff",
       "summary": "Reconciled with main a4babf7, preserving DEV-01 acceptance and regenerating both views. Verified all 17 predecessor checks on 7b0166c. Independent static review identified unresolved write classification, event ordering and bounded lifecycle gaps; integration blocked pending correction.",
       "record": "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Extended the existing claim atomically to the OPC UA driver. Corrected ambiguous OPC UA replies, connection-loss dispatch and stale queued authorization, and bounded startup, failed-start cleanup and demand waits. Local locked test-server suite passed 77/77 including six added tests. Fresh hosted checks required.",
+      "record": "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
     }
   ],
   "docs": [
     "docs/reuse/REUSE_02C4A_WRITE_LIFECYCLE.md"
   ],
   "blockers": [
-    "Independent review: OPC UA write timeout/errors do not consistently use OUTCOME_UNKNOWN; an uncertain pulse start can skip its compensating release.",
-    "Independent review: pending connection-loss events can be overtaken by queued commands; verify disarming before further dispatch.",
-    "Independent review: startup failure cleanup and demand/start waits lack engine-enforced deadlines; narrow or correct the termination guarantee and test it.",
-    "Exact-head hosted CI and independent review of corrected head required."
+    "Exact-head hosted Required CI, Tag engine CI, handoff and final independent review required."
   ]
 }

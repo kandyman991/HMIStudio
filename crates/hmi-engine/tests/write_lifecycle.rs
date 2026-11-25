@@ -20,6 +20,7 @@ use tokio::task::JoinHandle;
 
 const LIMITS: Limits = Limits {
     write_timeout: Duration::from_millis(300),
+    lifecycle_timeout: Duration::from_millis(300),
     release_timeout: Duration::from_millis(300),
     stop_timeout: Duration::from_millis(300),
 };
@@ -42,6 +43,11 @@ struct Shared {
     /// Write futures dropped before answering.
     withdrawn: usize,
     stops: usize,
+    starts: usize,
+    demand_calls: usize,
+    hang_start: bool,
+    fail_start: bool,
+    hang_demand: bool,
     steps: VecDeque<Step>,
     /// `stop` never completes.
     stop_hangs: bool,
@@ -65,11 +71,21 @@ impl Drop for Withdrawn {
 #[async_trait]
 impl Driver for Scripted {
     async fn start(&mut self) -> Result<(), DriverError> {
-        self.shared
-            .lock()
-            .unwrap()
-            .sinks
-            .insert(self.source.clone(), self.sink.clone());
+        let (hang, fail) = {
+            let mut shared = self.shared.lock().unwrap();
+            shared.starts += 1;
+            shared.sinks.insert(self.source.clone(), self.sink.clone());
+            (
+                shared.hang_start && self.source == "sim",
+                shared.fail_start && self.source == "sim",
+            )
+        };
+        if hang {
+            std::future::pending::<()>().await;
+        }
+        if fail {
+            return Err(DriverError("scripted start failure".into()));
+        }
         let _ = self.sink.send((
             self.source.clone(),
             DriverEvent::State(SourceState::Connected, None),
@@ -95,7 +111,16 @@ impl Driver for Scripted {
             }
         }
     }
-    async fn set_demand(&mut self, _: Option<&BTreeSet<String>>) {}
+    async fn set_demand(&mut self, _: Option<&BTreeSet<String>>) {
+        let hangs = {
+            let mut shared = self.shared.lock().unwrap();
+            shared.demand_calls += 1;
+            shared.hang_demand
+        };
+        if hangs {
+            std::future::pending::<()>().await;
+        }
+    }
     async fn browse(&mut self, _: Option<&str>) -> Result<Vec<BrowseNode>, DriverError> {
         Ok(Vec::new())
     }
@@ -148,6 +173,13 @@ struct Session {
 impl Session {
     /// Hello, configure, start, connected and armed by "op".
     async fn armed(pulse_ms: u32) -> Self {
+        let mut s = Self::configured(pulse_ms).await;
+        s.start().await;
+        s.arm().await;
+        s
+    }
+
+    async fn configured(pulse_ms: u32) -> Self {
         let shared = Arc::new(Mutex::new(Shared::default()));
         let factory: DriverFactory = {
             let shared = shared.clone();
@@ -207,8 +239,6 @@ impl Session {
         });
         s.ok(id).await;
         s.config = Some(config);
-        s.start().await;
-        s.arm().await;
         s
     }
 
@@ -731,4 +761,139 @@ async fn shutdown_during_a_pending_write_is_immediate_and_nothing_follows() {
         "did not wait for the write timeout"
     );
     assert_eq!(s.writes().len(), 1);
+}
+
+// Observe a scripted operation entering the driver, without relying on a fixed sleep.
+async fn wait_shared(s: &Session, ready: impl Fn(&Shared) -> bool) {
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if ready(&s.shared.lock().unwrap()) {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("driver operation did not start");
+}
+
+#[tokio::test]
+async fn queued_arm_write_and_pulse_are_invalidated_by_loss_even_after_reconnect() {
+    let mut s = Session::armed(5000).await;
+    s.script(&[Step::Hang]);
+    let active = s.write(1.0);
+    wait_shared(&s, |x| x.writes.len() == 1).await;
+    let arm = s.send(|id| Request::ArmWrites {
+        id,
+        actor: "op".into(),
+        ttl_seconds: 60,
+    });
+    let queued = s.write(2.0);
+    let pulse = s.pulse();
+    let backlog: Vec<_> = (0..engine::DEFERRED_MAX + 4)
+        .map(|_| s.write(2.0))
+        .collect();
+    s.source_state(SourceState::Connecting);
+    s.source_state(SourceState::Connected);
+    assert!(starts(&s.result(active).await.2, OUTCOME_UNKNOWN));
+    s.expect("disarmed", |m| {
+        matches!(m, Message::WritesArmed { armed: false, .. })
+    })
+    .await;
+    s.expect(
+        "stale arm refused",
+        |m| matches!(m, Message::Error { id, code, .. } if *id == arm && code == "WRITES_DISARMED"),
+    )
+    .await;
+    assert_eq!(s.result(queued).await.1, Some(WriteRefusal::WritesDisarmed));
+    assert_eq!(s.result(pulse).await.1, Some(WriteRefusal::WritesDisarmed));
+    for id in backlog {
+        assert_eq!(s.result(id).await.1, Some(WriteRefusal::WritesDisarmed));
+    }
+    assert_eq!(s.writes().len(), 1);
+    s.arm().await;
+    let fresh = s.write(3.0);
+    assert!(s.result(fresh).await.0);
+}
+
+#[tokio::test]
+async fn ambiguous_pulse_start_is_released_once_and_failed_release_blocks() {
+    let mut s = Session::armed(5000).await;
+    s.script(&[Step::Unknown, Step::Unknown]);
+    let id = s.pulse();
+    assert!(starts(&s.result(id).await.2, OUTCOME_UNKNOWN));
+    let (released, reason) = s.released().await;
+    assert!(!released);
+    assert!(starts(&reason, OUTCOME_UNKNOWN));
+    s.arm().await;
+    s.reset_is_blocked().await;
+    assert_eq!(s.writes(), vec![t(true), t(false)]);
+}
+
+#[tokio::test]
+async fn hung_start_and_failure_cleanup_are_bounded_and_healthy_source_starts() {
+    for hang in [true, false] {
+        let mut s = Session::configured(100).await;
+        {
+            let mut state = s.shared.lock().unwrap();
+            state.hang_start = hang;
+            state.fail_start = !hang;
+            state.stop_hangs = true;
+        }
+        let start = Instant::now();
+        let id = s.send(|id| Request::Start { id });
+        s.ok(id).await;
+        s.expect("sim failed", |m| matches!(m, Message::SourceState { source_id, state: SourceState::Failed, .. } if source_id == "sim")).await;
+        s.expect("aux connected", |m| matches!(m, Message::SourceState { source_id, state: SourceState::Connected, .. } if source_id == "aux")).await;
+        assert!(
+            start.elapsed()
+                < LIMITS.lifecycle_timeout + LIMITS.stop_timeout + Duration::from_millis(900)
+        );
+        assert_eq!(s.shared.lock().unwrap().stops, 1);
+        let shutdown = s.send(|id| Request::Shutdown { id });
+        s.ok(shutdown).await;
+        s.ended_within(Duration::from_secs(2)).await;
+    }
+}
+
+#[tokio::test]
+async fn shutdown_during_hung_start_cancels_it_without_starting_another_source() {
+    let mut s = Session::configured(100).await;
+    s.shared.lock().unwrap().hang_start = true;
+    let id = s.send(|id| Request::Start { id });
+    s.ok(id).await;
+    wait_shared(&s, |x| x.starts == 1).await;
+    let shutdown = s.send(|id| Request::Shutdown { id });
+    s.ok(shutdown).await;
+    s.ended_within(Duration::from_secs(2)).await;
+    let state = s.shared.lock().unwrap();
+    assert_eq!(state.starts, 1);
+    assert_eq!(state.stops, 1);
+}
+
+#[tokio::test]
+async fn hung_demand_is_bounded_and_shutdown_cancels_pending_demand() {
+    let mut s = Session::armed(100).await;
+    s.shared.lock().unwrap().hang_demand = true;
+    let started = Instant::now();
+    let id = s.send(|id| Request::SetDemand {
+        id,
+        variable_ids: Some(vec![LEVEL.into()]),
+    });
+    s.ok(id).await;
+    // Both drivers time out; a following control request can complete.
+    let write = s.write(7.0);
+    assert!(s.result(write).await.0);
+    assert!(started.elapsed() < LIMITS.lifecycle_timeout * 2 + Duration::from_millis(900));
+    assert_eq!(s.shared.lock().unwrap().demand_calls, 2);
+    let id = s.send(|id| Request::SetDemand {
+        id,
+        variable_ids: None,
+    });
+    s.ok(id).await;
+    wait_shared(&s, |x| x.demand_calls == 3).await;
+    let shutdown = s.send(|id| Request::Shutdown { id });
+    s.ok(shutdown).await;
+    s.ended_within(Duration::from_secs(2)).await;
+    assert_eq!(s.shared.lock().unwrap().demand_calls, 3);
 }

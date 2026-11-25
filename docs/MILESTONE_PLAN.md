@@ -540,16 +540,13 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 
 **Blockers**
 
-- Independent review: OPC UA write timeout/errors do not consistently use OUTCOME\_UNKNOWN; an uncertain pulse start can skip its compensating release.
-- Independent review: pending connection-loss events can be overtaken by queued commands; verify disarming before further dispatch.
-- Independent review: startup failure cleanup and demand/start waits lack engine-enforced deadlines; narrow or correct the termination guarantee and test it.
-- Exact-head hosted CI and independent review of corrected head required.
+- Exact-head hosted Required CI, Tag engine CI, handoff and final independent review required.
 
-**Assignment** · ChatGPT, feat/reuse-02c4a-write-lifecycle (recorded 2026-11-25T10:22:51Z)
+**Assignment** · ChatGPT, feat/reuse-02c4a-write-lifecycle (recorded 2026-11-25T12:43:08Z)
 
-**Proposal** · PR #20 remains a draft; predecessor exact-head CI succeeded, but review found unresolved lifecycle gaps. The reconciled head requires fresh hosted CI.
+**Proposal** · PR #20 incorporates the three independent-review corrections; all 77 local locked test-server engine tests passed. Fresh hosted CI and final review are required on the corrected head.
 
-[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [7b0166c](https://github.com/kandyman991/HMIStudio/commit/7b0166cccd0657104a440fec0fb7c628170c364e) · snapshot 2026-11-25T12:40:05Z · [Desktop CI #45594448967](https://github.com/kandyman991/HMIStudio/actions/runs/45594448967) success, [Tag engine CI #45594448963](https://github.com/kandyman991/HMIStudio/actions/runs/45594448963) success, [Engineering handoff snapshot #45594448982](https://github.com/kandyman991/HMIStudio/actions/runs/45594448982) success
+[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [2e9e995](https://github.com/kandyman991/HMIStudio/commit/2e9e9951f011a39d6e1d9bb943cb67883d27e830) · snapshot 2026-11-25T12:46:48Z · [Desktop CI #45615999970](https://github.com/kandyman991/HMIStudio/actions/runs/45615999970) success, [Tag engine CI #45615999960](https://github.com/kandyman991/HMIStudio/actions/runs/45615999960) success, [Engineering handoff snapshot #45616000143](https://github.com/kandyman991/HMIStudio/actions/runs/45616000143) success
 
 Records · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 
@@ -557,6 +554,7 @@ Records · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRIT
 
 - 2026-11-25 · handoff · Reconciled legacy PR #20 with living roadmap main, preserved owner decisions D-02C4A-1 and D-02C4A-2 and reserved exact engine paths. New head requires fresh hosted CI and independent review. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 - 2026-11-25 · handoff · Reconciled with main a4babf7, preserving DEV-01 acceptance and regenerating both views. Verified all 17 predecessor checks on 7b0166c. Independent static review identified unresolved write classification, event ordering and bounded lifecycle gaps; integration blocked pending correction. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
+- 2026-11-25 · handoff · Extended the existing claim atomically to the OPC UA driver. Corrected ambiguous OPC UA replies, connection-loss dispatch and stale queued authorization, and bounded startup, failed-start cleanup and demand waits. Local locked test-server suite passed 77/77 including six added tests. Fresh hosted checks required. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 
 <a id="reuse-02c.4b"></a>
 ### REUSE-02C.4B — Write-capable EngineDriver integration

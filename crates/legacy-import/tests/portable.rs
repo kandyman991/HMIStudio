@@ -488,3 +488,44 @@ fn adaptive_unknown_geometry_and_unsupported_layout_refuse() {
         .project
         .is_none());
 }
+
+#[test]
+fn ordered_navigation_declarations_and_reference_remapping() {
+    let mut f = fixture(10);
+    f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!("button");
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"] = json!({
+        "press": [
+            {"action":"navigate.screen","screenId":"screen/a"},
+            {"action":"navigate.startup"},
+            {"action":"navigate.back"}
+        ],
+        "release": {"action":"popup.close"}
+    });
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let h = &d["v2"]["components"]["handlers"];
+    assert_eq!(h[0]["event"], "press");
+    assert_eq!(h[0]["actions"][0]["screen"], d["screens"][0]["id"]);
+    assert_eq!(h[0]["actions"][1]["type"], "navigateStartup");
+    assert_eq!(h[0]["actions"][2]["type"], "back");
+    assert_eq!(h[1]["event"], "release");
+    let mut expected = BTreeSet::new();
+    paths(&f, "", &mut expected);
+    assert_eq!(
+        expected,
+        a.report.findings.iter().map(|x| x.path.clone()).collect()
+    );
+    for bad in [
+        json!({"press":{"action":"navigate.screen","screenId":"missing"}}),
+        json!({"press":{"action":"value.toggle","variableId":"label-a"}}),
+        json!({"hold":{"action":"navigate.back"}}),
+        json!({"press":{"action":"navigate.back","extra":true}}),
+        json!({"press":[]}),
+    ] {
+        f["screens"]["screen/a"]["components"]["label-a"]["actions"] = bad;
+        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+            .project
+            .is_none());
+    }
+}

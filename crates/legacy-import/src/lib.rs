@@ -2,6 +2,7 @@
 //! No filesystem writes, archive extraction, I/O, or runtime authorization.
 use hmi_project_model::{model::Project, serialization::load_project};
 mod graphics;
+mod navigation;
 mod industrial;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
@@ -460,6 +461,7 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
     let mut doc = json!({"format":"hmi-studio.project","schemaVersion":2,"id":project_id,"metadata":metadata,"navigation":{"startScreen":start},"localization":{"defaultLocale":"en","locales":["en"]},"screens":result,"tags":tags,"extensions":{"hmiforge.idMap":m.ids}});
     industrial::map(v, &mut doc, m)?;
     graphics::finish(v, &mut doc, m)?;
+    navigation::map(v, &mut doc, m)?;
     doc["extensions"]["hmiforge.idMap"] = json!(m.ids);
     load_project(&doc.to_string()).ok().map(|x| x.project)
 }

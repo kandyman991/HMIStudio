@@ -13,7 +13,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | --- | --- | --- | --- |
 | [CI-02](#ci-02) Change-aware CI | Developer workflow | Merged | — |
 | [DEV-01](#dev-01) Living development roadmap | Developer workflow | Accepted | — |
-| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | Planned | [DEV-01](#dev-01) (accepted) |
+| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | In progress | [DEV-01](#dev-01) (accepted) |
 | [REUSE-01](#reuse-01) Inventory and compatibility audit | Reuse | Merged | — |
 | [REUSE-02](#reuse-02) Engine bridge and delivery | Reuse | In progress | [REUSE-01](#reuse-01) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02A](#reuse-02a) Pinned engine preflight | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
@@ -21,7 +21,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-02C.1](#reuse-02c.1) Bridge supervision | Reuse | Merged | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02C.2](#reuse-02c.2) Typed dispatch and isolated resynchronization | Reuse | Merged | [REUSE-02C.1](#reuse-02c.1) (merged) |
 | [REUSE-02C.3](#reuse-02c.3) Isolated read-only EngineDriver | Reuse | Merged | [REUSE-02C.2](#reuse-02c.2) (merged) |
-| [REUSE-02C.4A](#reuse-02c.4a) Write lifecycle and termination safety | Reuse | Proposed completion | [REUSE-02C.3](#reuse-02c.3) (merged) |
+| [REUSE-02C.4A](#reuse-02c.4a) Write lifecycle and termination safety | Reuse | Merged | [REUSE-02C.3](#reuse-02c.3) (merged) |
 | [REUSE-02C.4B](#reuse-02c.4b) Write-capable EngineDriver integration | Reuse | Planned | [REUSE-02C.4A](#reuse-02c.4a) (merged) |
 | [REUSE-02C](#reuse-02c) Supervised bridge | Reuse | In progress | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | Planned | [REUSE-01](#reuse-01) (merged) |
@@ -94,7 +94,7 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 <a id="dev-02"></a>
 ### DEV-02 — Roadmap reconciliation regression fix
 
-**Planned** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
+**In progress** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
 
 **Acceptance criteria**
 
@@ -105,9 +105,13 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 
 - [DEV-01](#dev-01) (accepted)
 
+**Assignment** · ChatGPT, fix/dev-02-roadmap-regression (recorded 2026-11-25T14:23:35Z)
+
 **History**
 
 - 2026-11-25 · note · Reconciliation after PR #26 found roadmap test 6 fails when REUSE-02C.4A moves from proposed to verified merged. Register a scoped follow-up before editing the executable test; leave the original observation unchanged until the fix merges. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
+- 2026-11-25 · started · Reserved exact roadmap test scope from verified main 3ab9d46; reproduced mutable proposal regression and identified additional live reservation dependence in validator fixtures. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
+- 2026-11-25 · handoff · Replaced mutable milestone fixtures with synthetic proposal and merge evidence, isolated fixture validation from live claims, added explicit reservation regression and reconciled verified PR #20. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 
 ## Engineering
 
@@ -630,7 +634,7 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 <a id="reuse-02c.4a"></a>
 ### REUSE-02C.4A — Write lifecycle and termination safety
 
-**Proposed completion** · Draft PR #20 contains a bounded write/release and termination safety candidate.
+**Merged** · PR #20 integrated the bounded write/release and termination safety scope; production acceptance remains separate.
 
 **Acceptance criteria**
 
@@ -643,15 +647,7 @@ Records · [docs/reuse/REUSE\_02C3\_ENGINE\_DRIVER.md](reuse/REUSE_02C3_ENGINE_D
 
 **Parent** · REUSE-02C
 
-**Blockers**
-
-- Exact-head hosted Required CI, Tag engine CI, handoff and final independent review required.
-
-**Assignment** · ChatGPT, feat/reuse-02c4a-write-lifecycle (recorded 2026-11-25T12:43:08Z)
-
-**Proposal** · PR #20 incorporates the three independent-review corrections; all 77 local locked test-server engine tests passed. Fresh hosted CI and final review are required on the corrected head.
-
-[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · draft · head [2e9e995](https://github.com/kandyman991/HMIStudio/commit/2e9e9951f011a39d6e1d9bb943cb67883d27e830) · snapshot 2026-11-25T12:46:48Z · [Desktop CI #45615999970](https://github.com/kandyman991/HMIStudio/actions/runs/45615999970) success, [Tag engine CI #45615999960](https://github.com/kandyman991/HMIStudio/actions/runs/45615999960) success, [Engineering handoff snapshot #45616000143](https://github.com/kandyman991/HMIStudio/actions/runs/45616000143) success
+[PR #20](https://github.com/kandyman991/HMIStudio/pull/20) · merged · head [3d7b7b4](https://github.com/kandyman991/HMIStudio/commit/3d7b7b4a654ef818b45cb0b240d38c35e2c3af79) · merged [9c09e36](https://github.com/kandyman991/HMIStudio/commit/9c09e363d5df08114202a42ec0c9aa8bca664b80) · snapshot 2026-11-25T14:23:39Z · [Desktop CI #45617123948](https://github.com/kandyman991/HMIStudio/actions/runs/45617123948) success, [Engineering handoff snapshot #45617123906](https://github.com/kandyman991/HMIStudio/actions/runs/45617123906) success, [Tag engine CI #45617123855](https://github.com/kandyman991/HMIStudio/actions/runs/45617123855) success
 
 Records · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 
@@ -660,6 +656,7 @@ Records · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRIT
 - 2026-11-25 · handoff · Reconciled legacy PR #20 with living roadmap main, preserved owner decisions D-02C4A-1 and D-02C4A-2 and reserved exact engine paths. New head requires fresh hosted CI and independent review. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 - 2026-11-25 · handoff · Reconciled with main a4babf7, preserving DEV-01 acceptance and regenerating both views. Verified all 17 predecessor checks on 7b0166c. Independent static review identified unresolved write classification, event ordering and bounded lifecycle gaps; integration blocked pending correction. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
 - 2026-11-25 · handoff · Extended the existing claim atomically to the OPC UA driver. Corrected ambiguous OPC UA replies, connection-loss dispatch and stale queued authorization, and bounded startup, failed-start cleanup and demand waits. Local locked test-server suite passed 77/77 including six added tests. Fresh hosted checks required. · [docs/reuse/REUSE\_02C4A\_WRITE\_LIFECYCLE.md](reuse/REUSE_02C4A_WRITE_LIFECYCLE.md)
+- 2026-11-25 · merged · GitHub verified designated completion PR #20 merged at 9c09e363d5df with successful recorded exact-head workflows. Acceptance remains separate.
 
 <a id="reuse-02c.4b"></a>
 ### REUSE-02C.4B — Write-capable EngineDriver integration
@@ -787,6 +784,10 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Parent** · RUST-08
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+
+## Shared reservation snapshot
+
+- DEV-02 · ChatGPT · fix/dev-02-roadmap-regression · 2026-11-25T14:23:35Z
 
 ## Engineering decisions
 

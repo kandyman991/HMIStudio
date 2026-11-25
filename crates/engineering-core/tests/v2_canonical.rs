@@ -182,3 +182,49 @@ fn definition_duplication_keeps_classification_and_remaps_faceplate_self_target(
         json!(copy.allocated_ids["0:definition"])
     );
 }
+
+#[test]
+fn desktop_contract_edit_and_layout_transactions_preserve_unrelated_exact_data() {
+    let mut p = minimal();
+    p.extensions
+        .insert("synthetic.exact".into(), json!(u64::MAX));
+    let mut s = session(p);
+    let cmds:Vec<Command>=serde_json::from_value(json!([
+        {"op":"insertV2Component","parent":"n-root","id":"n-arrow","contract":{"kind":"arrow","start":{"x":0,"y":0},"end":{"x":20,"y":5},"strokeColor":"#000000","strokeWidth":1,"headLength":3}},
+        {"op":"setExpressionEnumerations","declarations":{"enumerations":[{"id":"enum-exact","name":"Exact","dataType":"uint64","entries":[{"value":18446744073709551615u64,"label":"Max"}]}]}},
+        {"op":"setIndustrialSecurity","declarations":{"security":{"autoLogoutSeconds":30}}}
+    ])).unwrap();
+    s.execute(Transaction::new(cmds)).unwrap();
+    let before = canonical(s.project());
+    let original_bindings = s.project().v2.bindings.clone();
+    let original_industrial = s.project().v2.industrial.clone();
+    let cmds:Vec<Command>=serde_json::from_value(json!([
+        {"op":"setV2ComponentContract","node":"n-arrow","contract":{"kind":"arrow","start":{"x":-1,"y":0},"end":{"x":25,"y":8},"strokeColor":"#123456","strokeWidth":2,"headLength":5}},
+        {"op":"setLayout","node":"n-arrow","layout":{"width":{"mode":"fixed","value":150},"height":{"mode":"fixed","value":80}}},
+        {"op":"moveNode","node":"n-arrow","parent":"n-root","index":0}
+    ])).unwrap();
+    s.execute(Transaction::new(cmds)).unwrap();
+    assert_eq!(s.project().v2.bindings, original_bindings);
+    assert_eq!(s.project().v2.industrial, original_industrial);
+    assert_eq!(s.project().extensions["synthetic.exact"], json!(u64::MAX));
+    assert_eq!(
+        s.project().screens[0].root.children[0].id.as_str(),
+        "n-arrow"
+    );
+    let after = canonical(s.project());
+    let bad:Command=serde_json::from_value(json!({"op":"setV2ComponentContract","node":"n-arrow","contract":{"kind":"arrow","start":{"x":0,"y":0},"end":{"x":1,"y":0},"strokeColor":"#000000","strokeWidth":1,"headLength":5}})).unwrap();
+    assert!(s.execute(Transaction::single(bad)).is_err());
+    assert_eq!(canonical(s.project()), after);
+    s.undo(None).unwrap().unwrap();
+    assert_eq!(canonical(s.project()), before);
+    s.redo(None).unwrap().unwrap();
+    assert_eq!(canonical(s.project()), after);
+    s.execute(Transaction::single(Command::RemoveNode {
+        node: nid("n-arrow"),
+    }))
+    .unwrap();
+    assert!(s.project().v2.components.components.is_empty());
+    assert_eq!(s.project().v2.bindings, original_bindings);
+    s.undo(None).unwrap().unwrap();
+    assert_eq!(canonical(s.project()), after);
+}

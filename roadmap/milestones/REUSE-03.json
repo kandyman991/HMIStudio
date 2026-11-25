@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A in progress: canonical v2 candidate, strict migration/schema, placed primitive/input contracts and reference-aware screen/node/definition duplication implemented; downstream capability and conformance gates remain.",
+  "summary": "REUSE-03A in progress: canonical v2 model, migration, placement and remapping; desktop valid-v2 admission, typed component editing, static preview and persistence regressions implemented.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Desktop/editor/renderer and runtime capability integration, cross-runtime expression parity and exact-head CI/review remain open. Cross-definition reparenting requires scope mapping; reference-bearing deletion requires explicit declaration cleanup. Decoder mapping waits for frozen schema."
+    "Cross-runtime expression conformance, exact-head hosted CI and independent review before schema freeze. Native visual acceptance and full renderer/instance, project-level declaration UI and runtime parity remain outstanding; cross-definition remap still restricted."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,9 +31,11 @@
       "crates/engineering-core/",
       "crates/project-model/",
       "crates/tag-engine/",
-      "src-tauri/src/"
+      "src-tauri/src/",
+      "src/",
+      "tests/"
     ],
-    "observedAt": "2026-11-25T19:01:02Z"
+    "observedAt": "2026-11-25T19:25:37Z"
   },
   "history": [
     {
@@ -76,6 +78,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Integrated five typed leaf kinds and atomic placement, symbol classification, reference-aware duplication, inherited permission preservation and strict v1 kind admission. Existing consumers refuse unsupported v2 features; downstream compatibility and parity remain open.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Enabled valid v2 desktop admission, five static component previews, typed inspector/insert/duplicate operations and precise single-contract edits. Native host and frontend preflight validated locally using isolated harnesses; runtime capability refusal preserved. Native visual acceptance and conformance pending.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

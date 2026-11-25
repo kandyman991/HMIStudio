@@ -96,6 +96,12 @@ pub enum Command {
         layout: LayoutParams,
         contract: hmi_project_model::model::v2_components::ComponentContract,
     },
+    /// Replace only one typed component contract, never the whole v2 group.
+    #[serde(rename_all = "camelCase")]
+    SetV2ComponentContract {
+        node: NodeId,
+        contract: hmi_project_model::model::v2_components::ComponentContract,
+    },
     /// Removes a node and its subtree. Roots cannot be removed.
     #[serde(rename_all = "camelCase")]
     RemoveNode {
@@ -363,6 +369,7 @@ impl Command {
             Command::DuplicateScreen { .. } => "duplicateScreen",
             Command::InsertNode { .. } => "insertNode",
             Command::InsertV2Component { .. } => "insertV2Component",
+            Command::SetV2ComponentContract { .. } => "setV2ComponentContract",
             Command::RemoveNode { .. } => "removeNode",
             Command::DuplicateNode { .. } => "duplicateNode",
             Command::MoveNode { .. } => "moveNode",

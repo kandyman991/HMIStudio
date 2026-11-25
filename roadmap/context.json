@@ -84,9 +84,11 @@
         "crates/engineering-core/",
         "crates/project-model/",
         "crates/tag-engine/",
-        "src-tauri/src/"
+        "src-tauri/src/",
+        "src/",
+        "tests/"
       ],
-      "observedAt": "2026-11-25T19:01:02Z"
+      "observedAt": "2026-11-25T19:25:37Z"
     }
   ]
 }

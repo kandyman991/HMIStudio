@@ -300,6 +300,25 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
                 .push(K::Modified, E::Node, Some(parent.to_string()));
             cx.changes.push(K::Modified, E::Project, None);
         }
+        Command::SetV2ComponentContract { node, contract } => {
+            let loc = locate(p, node)?;
+            let existing = locate::get(p, &loc).ok_or_else(|| not_found("node", node))?;
+            if !matches!(existing.element, Element::Component { kind } if kind == contract.kind()) {
+                return Err(CommandError::InvalidArgument {
+                    message: "contract kind must match the existing node".into(),
+                });
+            }
+            let entry =
+                p.v2.components
+                    .components
+                    .iter_mut()
+                    .find(|c| &c.id == node)
+                    .ok_or_else(|| not_found("component contract", node))?;
+            entry.contract = contract.clone();
+            cx.changes
+                .push(K::Modified, E::Node, Some(node.to_string()));
+            cx.changes.push(K::Modified, E::Project, None);
+        }
         Command::RemoveNode { node } => {
             let loc = locate(p, node)?;
             if loc.is_root() {
@@ -309,7 +328,18 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
                 });
             }
             let removed = detach(p, &loc)?;
-            for id in subtree_ids(&removed) {
+            let removed_ids = subtree_ids(&removed);
+            let removed_set: BTreeSet<_> = removed_ids.iter().map(String::as_str).collect();
+            let count = p.v2.components.components.len();
+            p.v2.components
+                .components
+                .retain(|c| !removed_set.contains(c.id.as_str()));
+            if count != p.v2.components.components.len() {
+                cx.changes.push(K::Modified, E::Project, None);
+            }
+            // Other declarations are independent engineering references:
+            // strict validation refuses dangling permissions/bindings/actions.
+            for id in removed_ids {
                 cx.changes.push(K::Removed, E::Node, Some(id));
             }
             if let Some(parent) = locate::get(p, &parent_loc(&loc)) {

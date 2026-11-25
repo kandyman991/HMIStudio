@@ -297,3 +297,7 @@ Draft branch now writes schema 2; v1 fixtures/schema immutable, additive strict 
 ## REUSE-03A canonical placement and copying — 2026-11-25
 
 Five typed leaf kinds now occupy canonical nodes with one matching contract. insertV2Component is atomic; classified symbol creation persists metadata. Screen/node/definition copies preserve and remap declarations; inherited permissions cannot be lost on move/copy. Cross-definition reparenting remains refused and reference-bearing deletion requires explicit cleanup. Existing desktop/tag consumers reject unsupported features. Next exact action: downstream compatibility and expression conformance before freeze. PR #35 remains draft; reservation active.
+
+## REUSE-03A desktop v2 engineering integration — 2026-11-25
+
+Valid v2 open/save/recovery, static five-component preview, typed inspector and insert/duplicate operations now integrated. Single-contract edits avoid full JS project round trip; deletion removes intrinsic contracts only. Runtime activation refusal unchanged. Frontend 23 tests via temporary transpilation and isolated native host 10 tests passed; full native Tauri/visual acceptance not claimed. Scope extended to src/ and tests/. Next exact action: cross-runtime expression conformance and exact-head hosted CI/technical review before schema freeze. PR #35 remains draft.

@@ -52,20 +52,41 @@
       "type": "handoff",
       "summary": "Draft PR #25 opened for the implementation candidate; native screenshot comparison, final exact-head CI and independent review are outstanding.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Independent review of 5c8459f corrected outside menu dismissal, command focus and compact dock resize; frontend and isolated browser regression tests passed. Native comparison and corrected-head hosted CI remain pending.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "blockers": [
     "Actual native desktop screenshot/interaction comparison remains pending; browser fixture is not native evidence.",
-    "Exact-head hosted CI and independent review pending."
+    "Corrected-head hosted CI and final-head review pending."
   ],
   "prs": [
     {
       "number": 25,
-      "head": "35451c5567ab1fc3bd0f7b9357b7e8f2d4776621",
+      "head": "5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c",
       "branch": "feat/rust-04b1-workspace-alignment",
       "state": "draft",
-      "observedAt": "2026-11-25T13:48:37Z",
-      "runs": []
+      "observedAt": "2026-11-25T13:55:19Z",
+      "runs": [
+        {
+          "id": 45627392049,
+          "name": "Desktop CI",
+          "head": "5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45627392150,
+          "name": "Engineering handoff snapshot",
+          "head": "5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c",
+          "state": "completed",
+          "result": "success"
+        }
+      ]
     }
   ]
 }

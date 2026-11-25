@@ -265,11 +265,11 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 **Blockers**
 
 - Actual native desktop screenshot/interaction comparison remains pending; browser fixture is not native evidence.
-- Exact-head hosted CI and independent review pending.
+- Corrected-head hosted CI and final-head review pending.
 
 **Assignment** · ChatGPT, feat/rust-04b1-workspace-alignment (recorded 2026-11-25T13:44:30Z)
 
-[PR #25](https://github.com/kandyman991/HMIStudio/pull/25) · draft · head [35451c5](https://github.com/kandyman991/HMIStudio/commit/35451c5567ab1fc3bd0f7b9357b7e8f2d4776621) · snapshot 2026-11-25T13:48:37Z · CI unrecorded
+[PR #25](https://github.com/kandyman991/HMIStudio/pull/25) · draft · head [5c8459f](https://github.com/kandyman991/HMIStudio/commit/5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c) · snapshot 2026-11-25T13:55:19Z · [Desktop CI #45627392049](https://github.com/kandyman991/HMIStudio/actions/runs/45627392049) success, [Engineering handoff snapshot #45627392150](https://github.com/kandyman991/HMIStudio/actions/runs/45627392150) success
 
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/README.md](reference/README.md)
 
@@ -278,6 +278,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · started · Reserved RUST-04B.1 from verified main 9f20def9; PR #24 is conflicting and has failing checks; reconcile the verified prerequisite locally. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Implemented reference-aligned menus, workspace chrome, catalog/action search and responsive minimum-height correction. Frontend and roadmap tests and isolated browser fixture passed; native comparison pending. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Draft PR #25 opened for the implementation candidate; native screenshot comparison, final exact-head CI and independent review are outstanding. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · handoff · Independent review of 5c8459f corrected outside menu dismissal, command focus and compact dock resize; frontend and isolated browser regression tests passed. Native comparison and corrected-head hosted CI remain pending. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04b"></a>
 ### RUST-04B — Model-driven layout rendering

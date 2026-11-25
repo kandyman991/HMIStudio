@@ -225,5 +225,15 @@ footer{background:#141c28}
 .screen-tab button.active .studio-icon{color:var(--mint)}
 .tab-add{flex:none;border:0;background:transparent;padding:4px 9px;color:var(--muted)}
 .editor-head{margin-left:auto;align-self:center;padding:0 10px;color:var(--dim);font:10px var(--mono);white-space:nowrap}
-@media(max-width:900px){.dock-panel{max-width:25%}.editor-head{display:none}.studio nav{gap:0}.menu>button{padding-inline:5px}}
+@media(max-width:900px){
+  /* Scale the six distinct steps instead of capping multiple steps to one width. */
+  .dock-panel{max-width:30%}
+  .dock-panel.size-1{width:min(135px,15vw)}
+  .dock-panel.size-2{width:min(170px,18vw)}
+  .dock-panel.size-3{width:min(205px,21vw)}
+  .dock-panel.size-4{width:min(240px,24vw)}
+  .dock-panel.size-5{width:min(275px,27vw)}
+  .dock-panel.size-6{width:min(310px,30vw)}
+  .editor-head{display:none}.studio nav{gap:0}.menu>button{padding-inline:5px}
+}
 @media(max-height:600px){.dock-diagnostics{max-height:max(64px,calc(100vh - 436px))}.viewport{padding:8px}.artboard-caption{font-size:11px;gap:4px}.preview-note{font-size:10px;margin:5px 0}.studio .studio-top{height:48px}}

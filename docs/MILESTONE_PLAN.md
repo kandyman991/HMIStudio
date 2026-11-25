@@ -34,8 +34,8 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [RUST-03B](#rust-03b) Engineering operations | Engineering | Merged | [RUST-03A](#rust-03a) (merged) |
 | [RUST-04](#rust-04) Semantic layout editor | Engineering | In progress | [RUST-02](#rust-02) (accepted), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
-| [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | Planned | [RUST-04B](#rust-04b) (merged) |
-| [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Proposed completion | [RUST-04A](#rust-04a) (merged) |
+| [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | In progress | [RUST-04B](#rust-04b) (merged) |
+| [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Merged | [RUST-04A](#rust-04a) (merged) |
 | [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | Planned | [RUST-04B.1](#rust-04b.1) (merged) |
 | [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged) |
 | [RUST-06](#rust-06) Engineering systems | Engineering | In progress | [RUST-03B](#rust-03b) (merged) |
@@ -249,7 +249,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 <a id="rust-04b.1"></a>
 ### RUST-04B.1 — Workspace visual alignment
 
-**Planned** · Complete remaining visual alignment with the preserved original HTML reference; do not ship its mock behavior.
+**In progress** · Complete remaining visual alignment with the preserved original HTML reference; do not ship its mock behavior.
 
 **Acceptance criteria**
 
@@ -262,12 +262,28 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 **Parent** · RUST-04
 
+**Blockers**
+
+- Actual native desktop screenshot/interaction comparison remains pending; browser fixture is not native evidence.
+- Corrected-head hosted CI and final-head review pending.
+
+**Assignment** · ChatGPT, feat/rust-04b1-workspace-alignment (recorded 2026-11-25T13:44:30Z)
+
+[PR #25](https://github.com/kandyman991/HMIStudio/pull/25) · draft · head [5c8459f](https://github.com/kandyman991/HMIStudio/commit/5c8459fa69fa5fd060dc52422cbf6ec3c0eb3e9c) · snapshot 2026-11-25T13:55:19Z · [Desktop CI #45627392049](https://github.com/kandyman991/HMIStudio/actions/runs/45627392049) success, [Engineering handoff snapshot #45627392150](https://github.com/kandyman991/HMIStudio/actions/runs/45627392150) success
+
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/README.md](reference/README.md)
+
+**History**
+
+- 2026-11-25 · started · Reserved RUST-04B.1 from verified main 9f20def9; PR #24 is conflicting and has failing checks; reconcile the verified prerequisite locally. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · handoff · Implemented reference-aligned menus, workspace chrome, catalog/action search and responsive minimum-height correction. Frontend and roadmap tests and isolated browser fixture passed; native comparison pending. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · handoff · Draft PR #25 opened for the implementation candidate; native screenshot comparison, final exact-head CI and independent review are outstanding. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · handoff · Independent review of 5c8459f corrected outside menu dismissal, command focus and compact dock resize; frontend and isolated browser regression tests passed. Native comparison and corrected-head hosted CI remain pending. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04b"></a>
 ### RUST-04B — Model-driven layout rendering
 
-**Proposed completion** · Reconciled PR #12 corrects the semantic flow preview and aligns the workspace with the recovered owner-approved prototype.
+**Merged** · Reconciled PR #12 corrects the semantic flow preview and aligns the workspace with the recovered owner-approved prototype.
 
 **Acceptance criteria**
 
@@ -283,14 +299,9 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 
 **Blockers**
 
-- Fresh exact-head hosted Required CI and engineering handoff before integration.
 - Native desktop visual comparison/acceptance remains with RUST-04 and issue #10; subsequent RUST-04B.1 alignment and RUST-04C interaction are separate.
 
-**Assignment** · ChatGPT, feat/rust-04b-layout-rendering (recorded 2026-11-25T13:14:03Z)
-
-**Proposal** · RUST-04B corrected candidate; 13 frontend tests, TypeScript, Vite and isolated Chromium fixture passed. Fresh exact-head hosted CI and engineering integration pending. Native visual acceptance remains open.
-
-[PR #12](https://github.com/kandyman991/HMIStudio/pull/12) · draft · head [1dd36b5](https://github.com/kandyman991/HMIStudio/commit/1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20) · snapshot 2026-11-25T09:01:59Z · [Desktop CI #45434390655](https://github.com/kandyman991/HMIStudio/actions/runs/45434390655) success, [Engineering handoff snapshot #45434390848](https://github.com/kandyman991/HMIStudio/actions/runs/45434390848) success
+[PR #12](https://github.com/kandyman991/HMIStudio/pull/12) · merged · head [016fafc](https://github.com/kandyman991/HMIStudio/commit/016fafce3c2ec5c9363ce8f10f96648c83b4a3c3) · merged [9f20def](https://github.com/kandyman991/HMIStudio/commit/9f20def9f5fa52619659c49b3e9fa34ed58f3d74) · snapshot 2026-11-25T13:44:30Z · [Desktop CI #45624121728](https://github.com/kandyman991/HMIStudio/actions/runs/45624121728) success, [Engineering handoff snapshot #45624121871](https://github.com/kandyman991/HMIStudio/actions/runs/45624121871) success
 
 [Issue #10](https://github.com/kandyman991/HMIStudio/issues/10) · open · RUST-02 — Windows/Linux desktop milestone acceptance · snapshot 2026-11-25T09:01:59Z
 
@@ -300,6 +311,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 
 - 2026-11-25 · started · Reserved RUST-04B and reconciled predecessor 1dd36b5 with main 0a74f65 (original visual reference merged in PR #13). · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · completion proposed · Corrected preview numeric parsing, wrap alignment, hidden interaction, unsupported semantics, compact reference-based workspace and bounded fit/zoom. Local frontend and isolated browser validation passed; fresh hosted CI required. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · merged · Verified PR #12 merged at 9f20def9 and both exact-head hosted workflows succeeded. Visual acceptance remains separate.
 
 <a id="rust-04c"></a>
 ### RUST-04C — Direct graphical manipulation

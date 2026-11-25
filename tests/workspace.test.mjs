@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULTS, restorePreferences, preset, clampSize, reconcileTabs, openTab, closeTab, cycleTab } from "../src/workspace.ts";
+import { DEFAULTS, restorePreferences, preset, clampSize, reconcileTabs, openTab, closeTab, cycleTab, matchesCatalog } from "../src/workspace.ts";
 
 test("missing, corrupt and unsupported preferences reset safely",()=>{
   for(const value of [null,"{","null",'{"version":99,"left":false}']) assert.deepEqual(restorePreferences(value,null),DEFAULTS);
@@ -27,4 +27,9 @@ test("tabs open once, select, cycle and close without touching project",()=>{
 test("history reconciliation removes missing screens and duplicate tab IDs",()=>{
   assert.deepEqual(reconcileTabs({open:["a","b","b","c"],active:"a"},["b","c"]),{open:["b","c"],active:"b"});
   assert.deepEqual(reconcileTabs({open:[],active:null},["a"]),{open:[],active:null});
+});
+
+test("reference defaults and catalog search are presentation-only",()=>{
+  assert.equal(DEFAULTS.explorerSize,4);assert.equal(DEFAULTS.inspectorSize,5);assert.equal(DEFAULTS.diagnosticsSize,6);
+  assert.equal(matchesCatalog("Gauge","  GAU "),true);assert.equal(matchesCatalog("Gauge","button"),false);assert.equal(matchesCatalog("Gauge"," "),true);
 });

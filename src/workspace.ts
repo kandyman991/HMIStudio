@@ -3,7 +3,7 @@ export type Panel = "left" | "right" | "diagnostics";
 export type Preferences = { version: 2; left: boolean; right: boolean; diagnostics: boolean; swapped: boolean; explorerSize: number; inspectorSize: number; diagnosticsSize: number };
 export type Preset = "standard" | "design" | "diagnostics";
 export const STORAGE_KEY = "studio.workspace.v2";
-export const DEFAULTS: Preferences = {version:2,left:true,right:true,diagnostics:true,swapped:false,explorerSize:4,inspectorSize:4,diagnosticsSize:3};
+export const DEFAULTS: Preferences = {version:2,left:true,right:true,diagnostics:true,swapped:false,explorerSize:4,inspectorSize:5,diagnosticsSize:6};
 export function clampSize(value: number): number {
   return Number.isFinite(value) ? Math.max(1,Math.min(6,Math.round(value))) : 4;
 }
@@ -44,4 +44,9 @@ export function cycleTab(t: Tabs, delta: number): Tabs {
   if(!t.open.length)return t;
   const index=t.active===null?-1:t.open.indexOf(t.active);
   return {...t,active:t.open[(index+delta+t.open.length)%t.open.length]};
+}
+
+// Filter only the presentation catalog; never alter project data.
+export function matchesCatalog(label:string,query:string):boolean {
+  return label.toLowerCase().includes(query.trim().toLowerCase());
 }

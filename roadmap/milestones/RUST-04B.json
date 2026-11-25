@@ -2,7 +2,7 @@
   "id": "RUST-04B",
   "title": "Model-driven layout rendering",
   "track": "Engineering",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
   "summary": "Reconciled PR #12 corrects the semantic flow preview and aligns the workspace with the recovered owner-approved prototype.",
   "dependencies": [
@@ -16,36 +16,36 @@
     "Review inspector transactions and preserve further responsive, runtime parity and pointer-manipulation scope.",
     "Reconcile with the owner-approved visual reference and preserve manual RUST-04 acceptance."
   ],
-  "proposal": "RUST-04B corrected candidate; 13 frontend tests, TypeScript, Vite and isolated Chromium fixture passed. Fresh exact-head hosted CI and engineering integration pending. Native visual acceptance remains open.",
   "prs": [
     {
       "number": 12,
-      "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+      "head": "016fafce3c2ec5c9363ce8f10f96648c83b4a3c3",
       "branch": "feat/rust-04b-layout-rendering",
-      "state": "draft",
-      "observedAt": "2026-11-25T09:01:59Z",
+      "state": "merged",
+      "observedAt": "2026-11-25T13:44:30Z",
       "runs": [
         {
-          "id": 45434390655,
+          "id": 45624121728,
           "name": "Desktop CI",
-          "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+          "head": "016fafce3c2ec5c9363ce8f10f96648c83b4a3c3",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45434390848,
+          "id": 45624121871,
           "name": "Engineering handoff snapshot",
-          "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+          "head": "016fafce3c2ec5c9363ce8f10f96648c83b4a3c3",
           "state": "completed",
           "result": "success"
         }
-      ]
+      ],
+      "merge": "9f20def9f5fa52619659c49b3e9fa34ed58f3d74"
     }
   ],
   "issues": [
     {
       "number": 10,
-      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "label": "RUST-02 \u2014 Windows/Linux desktop milestone acceptance",
       "state": "open",
       "observedAt": "2026-11-25T09:01:59Z"
     }
@@ -57,19 +57,6 @@
   "parent": "RUST-04",
   "claimGroup": "RUST-04",
   "completionPr": 12,
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "feat/rust-04b-layout-rendering",
-    "scope": [
-      "AGENTS.md",
-      "package.json",
-      "src/layout-preview.ts",
-      "src/main.tsx",
-      "src/style.css",
-      "tests/layout-preview.test.mjs"
-    ],
-    "observedAt": "2026-11-25T13:14:03Z"
-  },
   "history": [
     {
       "date": "2026-11-25",
@@ -82,10 +69,14 @@
       "type": "completion_proposed",
       "summary": "Corrected preview numeric parsing, wrap alignment, hidden interaction, unsupported semantics, compact reference-based workspace and bounded fit/zoom. Local frontend and isolated browser validation passed; fresh hosted CI required.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "Verified PR #12 merged at 9f20def9 and both exact-head hosted workflows succeeded. Visual acceptance remains separate."
     }
   ],
   "blockers": [
-    "Fresh exact-head hosted Required CI and engineering handoff before integration.",
     "Native desktop visual comparison/acceptance remains with RUST-04 and issue #10; subsequent RUST-04B.1 alignment and RUST-04C interaction are separate."
   ]
 }

@@ -13,6 +13,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | --- | --- | --- | --- |
 | [CI-02](#ci-02) Change-aware CI | Developer workflow | Merged | — |
 | [DEV-01](#dev-01) Living development roadmap | Developer workflow | Accepted | — |
+| [DEV-02](#dev-02) Roadmap reconciliation regression fix | Developer workflow | Planned | [DEV-01](#dev-01) (accepted) |
 | [REUSE-01](#reuse-01) Inventory and compatibility audit | Reuse | Merged | — |
 | [REUSE-02](#reuse-02) Engine bridge and delivery | Reuse | In progress | [REUSE-01](#reuse-01) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-02A](#reuse-02a) Pinned engine preflight | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
@@ -36,7 +37,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [RUST-04A](#rust-04a) Nested editing foundation | Engineering | Merged | [RUST-02](#rust-02) (merged), [RUST-03B](#rust-03b) (merged) |
 | [RUST-04B.1](#rust-04b.1) Workspace visual alignment | Engineering | Merged | [RUST-04B](#rust-04b) (merged) |
 | [RUST-04B](#rust-04b) Model-driven layout rendering | Engineering | Merged | [RUST-04A](#rust-04a) (merged) |
-| [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | Proposed completion | [RUST-04B.1](#rust-04b.1) (merged) |
+| [RUST-04C](#rust-04c) Direct graphical manipulation | Engineering | Merged | [RUST-04B.1](#rust-04b.1) (merged) |
 | [RUST-05](#rust-05) Import and Compose interoperability | Engineering | Planned | [RUST-04](#rust-04) (accepted), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged) |
 | [RUST-06](#rust-06) Engineering systems | Engineering | In progress | [RUST-03B](#rust-03b) (merged) |
 | [RUST-06A](#rust-06a) Industrial tag foundation | Engineering | Merged | [RUST-03B](#rust-03b) (merged) |
@@ -89,6 +90,24 @@ Records · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 - 2026-11-25 · handoff · Independent review identified enforcement, synchronization, reservation and scope accounting gaps; corrections in progress.
 - 2026-11-25 · merged · GitHub verified designated completion PR #21 merged at 2ed018ae9641 with successful recorded exact-head workflows. Acceptance remains separate.
 - 2026-11-25 · accepted · Owner authorized formal acceptance after verified end-to-end reconciliation: first automatic PR #22 merged, generated views validated and post-merge reconciliation was a no-op. · [docs/DEV\_01\_ACCEPTANCE.md](DEV_01_ACCEPTANCE.md)
+
+<a id="dev-02"></a>
+### DEV-02 — Roadmap reconciliation regression fix
+
+**Planned** · Remove mutable milestone state from roadmap regression fixtures so verified merge observations can be reconciled without failing the required CI gate.
+
+**Acceptance criteria**
+
+- Replace the live proposal fixture with a deterministic synthetic proposal while preserving checks that reject false merge and acceptance claims.
+- Reconcile verified PR #20 evidence, remove stale blockers, regenerate both views, and pass roadmap regressions and exact-head hosted CI.
+
+**Dependencies**
+
+- [DEV-01](#dev-01) (accepted)
+
+**History**
+
+- 2026-11-25 · note · Reconciliation after PR #26 found roadmap test 6 fails when REUSE-02C.4A moves from proposed to verified merged. Register a scoped follow-up before editing the executable test; leave the original observation unchanged until the fix merges. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 
 ## Engineering
 
@@ -198,7 +217,7 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 <a id="rust-04"></a>
 ### RUST-04 — Semantic layout editor
 
-**In progress** · Original HTML reference and workspace alignment are integrated (PRs #13, #12, #25). Direct semantic manipulation is under development; combined native designer acceptance remains open.
+**In progress** · Original HTML reference, workspace alignment and supported direct semantic manipulation are integrated (PRs #13, #12, #25, #26). Combined native designer acceptance remains open.
 
 **Acceptance criteria**
 
@@ -212,7 +231,7 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 
 **Blockers**
 
-- Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 evidence.
+- Combined native desktop screenshot/interaction comparison and owner visual acceptance remain pending, including deferred RUST-04B.1 and RUST-04C evidence. Responsive/non-flow limitations remain explicit.
 
 [PR #13](https://github.com/kandyman991/HMIStudio/pull/13) · merged · head [f92a3af](https://github.com/kandyman991/HMIStudio/commit/f92a3af62d86df2eed15a8631d3a6d2bf7cb667b) · merged [0a74f65](https://github.com/kandyman991/HMIStudio/commit/0a74f65558392ce7e8cfb67202244057d7d3a2d9) · snapshot 2026-11-25T13:29:16Z · [Desktop CI #45619875538](https://github.com/kandyman991/HMIStudio/actions/runs/45619875538) success, [Engineering handoff snapshot #45619875565](https://github.com/kandyman991/HMIStudio/actions/runs/45619875565) success
 
@@ -225,6 +244,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · handoff · Independently reviewed PR #13 and reconciled with main 9c09e363. Verified original HTML byte count, SHA-256 and Git blob; scoped reservation RUST-04. No application or acceptance change. PR #12 remains separate; exact-head hosted CI pending. · [docs/reference/README.md](reference/README.md)
 - 2026-11-25 · note · Verified PR #13 merged and its exact-head Desktop CI and handoff succeeded. Former reference reservation released; RUST-04B has its own active claim in the same group. Parent visual acceptance remains open. · [docs/reference/README.md](reference/README.md)
 - 2026-11-25 · note · PR #25 engineering integration verified; native visual comparison remains deferred to this parent milestone under D-008. Continue RUST-04C without claiming acceptance. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · note · Verified PR #26 merged at dfd18a07a9c9 after independent review and exact-head Desktop CI and handoff. RUST-04C claim released; next action is native RUST-04 designer validation, not acceptance by inference. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04a"></a>
 ### RUST-04A — Nested editing foundation
@@ -319,7 +339,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 <a id="rust-04c"></a>
 ### RUST-04C — Direct graphical manipulation
 
-**Proposed completion** · Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.
+**Merged** · Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.
 
 **Acceptance criteria**
 
@@ -334,14 +354,9 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 
 **Blockers**
 
-- Corrected-head hosted CI pending after independent review fixes.
 - Native desktop interaction and prototype comparison deferred to RUST-04 acceptance; non-flow layouts and runtime parity remain explicitly unsupported in this slice.
 
-**Assignment** · ChatGPT, feat/rust-04c-direct-manipulation (recorded 2026-11-25T14:02:11Z)
-
-**Proposal** · Supported base semantic flow manipulation candidate: pointer selection, reorder/reparent, constrained fixed-dp resize/snap, scroll pan and cross-axis alignment. Local tests pass; independent review and exact-head CI required. Native comparison remains at RUST-04 acceptance.
-
-[PR #26](https://github.com/kandyman991/HMIStudio/pull/26) · draft · head [e59e154](https://github.com/kandyman991/HMIStudio/commit/e59e154a5333623f8a7990dd8e80feafc110eee0) · snapshot 2026-11-25T14:05:43Z · CI unrecorded
+[PR #26](https://github.com/kandyman991/HMIStudio/pull/26) · merged · head [01fb1a1](https://github.com/kandyman991/HMIStudio/commit/01fb1a19159e1851341d0bd52cf6ab6630ce8175) · merged [dfd18a0](https://github.com/kandyman991/HMIStudio/commit/dfd18a07a9c908b242b5de92cde5563fc378b553) · snapshot 2026-11-25T14:18:22Z · [Desktop CI #45631813805](https://github.com/kandyman991/HMIStudio/actions/runs/45631813805) success, [Engineering handoff snapshot #45631813614](https://github.com/kandyman991/HMIStudio/actions/runs/45631813614) success
 
 Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/README.md](reference/README.md)
 
@@ -352,6 +367,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · completion proposed · Draft PR #26 opened for the supported base-flow implementation candidate. Final independent review and fresh exact-head CI required; actual native designer acceptance remains open. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Independent review of c7f384c corrected nested resize grip hit-testing, stale viewport/source geometry detection and layout-affecting feedback. Isolated frontend build and synthetic browser regression passed; corrected-head CI remains required. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Final diff review of 0c52d8d made the 12 dp grip border-box; frontend build and browser regression repeated, including computed-style assertion. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · merged · GitHub verified designated completion PR #26 merged at dfd18a07a9c9 with successful recorded exact-head workflows. Acceptance remains separate.
 
 <a id="rust-05"></a>
 ### RUST-05 — Import and Compose interoperability

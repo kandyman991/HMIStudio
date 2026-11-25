@@ -2,7 +2,7 @@
   "id": "RUST-04C",
   "title": "Direct graphical manipulation",
   "track": "Engineering",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
   "summary": "Implement pointer manipulation for semantic containers without replacing the model with absolute coordinates.",
   "dependencies": [
@@ -21,21 +21,7 @@
   ],
   "parent": "RUST-04",
   "claimGroup": "RUST-04",
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "feat/rust-04c-direct-manipulation",
-    "scope": [
-      "CHAT_HANDOFF.md",
-      "docs/LAYOUT_DESIGNER.md",
-      "src/designer.ts",
-      "src/main.tsx",
-      "src/style.css",
-      "tests/designer.test.mjs"
-    ],
-    "observedAt": "2026-11-25T14:02:11Z"
-  },
   "blockers": [
-    "Corrected-head hosted CI pending after independent review fixes.",
     "Native desktop interaction and prototype comparison deferred to RUST-04 acceptance; non-flow layouts and runtime parity remain explicitly unsupported in this slice."
   ],
   "history": [
@@ -68,18 +54,38 @@
       "type": "handoff",
       "summary": "Final diff review of 0c52d8d made the 12 dp grip border-box; frontend build and browser regression repeated, including computed-style assertion.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "GitHub verified designated completion PR #26 merged at dfd18a07a9c9 with successful recorded exact-head workflows. Acceptance remains separate."
     }
   ],
-  "proposal": "Supported base semantic flow manipulation candidate: pointer selection, reorder/reparent, constrained fixed-dp resize/snap, scroll pan and cross-axis alignment. Local tests pass; independent review and exact-head CI required. Native comparison remains at RUST-04 acceptance.",
   "completionPr": 26,
   "prs": [
     {
       "number": 26,
-      "head": "e59e154a5333623f8a7990dd8e80feafc110eee0",
+      "head": "01fb1a19159e1851341d0bd52cf6ab6630ce8175",
       "branch": "feat/rust-04c-direct-manipulation",
-      "state": "draft",
-      "observedAt": "2026-11-25T14:05:43Z",
-      "runs": []
+      "state": "merged",
+      "runs": [
+        {
+          "id": 45631813805,
+          "name": "Desktop CI",
+          "head": "01fb1a19159e1851341d0bd52cf6ab6630ce8175",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45631813614,
+          "name": "Engineering handoff snapshot",
+          "head": "01fb1a19159e1851341d0bd52cf6ab6630ce8175",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "dfd18a07a9c908b242b5de92cde5563fc378b553",
+      "observedAt": "2026-11-25T14:18:22Z"
     }
   ]
 }

@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A merged; canonical schema v2 frozen. REUSE-03B read-only legacy decoder and mapping in progress.",
+  "summary": "REUSE-03A merged, schema v2 frozen; REUSE-03B portable decoder foundation and conservative canonical mapping implemented.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,11 +16,12 @@
     "Verify read-only V1\u2013V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Legacy decoder, complete deterministic mapping, report leaf accounting, and engineering integration remain outstanding. Runtime and native visual acceptance remain deferred."
+    "Complete full per-version feature mapping, legacy source semantic validation, safe preservation and publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI required."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
-    "docs/reuse/REUSE_03A_MODEL_V2.md"
+    "docs/reuse/REUSE_03A_MODEL_V2.md",
+    "docs/LEGACY_IMPORT.md"
   ],
   "parent": "RUST-05",
   "claimGroup": "RUST-05",
@@ -28,11 +29,9 @@
     "owner": "ChatGPT",
     "branch": "feat/reuse-03b-legacy-import",
     "scope": [
-      "crates/legacy-import/",
-      ".github/workflows/ci.yml",
-      "roadmap/ci-plan.mjs"
+      "crates/legacy-import/"
     ],
-    "observedAt": "2026-11-25T20:51:28Z"
+    "observedAt": "2026-11-25T20:55:06Z"
   },
   "history": [
     {
@@ -100,6 +99,12 @@
       "type": "handoff",
       "summary": "Verified PR #35 merged b9ae1d5 after independent review and all 17 exact-head CI jobs on 1ddf0b4; schema v2 freeze effective. Retained RUST-05 reservation and transferred to REUSE-03B branch by compare-and-set.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Added standalone read-only portable importer foundation with strict bounded JSON, version 1\u201310 admission, deterministic ID mapping, SHA-256 and leaf report, static label/screens and internal read-only tags, exact typed defaults. Six local regression groups, Clippy and rustdoc passed; frozen schema unchanged. Unsupported content refuses project. Full mapping and engineering integration outstanding.",
+      "record": "docs/LEGACY_IMPORT.md"
     }
   ]
 }

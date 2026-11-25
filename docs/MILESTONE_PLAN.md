@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · REUSE-03A merged; canonical schema v2 frozen. REUSE-03B read-only legacy decoder and mapping in progress.
+**In progress** · REUSE-03A merged, schema v2 frozen; REUSE-03B portable decoder foundation and conservative canonical mapping implemented.
 
 **Acceptance criteria**
 
@@ -748,11 +748,11 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Legacy decoder, complete deterministic mapping, report leaf accounting, and engineering integration remain outstanding. Runtime and native visual acceptance remain deferred.
+- Complete full per-version feature mapping, legacy source semantic validation, safe preservation and publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI required.
 
-**Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-25T20:51:28Z)
+**Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-25T20:55:06Z)
 
-Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 **History**
 
@@ -767,6 +767,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-25 · handoff · Compared actual pinned Kotlin/JVM contract-1 evaluator with Rust on 12,664 original synthetic vectors; fixed shortest decimal and asymmetric rounding-boundary formatting differences. All tested observations match; reproducible corpus and oracle harness retained, no private source transferred. Exact-head hosted CI and independent review required before schema freeze. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 - 2026-11-25 · handoff · Independent review verified predecessor hosted CI and schema/corpus hashes; corrected staged diagnostic pointers to canonical v2 groups, 104 locked offline model tests passed. Formal freeze proposal recorded; final technical review and corrected-head CI remain required. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
 - 2026-11-25 · handoff · Verified PR #35 merged b9ae1d5 after independent review and all 17 exact-head CI jobs on 1ddf0b4; schema v2 freeze effective. Retained RUST-05 reservation and transferred to REUSE-03B branch by compare-and-set. · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md)
+- 2026-11-25 · handoff · Added standalone read-only portable importer foundation with strict bounded JSON, version 1–10 admission, deterministic ID mapping, SHA-256 and leaf report, static label/screens and internal read-only tags, exact typed defaults. Six local regression groups, Clippy and rustdoc passed; frozen schema unchanged. Unsupported content refuses project. Full mapping and engineering integration outstanding. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

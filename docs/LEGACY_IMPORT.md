@@ -1,0 +1,21 @@
+# REUSE-03B — Legacy import
+
+Status: initial portable decoder and canonical mapping slice, not complete or independently reviewed. Based on verified schema v2 freeze in PR #35 (`b9ae1d5`). Reference: HMI Forge `92a612d104693800d7119ee4dc0114636b19002f`, inspected in the authorized local checkout; only new Rust code and original synthetic tests are published. No real projects or private source transferred.
+
+## Implemented
+
+`hmi_legacy_import::import_portable(&[u8])` returns an optional validated canonical `Project` and a deterministic `MigrationReport`. It has no file writes, device access, runtime commands or deployment behavior. Only explicit source versions 1–10 are recognized. The decoder rejects duplicate keys at every level, invalid UTF-8/JSON, oversize inputs (4 MiB), excessive nesting (serde JSON limit), more than 20,000 report leaves or paths exceeding 1,024 bytes. No archives are admitted by this API.
+
+The initial mapping subset covers metadata, explicit startup screen, flat absolute screen dimensions, static labels with explicit text and geometry, visible flags, internal read-only variables with six scalar types and exact typed default values. Legacy Float fields are interpreted at binary32 precision. Source IDs retain valid noncolliding values or are allocated deterministic replacements; the project ID is derived from its input SHA-256, generated root IDs are identified in the ID map. For multi-screen projects explicit valid order is currently required (v5+); ambiguous equal z-index ordering is refused. Default locale is en because no source locale is declared in this subset. No visual fidelity claim.
+
+The report records the input SHA-256, source version, importer version, RFC 6901 paths, disposition, code, severity, message, proposed canonical target and ID map. For well-formed admitted-size inputs, every leaf (including empty containers) is accounted for. If any finding is refused, **no project is returned**. Mapped findings on a refused import describe proposed transformations, not persisted output. Malformed or resource-limited inputs receive a root refusal instead of an unbounded leaf report. The report does not include arbitrary source values, but paths and ID mappings contain source key names/identifiers: keep reports local and review before sharing. Source bytes are never copied to extensions. The only extension is `hmiforge.idMap` on a successfully validated project.
+
+## Explicit remaining work
+
+This is deliberately not full v1–v10 compatibility. Version-number coverage tests use the same supported synthetic subset, not all features introduced at each version. Full source semantic validation, security including built-in permission semantics, external mappings and exact write policies, adaptive layout, components, bindings/expressions, actions, enums, alarms, assets and themes remain unimplemented. Those inputs refuse rather than silently downgrade. Preserve-with-blocking semantics are not available until publishing/runtime refusal is integrated; no partial project is emitted. Revision bundle and runtime package readers with checksum/size/traversal verification, typed engineering import command, sidecar reports and UI integration are also outstanding. No acceptance or completion of REUSE-03 is claimed.
+
+## Validation
+
+Local locked offline `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check` (formatted), and warning-denied rustdoc on the new crate. Six regression groups cover all version numbers, byte determinism, exact long defaults, explicit ordering/version gate, collision mapping, full leaf accounting, malformed/duplicate/unknown input, wrong types, sensitive-value omission and write-access refusal. Existing CI discovers every crate manifest automatically; no CI policy changes needed. New locked SHA-256 dependency uses the existing engine's sha2 0.10 line; dependency review and exact-head hosted CI still required. Schema SHA-256 remains `b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738`.
+
+Next slice: complete typed legacy declarations and source validation, deterministic reference mapping for industrial/security and bindings, then safe unsupported preservation/publishing guard and remaining input containers/engineering integration.

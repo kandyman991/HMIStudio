@@ -65,7 +65,10 @@ pub(super) fn shape(
         }
         contract["fill"] = json!(fill);
         contract["points"] = json!(points);
-        m.mark(&path(&path(p, "properties"), "fillColor"), &path(&t, "fill"));
+        m.mark(
+            &path(&path(p, "properties"), "fillColor"),
+            &path(&t, "fill"),
+        );
     }
     for (key, target) in [
         ("strokeColor", "strokeColor"),
@@ -90,6 +93,8 @@ pub(super) fn symbol_kind(kind: &str) -> Option<K> {
         "conveyor" => Some(K::Conveyor),
         "valve" => Some(K::Valve),
         "pump" => Some(K::Pump),
+        "tank" => Some(K::Tank),
+        "pipe" => Some(K::Pipe),
         _ => None,
     }
 }
@@ -112,10 +117,11 @@ pub(super) fn symbol(
     }
     let mut parameters = json!({});
     for (slot, _) in kind.slots() {
-        let legacy = bindings.get(*slot)?.as_str()?;
+        let legacy_slot = if kind == K::Pipe { "flow" } else { slot };
+        let legacy = bindings.get(legacy_slot)?.as_str()?;
         parameters[*slot] = json!(ids.get(legacy)?);
         m.mark(
-            &path(&path(p, "bindings"), slot),
+            &path(&path(p, "bindings"), legacy_slot),
             &path(&format!("{t}/element/parameters"), slot),
         );
     }

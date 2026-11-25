@@ -481,7 +481,7 @@ fn adaptive_unknown_geometry_and_unsupported_layout_refuse() {
     f["screens"]["screen/a"]["layout"]["root"]["direction"] = json!("ADAPTIVE");
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
-        .is_none());
+        .is_some());
     f["screens"]["screen/a"]["layout"]["root"]["direction"] = json!("COLUMN");
     f["screens"]["screen/a"]["components"]["label-a"]["expressions"] = json!({"visible":"true"});
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
@@ -549,7 +549,8 @@ fn fixed_frame_primitives_and_refusals() {
     c["properties"]["fillColor"] = json!("#FFFFFF");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
-    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["strokeStyle"] = json!("DASHED");
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["strokeStyle"] =
+        json!("DASHED");
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_none());
@@ -581,4 +582,60 @@ fn passive_symbol_and_single_column_grid() {
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_none());
+}
+
+#[test]
+fn root_adaptive_and_grid_design_frame() {
+    let mut f = fixture(7);
+    let s = &mut f["screens"]["screen/a"];
+    s["components"]["label-b"] = json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
+    s["layout"] = json!({"root":{"node":"stack","id":"outer","direction":"ADAPTIVE","children":[{"node":"component","componentId":"label-a"},{"node":"component","componentId":"label-b"}]}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(d["screens"][0]["root"]["element"]["type"], "row");
+    f["screens"]["screen/a"]["widthDp"] = json!(300);
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(d["screens"][0]["root"]["element"]["type"], "column");
+    f["screens"]["screen/a"]["widthDp"] = json!(640);
+    f["screens"]["screen/a"]["layout"]["root"]["direction"] = json!("GRID");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let root = &d["screens"][0]["root"];
+    assert_eq!(root["element"]["type"], "grid");
+    assert_eq!(root["element"]["columns"].as_array().unwrap().len(), 2);
+    assert_eq!(root["children"][1]["layout"]["gridCell"]["column"], 1);
+    assert!(a.report.findings.iter().any(|x| x.severity == "warning"));
+    f["screens"]["screen/a"]["layout"]["root"] = json!({"node":"scaleGroup","id":"g","componentIds":["label-a","label-b"],"designWidthDp":640,"designHeightDp":480});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.report.findings.iter().any(|x| {
+        x.code == "scale-group-uniform-scale-and-reflow-not-representable"
+    }));
+}
+
+#[test]
+fn passive_pipe_and_tank_slot_conversion() {
+    for (kind, slot, target, ty) in [
+        ("pipe", "flow", "flowing", "BOOL"),
+        ("tank", "level", "level", "DOUBLE"),
+    ] {
+        let mut f = fixture(7);
+        f["variables"]["label-a"]["type"] = json!(ty);
+        let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+        c["type"] = json!(kind);
+        c["properties"] = json!({});
+        c["bindings"] = json!({});
+        c["bindings"][slot] = json!("label-a");
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+        let d = serde_json::to_value(&p).unwrap();
+        assert_eq!(
+            d["screens"][0]["root"]["children"][0]["element"]["parameters"][target],
+            d["tags"][0]["id"]
+        );
+    }
 }

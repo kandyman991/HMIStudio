@@ -34,7 +34,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "composite" => "instance",
         "line" => "line",
         "polygon" => "polygon",
-        "motor" | "conveyor" | "valve" | "pump" => "instance",
+        "motor" | "conveyor" | "valve" | "pump" | "tank" | "pipe" => "instance",
         _ => return refuse(m, &path(p, "type"), "component-kind-not-mapped"),
     };
     let id = m.id(&path(p, "id"), key, "node");
@@ -213,12 +213,37 @@ fn approximate(m: &mut Mapping, p: &str, t: &str) {
         f.message="Semantic layout intent mapped; exact legacy renderer reflow and sizing are not established.";
     }
 }
+// The design-frame preview assumes font scale 1. Dynamic local measurement
+// is not expressible in the frozen model; never claim runtime equivalence.
+fn minimum_width(v: &Value) -> Option<f64> {
+    match v.get("node")?.as_str()? {
+        "component" => {
+            let width = dim(v.get("minWidthDp"), 160.)?;
+            (width >= 0.).then_some(width)
+        }
+        "stack" => {
+            let pad = dim(v.get("paddingDp"), 0.)?;
+            if pad < 0. {
+                return None;
+            }
+            let mut widest: f64 = 0.;
+            for child in v.get("children")?.as_array()? {
+                widest = widest.max(minimum_width(child)?);
+            }
+            Some(widest + 2. * pad)
+        }
+        _ => None,
+    }
+}
+
 struct Layout<'a> {
     source: &'a serde_json::Map<String, Value>,
     nodes: BTreeMap<String, Value>,
     used_stack: BTreeSet<String>,
     p: String,
     ver: u64,
+    design_width: f64,
+    design_height: f64,
 }
 impl Layout<'_> {
     fn node(
@@ -246,36 +271,58 @@ impl Layout<'_> {
                 let id = m.id(&path(p, "id"), key, "layout");
                 mark(m, p, "id", t, "id");
                 let dir = v.get("direction")?.as_str()?;
+                let gap = dim(v.get("gapDp"), 16.)?;
+                let pad = dim(v.get("paddingDp"), 0.)?;
+                if gap < 0. || pad < 0. {
+                    return None;
+                }
+                let children = v.get("children")?.as_array()?;
+                let cap = v.get("columns").map(Value::as_u64).unwrap_or(Some(0))?;
+                if dir != "GRID" && cap != 0 {
+                    return None;
+                }
+                let mut columns = 1;
                 let row = match dir {
                     "ROW" => true,
                     "COLUMN" => false,
-                    "GRID" if self.ver >= 3 && v.get("columns").and_then(Value::as_u64) == Some(1) => {
+                    "ADAPTIVE" if depth == 0 => {
+                        let mut needed = gap * children.len().saturating_sub(1) as f64;
+                        for child in children {
+                            needed += minimum_width(child)?;
+                        }
+                        self.design_width >= self.design_height
+                            && needed <= self.design_width - 2. * pad
+                    }
+                    "GRID" if self.ver >= 3 && cap == 1 => false,
+                    "GRID" if self.ver >= 3 && depth == 0 => {
+                        let mut widest: f64 = 1.;
+                        for child in children {
+                            widest = widest.max(minimum_width(child)?);
+                        }
+                        let inner = self.design_width - 2. * pad;
+                        let fitting = ((inner + gap) / (widest + gap)).floor().max(1.);
+                        let limit = if cap == 0 { u64::MAX } else { cap };
+                        columns = (fitting as u64).min(limit).min(children.len() as u64);
+                        columns = columns.max(1);
+                        if columns > 64 || children.len() > 4096 {
+                            return refuse(m, p, "grid-track-limit");
+                        }
                         false
                     }
                     _ => {
                         return refuse(
                             m,
                             &path(p, "direction"),
-                            "adaptive-or-grid-direction-not-representable",
+                            "nested-local-adaptive-direction-not-representable",
                         )
                     }
                 };
                 approximate(m, &path(p, "direction"), &format!("{t}/element/type"));
                 mark(m, p, "node", t, "element");
-                let gap = dim(v.get("gapDp"), 16.)?;
-                let pad = dim(v.get("paddingDp"), 0.)?;
-                if gap < 0. || pad < 0. {
-                    return None;
-                }
-                mark(m, p, "gapDp", &format!("{t}/element"), "spacing");
+                let gap_target = if columns > 1 { "columnGap" } else { "spacing" };
+                mark(m, p, "gapDp", &format!("{t}/element"), gap_target);
                 mark(m, p, "paddingDp", &format!("{t}/layout"), "padding");
-                if let Some(x) = v.get("columns") {
-                    if x.as_i64() != Some(0) && !(dir == "GRID" && x.as_i64() == Some(1)) {
-                        return None;
-                    }
-                    approximate(m, &path(p, "columns"), &format!("{t}/element"));
-                }
-                let children = v.get("children")?.as_array()?;
+                approximate(m, &path(p, "columns"), &format!("{t}/element"));
                 let mut out = Vec::new();
                 for (i, c) in children.iter().enumerate() {
                     out.push(self.node(
@@ -295,6 +342,17 @@ impl Layout<'_> {
                     layout["weight"] = json!(weight);
                 }
                 approximate(m, &path(p, "weight"), &format!("{t}/layout"));
+                if columns > 1 {
+                    for (i, child) in out.iter_mut().enumerate() {
+                        let i = i as u64;
+                        child["layout"]["gridCell"] =
+                            json!({"column":i % columns,"row":i / columns});
+                    }
+                    let rows = (out.len() as u64).div_ceil(columns);
+                    let cols = vec![json!({"mode":"fraction","weight":1}); columns as usize];
+                    let rows = vec![json!({"mode":"auto"}); rows as usize];
+                    return Some(json!({"id":id,"element":{"type":"grid","columns":cols,"rows":rows,"columnGap":gap,"rowGap":gap},"layout":layout,"children":out}));
+                }
                 Some(json!({"id":id,"element":{"type":if row{"row"}else{"column"},"spacing":gap,"wrap":row},"layout":layout,"children":out}))
                     .map(|mut n|{if !row{n["element"].as_object_mut().map(|o|o.remove("wrap"));}n})
             }
@@ -394,6 +452,11 @@ impl Layout<'_> {
                 }
                 Some(n)
             }
+            "scaleGroup" => refuse(
+                m,
+                p,
+                "scale-group-uniform-scale-and-reflow-not-representable",
+            ),
             _ => refuse(m, &path(p, "node"), "layout-node-not-representable"),
         }
     }
@@ -448,6 +511,8 @@ fn adaptive(
         used_stack: BTreeSet::new(),
         p: cp,
         ver,
+        design_width: root["layout"]["width"]["value"].as_f64()?,
+        design_height: root["layout"]["height"]["value"].as_f64()?,
     };
     let mut n = l.node(v.get("root")?, &path(&lp, "root"), t, m, 0, false)?;
     if !l.nodes.is_empty() {

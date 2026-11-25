@@ -61,3 +61,5 @@ Root ADAPTIVE stacks choose a row or column using declared design width/height a
 ### REUSE-03B.4 continuation — typed Boolean action declarations
 
 Corrected the exact rustfmt findings from hosted run 45712387404 in the preceding commit. Added ordered v10 BOOL set/toggle/pulse declarations only where the mapped tag write policy agrees (maintained or exact-duration momentary, confirmed read/write). No write execution or runtime approval; unsupported numeric/string actions remain refused. Added a synthetic policy agreement regression. Latest-head compilation, lint, tests and independent review remain pending. No schema changes.
+
+Added classification for passive faceplate declarations using the existing conservative reusable composition mapping. Direct placement of a faceplate as an ordinary component (including inside another definition) refuses. Faceplate opening and parameter forwarding remain unsupported. Synthetic regression added; exact-head validation pending.

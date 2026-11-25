@@ -670,3 +670,22 @@ fn typed_boolean_action_policy_and_pulse_agreement() {
         .project
         .is_none());
 }
+
+#[test]
+fn passive_faceplate_declaration_and_direct_placement_refusal() {
+    let mut f = fixture(7);
+    f["componentDefinitions"]["fp"] = json!({"id":"fp","displayName":"Faceplate","type":"composite","kind":"FACEPLATE","composition":{"elements":{"caption":{"id":"caption","type":"label","properties":{"text":"Status"}}}}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let class = &d["v2"]["components"]["definitions"][0];
+    assert_eq!(class["classification"]["kind"], "faceplate");
+    assert_eq!(class["definition"], d["components"][0]["id"]);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("composite");
+    c["componentDefinitionId"] = json!("fp");
+    c["properties"] = json!({});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

@@ -749,6 +749,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
     }
     let mut expr = Vec::new();
     let mut definitions = Vec::new();
+    let mut classifications = Vec::new();
     let mut def_ids = BTreeMap::new();
     if let Some(ds) = v.get("componentDefinitions") {
         let ds = ds.as_object()?;
@@ -771,10 +772,17 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
             mark(m, &p, "id", &t, "id");
             mark(m, &p, "type", &t, "root");
             if let Some(kind) = x.get("kind") {
-                if kind.as_str() != Some("COMPONENT") {
-                    return refuse(m, &path(&p, "kind"), "faceplate-not-mapped");
+                match kind.as_str()? {
+                    "COMPONENT" => mark(m, &p, "kind", &t, "root"),
+                    "FACEPLATE" => {
+                        let ct = format!("/v2/components/definitions/{}", classifications.len());
+                        classifications.push(
+                            json!({"definition":id,"classification":{"kind":"faceplate"}}),
+                        );
+                        mark(m, &p, "kind", &ct, "classification");
+                    }
+                    _ => return refuse(m, &path(&p, "kind"), "unknown-definition-kind"),
                 }
-                mark(m, &p, "kind", &t, "root");
             }
             for key in ["bindingSlots", "defaultProperties"] {
                 if let Some(v) = x.get(key) {
@@ -813,6 +821,12 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     if super::primitives::symbol_kind(e["type"].as_str()?).is_some() {
                         return refuse(m, &ep, "nested-industrial-symbol-not-mapped");
                     }
+                    if e["type"] == "composite"
+                        && v["componentDefinitions"][e["componentDefinitionId"].as_str()?]["kind"]
+                            == "FACEPLATE"
+                    {
+                        return refuse(m, &ep, "faceplate-direct-placement");
+                    }
                     let mut n = component(e, key, &ep, &et, m)?;
                     resolve_instance(e, &mut n, &ep, &et, m, &def_ids)?;
                     parameter_bindings(e, &mut n, &ep, &et, m, &param_types)?;
@@ -838,7 +852,6 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         .map(|d| Some((d["id"].as_str()?.to_owned(), d["parameters"].clone())))
         .collect::<Option<_>>()?;
     let mut symbol_defs = Vec::new();
-    let mut classifications = Vec::new();
     for (i, s) in doc["screens"].as_array_mut()?.iter_mut().enumerate() {
         let (key, source) = v["screens"].as_object()?.iter().find(|(k, _)| {
             m.ids
@@ -855,6 +868,10 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                 let (n, nt) = node_mut(&mut s["root"], &id, &t)?;
                 resolve_instance(c, n, &cp, &nt, m, &def_ids)?;
                 if c["type"].as_str() == Some("composite") {
+                    let key = c["componentDefinitionId"].as_str()?;
+                    if v["componentDefinitions"][key]["kind"] == "FACEPLATE" {
+                        return refuse(m, &cp, "faceplate-direct-placement");
+                    }
                     instance_parameters(
                         c,
                         n,

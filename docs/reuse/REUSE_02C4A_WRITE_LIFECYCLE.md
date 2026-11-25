@@ -158,6 +158,23 @@ Test counts by target, with `test-server` (default features include the targets 
 
 Hosted Windows and Linux CI, routed by CI-02, comes from the PR. It is not claimed here.
 
+### After reconciling with PR #19
+
+PR #19 (REUSE-02C.3 EngineDriver) merged into main as `d1571fc` during this work. It was
+reconciled by an ordinary merge: the only conflicts were in shared records, and both entries
+were kept. Re-run on the merged tree:
+
+| Check | Result |
+| --- | --- |
+| hmi-engine `cargo test --locked --features test-server` | 67 passed, 0 failed |
+| tag-engine fmt and strict Clippy | clean |
+| tag-engine rustdoc `-D warnings` | clean |
+| tag-engine `cargo test --locked` | 86 passed, 0 failed, 2 ignored by design |
+| Real-child tests (`--ignored`) against an `hmi-engine` freshly built from this branch | 2 passed (`real_child_integrates_with_tag_engine`, `real_loopback_baseline_and_new_generation`) |
+| Both lockfiles | unchanged |
+
+The EngineDriver remains read-only, so it does not yet exercise the new write semantics.
+
 ## 6. Limitations and open findings
 
 - **L-1 Driver timeouts above the engine bound.** `write_timeout` (10 s) is shorter than the

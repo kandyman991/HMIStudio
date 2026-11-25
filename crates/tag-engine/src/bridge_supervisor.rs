@@ -1,6 +1,7 @@
 //! Single-session child supervision. No automatic restart or request replay.
 use crate::bridge_dispatch::{Dispatcher, Message, ReplyKind};
 use crate::bridge_frame::{read_frame, write_frame, MAX_FRAME_BYTES};
+use crate::driver::CancelToken;
 use serde_json::{json, Value};
 use std::io::{self, BufReader};
 use std::path::Path;
@@ -27,6 +28,15 @@ pub struct Supervisor {
 impl Supervisor {
     /// Launch an explicitly selected absolute executable, without a shell.
     pub fn start(executable: &Path, timeout: Duration) -> io::Result<Self> {
+        Self::start_cancellable(executable, timeout, &CancelToken::new())
+    }
+
+    pub(crate) fn start_cancellable(
+        executable: &Path,
+        timeout: Duration,
+        cancel: &CancelToken,
+    ) -> io::Result<Self> {
+        check_cancel(cancel)?;
         if !executable.is_absolute() || timeout.is_zero() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -95,6 +105,7 @@ impl Supervisor {
             json!({"type":"hello","protocol":3}),
             ReplyKind::Hello,
             timeout,
+            cancel,
         )?;
         if !matches!(response, Message::HelloOk { protocol: 3, .. }) {
             session.invalidate()?;
@@ -112,8 +123,10 @@ impl Supervisor {
         mut request: Value,
         kind: ReplyKind,
         timeout: Duration,
+        cancel: &CancelToken,
     ) -> io::Result<Message> {
         let result = (|| {
+            check_cancel(cancel)?;
             let deadline = Instant::now()
                 .checked_add(timeout)
                 .filter(|_| !timeout.is_zero())
@@ -142,23 +155,38 @@ impl Supervisor {
                 .try_send(frame)
                 .map_err(|_| io::Error::other("request queue unavailable"))?;
             loop {
+                check_cancel(cancel)?;
                 let remaining = deadline
                     .checked_duration_since(Instant::now())
                     .filter(|time| !time.is_zero())
                     .ok_or_else(|| {
                         io::Error::new(io::ErrorKind::TimedOut, "engine reply timeout")
                     })?;
-                let frame = self
+                let frame = match self
                     .incoming
-                    .recv_timeout(remaining)
-                    .map_err(|e| match e {
-                        mpsc::RecvTimeoutError::Timeout => {
-                            io::Error::new(io::ErrorKind::TimedOut, "engine reply timeout")
+                    .recv_timeout(remaining.min(Duration::from_millis(10)))
+                {
+                    Ok(frame) => frame?,
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        if self.reader_closed.load(Ordering::Acquire)
+                            || self.transport_failed.load(Ordering::Acquire)
+                            || self.child.try_wait()?.is_some()
+                        {
+                            return Err(io::Error::new(
+                                io::ErrorKind::BrokenPipe,
+                                "engine output closed",
+                            ));
                         }
-                        mpsc::RecvTimeoutError::Disconnected => {
-                            io::Error::new(io::ErrorKind::BrokenPipe, "engine output closed")
-                        }
-                    })??;
+                        continue;
+                    }
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::BrokenPipe,
+                            "engine output closed",
+                        ));
+                    }
+                };
+                check_cancel(cancel)?;
                 if self.transport_failed.load(Ordering::Acquire) {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -182,6 +210,7 @@ impl Supervisor {
         &mut self,
         points: &[crate::bridge_simulation::SimPoint],
         deadline: Instant,
+        cancel: &CancelToken,
     ) -> io::Result<()> {
         let remaining = || {
             deadline
@@ -205,11 +234,11 @@ impl Supervisor {
         // Exchange queues events received before each acknowledgement; none can
         // belong to the new baseline yet, so reject rather than reuse them.
         if !matches!(
-            self.exchange(config, ReplyKind::Ok, remaining()?)?,
+            self.exchange(config, ReplyKind::Ok, remaining()?, cancel)?,
             Message::Ok { .. }
         ) || self.dispatch.pop_event().is_some()
             || !matches!(
-                self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?)?,
+                self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?, cancel)?,
                 Message::Ok { .. }
             )
             || self.dispatch.pop_event().is_some()
@@ -234,7 +263,7 @@ impl Supervisor {
         if let Some(node) = node_id {
             request["nodeId"] = json!(node);
         }
-        self.exchange(request, ReplyKind::Browse, timeout)
+        self.exchange(request, ReplyKind::Browse, timeout, &CancelToken::new())
     }
 
     /// Drain available events without waiting. An unexpected response or transport
@@ -314,5 +343,16 @@ impl Supervisor {
 impl Drop for Supervisor {
     fn drop(&mut self) {
         let _ = self.invalidate();
+    }
+}
+
+pub(crate) fn check_cancel(cancel: &CancelToken) -> io::Result<()> {
+    if cancel.is_cancelled() {
+        Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "operation cancelled",
+        ))
+    } else {
+        Ok(())
     }
 }

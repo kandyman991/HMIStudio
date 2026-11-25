@@ -224,7 +224,7 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 <a id="rust-04"></a>
 ### RUST-04 — Semantic layout editor
 
-**In progress** · Windows native acceptance on a707bf5: eight checks passed, two graphical move checks failed. Visual reference fidelity passed; overall acceptance remains blocked.
+**In progress** · Windows owner checklist: eight original passes on a707bf5 plus both targeted retest passes on the reported corrected installer; latest build a204ba0 verified. Linux manual evidence and final milestone acceptance remain open.
 
 **Acceptance criteria**
 
@@ -238,8 +238,8 @@ Records · [docs/ENGINEERING\_CORE\_VALIDATION.md](ENGINEERING_CORE_VALIDATION.m
 
 **Blockers**
 
-- Windows component selection/drag/reorder and moving between nested containers failed on a707bf5. Correct in RUST-04C.1 and retest; overall native acceptance remains open.
-- Responsive/non-flow limitations remain explicit; remaining platform evidence must satisfy the RUST-04 acceptance gate.
+- Linux native designer acceptance or explicit scoped owner decision remains outstanding; RUST-02 Linux waiver does not extend to RUST-04.
+- Responsive/non-flow limitations remain explicit; formal acceptance must respect supported scope. Installed Windows binary not independently inspected.
 
 [PR #13](https://github.com/kandyman991/HMIStudio/pull/13) · merged · head [f92a3af](https://github.com/kandyman991/HMIStudio/commit/f92a3af62d86df2eed15a8631d3a6d2bf7cb667b) · merged [0a74f65](https://github.com/kandyman991/HMIStudio/commit/0a74f65558392ce7e8cfb67202244057d7d3a2d9) · snapshot 2026-11-25T13:29:16Z · [Desktop CI #45619875538](https://github.com/kandyman991/HMIStudio/actions/runs/45619875538) success, [Engineering handoff snapshot #45619875565](https://github.com/kandyman991/HMIStudio/actions/runs/45619875565) success
 
@@ -254,6 +254,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md) · [docs/reference/REA
 - 2026-11-25 · note · PR #25 engineering integration verified; native visual comparison remains deferred to this parent milestone under D-008. Continue RUST-04C without claiming acceptance. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · note · Verified PR #26 merged at dfd18a07a9c9 after independent review and exact-head Desktop CI and handoff. RUST-04C claim released; next action is native RUST-04 designer validation, not acceptance by inference. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · note · Owner Windows acceptance on a707bf568c9d71ade77fd3e6a9d457ef03f6f713, installer run 45640095067: 8 passed, 2 failed. Visual fidelity passed; drag/reorder and nested reparent failed. RUST-04 remains in progress; no acceptance inferred. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
+- 2026-11-25 · note · Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04a"></a>
 ### RUST-04A — Nested editing foundation
@@ -373,6 +374,7 @@ Records · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · handoff · Reproduced compact selected component center incorrectly issuing setLayout and empty auto flow collapsing to zero area in predecessor browser fixture. Corrected bounded resize hit area, focus/capture handling, visible empty targets and main-axis gap drop planning. 20 frontend tests, TypeScript/Vite and rendered browser pointer regressions passed; actual Windows retest remains required. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · completion proposed · Draft PR #32 opened for correction candidate; final exact-head hosted CI and independent review required. Native Windows retest remains open at RUST-04. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 - 2026-11-25 · merged · GitHub verified designated completion PR #32 merged at 992b8d8c9db1 with successful recorded exact-head workflows. Acceptance remains separate.
+- 2026-11-25 · note · Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred. · [docs/LAYOUT\_DESIGNER.md](LAYOUT_DESIGNER.md)
 
 <a id="rust-04c"></a>
 ### RUST-04C — Direct graphical manipulation

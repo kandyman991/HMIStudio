@@ -4,7 +4,7 @@
   "track": "Engineering",
   "phase": "in_progress",
   "counts": false,
-  "summary": "Windows native acceptance on a707bf5: eight checks passed, two graphical move checks failed. Visual reference fidelity passed; overall acceptance remains blocked.",
+  "summary": "Windows owner checklist: eight original passes on a707bf5 plus both targeted retest passes on the reported corrected installer; latest build a204ba0 verified. Linux manual evidence and final milestone acceptance remain open.",
   "dependencies": [
     {
       "id": "RUST-02",
@@ -49,7 +49,7 @@
   "issues": [
     {
       "number": 10,
-      "label": "RUST-02 \u2014 Windows/Linux desktop milestone acceptance",
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
       "state": "open",
       "observedAt": "2026-11-25T09:01:59Z"
     }
@@ -88,10 +88,16 @@
       "type": "note",
       "summary": "Owner Windows acceptance on a707bf568c9d71ade77fd3e6a9d457ef03f6f713, installer run 45640095067: 8 passed, 2 failed. Visual fidelity passed; drag/reorder and nested reparent failed. RUST-04 remains in progress; no acceptance inferred.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "blockers": [
-    "Windows component selection/drag/reorder and moving between nested containers failed on a707bf5. Correct in RUST-04C.1 and retest; overall native acceptance remains open.",
-    "Responsive/non-flow limitations remain explicit; remaining platform evidence must satisfy the RUST-04 acceptance gate."
+    "Linux native designer acceptance or explicit scoped owner decision remains outstanding; RUST-02 Linux waiver does not extend to RUST-04.",
+    "Responsive/non-flow limitations remain explicit; formal acceptance must respect supported scope. Installed Windows binary not independently inspected."
   ]
 }

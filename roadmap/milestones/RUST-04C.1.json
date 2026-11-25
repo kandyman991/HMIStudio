@@ -50,6 +50,12 @@
       "date": "2026-11-25",
       "type": "merged",
       "summary": "GitHub verified designated completion PR #32 merged at 992b8d8c9db1 with successful recorded exact-head workflows. Acceptance remains separate."
+    },
+    {
+      "date": "2026-11-25",
+      "type": "note",
+      "summary": "Owner reported PASS for both previously failing Windows checks (selection/drag/reorder and nested reparenting), no additional observations. Latest successful main installer run 45652237283 at a204ba08926ce4bc27a742d90602c27d5a7c4ab3 contains PR #32; Windows artifact 15040567730. Installed binary checksum not independently inspected. Cumulative Windows checklist 10/10 across original and targeted retest; no full corrected-build regression or Linux manual acceptance inferred.",
+      "record": "docs/LAYOUT_DESIGNER.md"
     }
   ],
   "completionPr": 32,

@@ -1,12 +1,17 @@
 //! Single-session child supervision. No automatic restart or request replay.
+use crate::bridge_dispatch::{Dispatcher, Message, ReplyKind};
 use crate::bridge_frame::{read_frame, write_frame, MAX_FRAME_BYTES};
 use serde_json::{json, Value};
 use std::io::{self, BufReader};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// A successfully handshaken child. Dropping it invalidates the session.
 pub struct Supervisor {
@@ -14,6 +19,9 @@ pub struct Supervisor {
     outgoing: Option<SyncSender<Vec<u8>>>,
     incoming: Receiver<io::Result<Vec<u8>>>,
     valid: bool,
+    dispatch: Dispatcher,
+    transport_failed: Arc<AtomicBool>,
+    reader_closed: Arc<AtomicBool>,
 }
 
 impl Supervisor {
@@ -38,9 +46,15 @@ impl Supervisor {
         let (tx, writes) = mpsc::sync_channel::<Vec<u8>>(1);
         let (replies, rx) = mpsc::sync_channel(8);
         let errors = replies.clone();
+        let transport_failed = Arc::new(AtomicBool::new(false));
+        let writer_failed = transport_failed.clone();
+        let reader_failed = transport_failed.clone();
+        let reader_closed = Arc::new(AtomicBool::new(false));
+        let closed = reader_closed.clone();
         thread::spawn(move || {
             while let Ok(frame) = writes.recv() {
                 if let Err(error) = write_frame(&mut stdin, &frame) {
+                    writer_failed.store(true, Ordering::Release);
                     let _ = errors.try_send(Err(error));
                     break;
                 }
@@ -52,11 +66,16 @@ impl Supervisor {
                 match read_frame(&mut reader) {
                     Ok(Some(frame)) => {
                         if replies.try_send(Ok(frame)).is_err() {
+                            reader_failed.store(true, Ordering::Release);
                             break;
                         }
                     }
-                    Ok(None) => break,
+                    Ok(None) => {
+                        closed.store(true, Ordering::Release);
+                        break;
+                    }
                     Err(error) => {
+                        reader_failed.store(true, Ordering::Release);
                         let _ = replies.try_send(Err(error));
                         break;
                     }
@@ -68,13 +87,16 @@ impl Supervisor {
             outgoing: Some(tx),
             incoming: rx,
             valid: true,
+            dispatch: Dispatcher::default(),
+            transport_failed,
+            reader_closed,
         };
-        let hello = serde_json::to_vec(&json!({"type":"hello","id":1,"protocol":3}))?;
-        let response = session.exchange(hello, timeout)?;
-        if response.get("type").and_then(Value::as_str) != Some("helloOk")
-            || response.get("id").and_then(Value::as_u64) != Some(1)
-            || response.get("protocol").and_then(Value::as_u64) != Some(3)
-        {
+        let response = session.exchange(
+            json!({"type":"hello","protocol":3}),
+            ReplyKind::Hello,
+            timeout,
+        )?;
+        if !matches!(response, Message::HelloOk { protocol: 3, .. }) {
             session.invalidate()?;
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -84,12 +106,30 @@ impl Supervisor {
         Ok(session)
     }
 
-    // Private until request correlation and typed event dispatch are implemented.
-    fn exchange(&mut self, frame: Vec<u8>, timeout: Duration) -> io::Result<Value> {
+    // No generic request API or write-capable connection is exposed.
+    fn exchange(
+        &mut self,
+        mut request: Value,
+        kind: ReplyKind,
+        timeout: Duration,
+    ) -> io::Result<Message> {
         let result = (|| {
-            if !self.valid || self.child.try_wait()?.is_some() {
+            let deadline = Instant::now()
+                .checked_add(timeout)
+                .filter(|_| !timeout.is_zero())
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "invalid reply timeout")
+                })?;
+            if !self.valid
+                || self.transport_failed.load(Ordering::Acquire)
+                || self.reader_closed.load(Ordering::Acquire)
+                || self.child.try_wait()?.is_some()
+            {
                 return Err(io::Error::new(io::ErrorKind::BrokenPipe, "session closed"));
             }
+            let id = self.dispatch.begin(kind)?;
+            request["id"] = json!(id);
+            let frame = serde_json::to_vec(&request)?;
             if frame.len() > MAX_FRAME_BYTES {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
@@ -101,15 +141,91 @@ impl Supervisor {
                 .ok_or_else(|| io::Error::other("session closed"))?
                 .try_send(frame)
                 .map_err(|_| io::Error::other("request queue unavailable"))?;
-            let reply = self.incoming.recv_timeout(timeout).map_err(|e| match e {
-                mpsc::RecvTimeoutError::Timeout => {
-                    io::Error::new(io::ErrorKind::TimedOut, "engine reply timeout")
+            loop {
+                let remaining = deadline
+                    .checked_duration_since(Instant::now())
+                    .filter(|time| !time.is_zero())
+                    .ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::TimedOut, "engine reply timeout")
+                    })?;
+                let frame = self
+                    .incoming
+                    .recv_timeout(remaining)
+                    .map_err(|e| match e {
+                        mpsc::RecvTimeoutError::Timeout => {
+                            io::Error::new(io::ErrorKind::TimedOut, "engine reply timeout")
+                        }
+                        mpsc::RecvTimeoutError::Disconnected => {
+                            io::Error::new(io::ErrorKind::BrokenPipe, "engine output closed")
+                        }
+                    })??;
+                if self.transport_failed.load(Ordering::Acquire) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "transport failed; resynchronization required",
+                    ));
                 }
-                mpsc::RecvTimeoutError::Disconnected => {
-                    io::Error::new(io::ErrorKind::BrokenPipe, "engine output closed")
+                if let Some(reply) = self.dispatch.accept(&frame)? {
+                    return Ok(reply);
                 }
-            })??;
-            serde_json::from_slice(&reply).map_err(io::Error::other)
+            }
+        })();
+        if result.is_err() {
+            self.invalidate()?;
+        }
+        result
+    }
+
+    /// Read-only protocol operation, for isolated fixture testing. The supervisor does
+    /// not expose configure/start or write commands in this slice.
+    pub fn browse(
+        &mut self,
+        source_id: &str,
+        node_id: Option<&str>,
+        timeout: Duration,
+    ) -> io::Result<Message> {
+        let mut request = json!({"type":"browse","sourceId":source_id});
+        if let Some(node) = node_id {
+            request["nodeId"] = json!(node);
+        }
+        self.exchange(request, ReplyKind::Browse, timeout)
+    }
+
+    /// Drain available events without waiting. An unexpected response or transport
+    /// failure invalidates the session and discards the partial event backlog.
+    pub fn poll_event(&mut self) -> io::Result<Option<Message>> {
+        let result = (|| {
+            if !self.valid
+                || self.transport_failed.load(Ordering::Acquire)
+                || self.reader_closed.load(Ordering::Acquire)
+                || self.child.try_wait()?.is_some()
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "session invalid; resynchronization required",
+                ));
+            }
+            for _ in 0..8 {
+                match self.incoming.try_recv() {
+                    Ok(frame) => {
+                        self.dispatch.accept(&frame?)?;
+                    }
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::BrokenPipe,
+                            "engine output closed",
+                        ))
+                    }
+                }
+            }
+            if self.transport_failed.load(Ordering::Acquire) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "transport failed; resynchronization required",
+                ));
+            }
+            Ok(self.dispatch.pop_event())
         })();
         if result.is_err() {
             self.invalidate()?;
@@ -122,7 +238,10 @@ impl Supervisor {
         if !self.valid {
             return Ok(false);
         }
-        if self.child.try_wait()?.is_some() {
+        if self.transport_failed.load(Ordering::Acquire)
+            || self.reader_closed.load(Ordering::Acquire)
+            || self.child.try_wait()?.is_some()
+        {
             self.invalidate()?;
             return Ok(false);
         }
@@ -132,6 +251,7 @@ impl Supervisor {
     /// Invalidate before terminating and reaping the direct child.
     pub fn invalidate(&mut self) -> io::Result<()> {
         self.valid = false;
+        self.dispatch.invalidate();
         self.outgoing.take();
         if self.child.try_wait()?.is_none() {
             if let Err(error) = self.child.kill() {

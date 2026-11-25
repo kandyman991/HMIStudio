@@ -28,3 +28,5 @@ REUSE-02A: see reuse/REUSE_02A_PREFLIGHT.md for verified inputs, limited screeni
 REUSE-02B source-only import follows merged #15 and private #57; see crates/hmi-engine/PROVENANCE.md. Exact-head Windows/Linux test-server, notice inventory, advisory gate and independent review required before merge; no bridge or production/release acceptance.
 
 RUST-06A PR #7 reconciled against merged REUSE-02B (`78f3a64`), reviewed with six new regression tests (50 total); exact-head Desktop CI, handoff and dedicated strict audit still required. REUSE-02C starts only after tag foundation merge and applicable O-5/bridge decisions; bounded delivery, supervision, numeric safety and simulation acceptance before actual PLC work.
+
+REUSE-02C.1 merged in PR #17 (`dbdeeb2`) after exact-head CI and independent review. REUSE-02C.2 starts with the typed dispatch foundation: strict correlation and bounded mailbox with explicit invalidation on failure; complete subscription coalescing and authoritative resynchronization remain acceptance gates. See reuse/REUSE_02C2_BRIDGE_DISPATCH.md. No production/physical acceptance.

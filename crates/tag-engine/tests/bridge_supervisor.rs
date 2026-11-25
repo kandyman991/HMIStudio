@@ -117,3 +117,52 @@ fn exit_after_handshake() -> io::Result<()> {
     assert!(!supervisor.is_alive()?);
     Ok(())
 }
+
+#[test]
+fn correlated_browse_skips_interleaved_events() -> io::Result<()> {
+    use hmi_tag_engine::bridge_dispatch::Message;
+    let fixture = Fixture::new(&format!(
+        r#"{HELLO}; read -r line; printf '%s\n' '{{"type":"sourceState","sourceId":"sim","state":"CONNECTED"}}' '{{"type":"browseResult","id":2,"nodes":[]}}'; exec sleep 60"#
+    ))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    assert!(matches!(
+        s.browse("sim", None, Duration::from_secs(2))?,
+        Message::BrowseResult { id: 2, .. }
+    ));
+    assert!(matches!(s.poll_event()?, Some(Message::SourceState { .. })));
+    Ok(())
+}
+
+#[test]
+fn stale_response_invalidates_session() -> io::Result<()> {
+    let fixture = Fixture::new(&format!(
+        r#"{HELLO}; read -r line; printf '%s\n' '{{"type":"browseResult","id":1,"nodes":[]}}'; exec sleep 60"#
+    ))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    assert!(s.browse("sim", None, Duration::from_secs(2)).is_err());
+    assert!(!s.is_alive()?);
+    assert!(s.browse("sim", None, Duration::from_secs(2)).is_err());
+    Ok(())
+}
+
+#[test]
+fn browse_timeout_invalidates_and_never_replays() -> io::Result<()> {
+    let fixture = Fixture::new(&format!("{HELLO}; read -r line; exec sleep 60"))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    let err = s
+        .browse("sim", None, Duration::from_millis(100))
+        .expect_err("no response");
+    assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+    assert!(!s.is_alive()?);
+    assert!(s.browse("sim", None, Duration::from_secs(2)).is_err());
+    Ok(())
+}
+
+#[test]
+fn closed_stdout_invalidates_even_if_child_remains_alive() -> io::Result<()> {
+    let fixture = Fixture::new(&format!("{HELLO}; read -r line; exec 1>&-; exec sleep 60"))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    assert!(s.browse("sim", None, Duration::from_millis(100)).is_err());
+    assert!(!s.is_alive()?);
+    Ok(())
+}

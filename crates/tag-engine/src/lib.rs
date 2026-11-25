@@ -54,3 +54,6 @@ pub mod bridge_frame;
 
 /// Experimental communication child lifecycle.
 pub mod bridge_supervisor;
+
+/// Typed protocol-3 reply correlation and bounded event delivery.
+pub mod bridge_dispatch;

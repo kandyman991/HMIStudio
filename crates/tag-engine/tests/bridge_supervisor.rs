@@ -117,3 +117,120 @@ fn exit_after_handshake() -> io::Result<()> {
     assert!(!supervisor.is_alive()?);
     Ok(())
 }
+
+#[test]
+fn correlated_browse_skips_interleaved_events() -> io::Result<()> {
+    use hmi_tag_engine::bridge_dispatch::Message;
+    let fixture = Fixture::new(&format!(
+        r#"{HELLO}; read -r line; printf '%s\n' '{{"type":"sourceState","sourceId":"sim","state":"CONNECTED"}}' '{{"type":"browseResult","id":2,"nodes":[]}}'; exec sleep 60"#
+    ))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    assert!(matches!(
+        s.browse("sim", None, Duration::from_secs(2))?,
+        Message::BrowseResult { id: 2, .. }
+    ));
+    assert!(matches!(s.poll_event()?, Some(Message::SourceState { .. })));
+    Ok(())
+}
+
+#[test]
+fn stale_response_invalidates_session() -> io::Result<()> {
+    let fixture = Fixture::new(&format!(
+        r#"{HELLO}; read -r line; printf '%s\n' '{{"type":"browseResult","id":1,"nodes":[]}}'; exec sleep 60"#
+    ))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    assert!(s.browse("sim", None, Duration::from_secs(2)).is_err());
+    assert!(!s.is_alive()?);
+    assert!(s.browse("sim", None, Duration::from_secs(2)).is_err());
+    Ok(())
+}
+
+#[test]
+fn browse_timeout_invalidates_and_never_replays() -> io::Result<()> {
+    let fixture = Fixture::new(&format!("{HELLO}; read -r line; exec sleep 60"))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    let err = s
+        .browse("sim", None, Duration::from_millis(100))
+        .expect_err("no response");
+    assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+    assert!(!s.is_alive()?);
+    assert!(s.browse("sim", None, Duration::from_secs(2)).is_err());
+    Ok(())
+}
+
+#[test]
+fn closed_stdout_invalidates_even_if_child_remains_alive() -> io::Result<()> {
+    let fixture = Fixture::new(&format!("{HELLO}; read -r line; exec 1>&-; exec sleep 60"))?;
+    let mut s = start_supervisor(&fixture.path(), Duration::from_secs(2))?;
+    assert!(s.browse("sim", None, Duration::from_millis(100)).is_err());
+    assert!(!s.is_alive()?);
+    Ok(())
+}
+
+#[test]
+fn incomplete_simulation_baseline_times_out_without_publication() -> io::Result<()> {
+    use hmi_tag_engine::bridge_dispatch::ValueType;
+    use hmi_tag_engine::bridge_simulation::{SimPoint, SimulationBridge};
+    let fixture = Fixture::new(&format!(
+        r#"{HELLO}; read -r line; printf '%s\n' '{{"type":"ok","id":2}}'; read -r line; printf '%s\n' '{{"type":"ok","id":3}}' '{{"type":"sourceState","sourceId":"isolated-loopback","state":"CONNECTED"}}' '{{"type":"values","values":[{{"variableId":"a","quality":"GOOD","value":{{"type":"long","value":7}}}}]}}'; exec sleep 60"#
+    ))?;
+    let mut bridge = SimulationBridge::default();
+    let points = [
+        SimPoint {
+            id: "a".into(),
+            kind: ValueType::Long,
+        },
+        SimPoint {
+            id: "b".into(),
+            kind: ValueType::Bool,
+        },
+    ];
+    let mut attempts = 0;
+    let err = loop {
+        match bridge.resynchronize(&fixture.path(), &points, Duration::from_millis(500)) {
+            Err(e) if e.kind() == io::ErrorKind::ExecutableFileBusy && attempts < 50 => {
+                attempts += 1;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(e) => break e,
+            Ok(_) => return Err(io::Error::other("incomplete baseline was published")),
+        }
+    };
+    assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+    assert!(bridge.refresh().is_err());
+    Ok(())
+}
+
+#[test]
+fn premature_loopback_events_cannot_satisfy_new_baseline() -> io::Result<()> {
+    use hmi_tag_engine::bridge_dispatch::ValueType;
+    use hmi_tag_engine::bridge_simulation::{SimPoint, SimulationBridge};
+    let early = r#"'{"type":"sourceState","sourceId":"isolated-loopback","state":"CONNECTED"}' '{"type":"values","values":[{"variableId":"a","quality":"GOOD","value":{"type":"long","value":7}}]}'"#;
+    let ok2 = r#"'{"type":"ok","id":2}'"#;
+    let ok3 = r#"'{"type":"ok","id":3}'"#;
+    let points = [SimPoint {
+        id: "a".into(),
+        kind: ValueType::Long,
+    }];
+    for body in [
+        format!("{HELLO}; read -r line; printf '%s\n' {early} {ok2}; read -r line; printf '%s\n' {ok3}; exec sleep 60"),
+        format!("{HELLO}; read -r line; printf '%s\n' {ok2}; read -r line; printf '%s\n' {early} {ok3}; exec sleep 60"),
+    ] {
+        let fixture = Fixture::new(&body)?;
+        let mut bridge = SimulationBridge::default();
+        let mut attempts = 0;
+        let error = loop {
+            match bridge.resynchronize(&fixture.path(), &points, Duration::from_secs(2)) {
+                Err(e) if e.kind() == io::ErrorKind::ExecutableFileBusy && attempts < 50 => {
+                    attempts += 1;
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) => break e,
+                Ok(_) => return Err(io::Error::other("premature baseline was published")),
+            }
+        };
+        assert!(error.to_string().contains("premature event"));
+        assert!(bridge.refresh().is_err());
+    }
+    Ok(())
+}

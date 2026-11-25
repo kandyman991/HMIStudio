@@ -4,11 +4,13 @@ on:
     branches: [main]
     paths:
       - 'crates/tag-engine/**'
+      - 'crates/hmi-engine/**'
       - 'crates/project-model/**'
       - '.github/workflows/tag-engine.yml'
   pull_request:
     paths:
       - 'crates/tag-engine/**'
+      - 'crates/hmi-engine/**'
       - 'crates/project-model/**'
       - '.github/workflows/tag-engine.yml'
   workflow_dispatch:
@@ -38,13 +40,25 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: crates/tag-engine
+          workspaces: |
+            crates/tag-engine
+            crates/hmi-engine
           key: tag-engine-dedicated
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           cache-bin: 'false'
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
+      - name: Real isolated loopback child resynchronization
+        shell: pwsh
+        run: |
+          cargo build --locked --manifest-path ../hmi-engine/Cargo.toml --bin hmi-engine
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $name = if ($IsWindows) { 'hmi-engine.exe' } else { 'hmi-engine' }
+          $env:HMI_ENGINE_TEST_BIN = (Resolve-Path "../hmi-engine/target/debug/$name").Path
+          cargo test --locked --test bridge_simulation -- --ignored
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- ../hmi-engine/Cargo.lock
       - name: rustdoc
         shell: bash
         run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked

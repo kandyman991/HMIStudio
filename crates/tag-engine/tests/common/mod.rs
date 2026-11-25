@@ -1,7 +1,6 @@
 #![allow(dead_code, clippy::unwrap_used)]
 
 use std::path::PathBuf;
-use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -133,7 +132,7 @@ pub fn cid(s: &str) -> hmi_project_model::model::ConnectionId {
 }
 
 /// Drains currently queued events.
-pub fn drain(rx: &Receiver<TagEvent>) -> Vec<TagEvent> {
+pub fn drain(rx: &EventReceiver) -> Vec<TagEvent> {
     let mut v = Vec::new();
     while let Ok(e) = rx.try_recv() {
         v.push(e);

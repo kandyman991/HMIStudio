@@ -588,7 +588,8 @@ fn passive_symbol_and_single_column_grid() {
 fn root_adaptive_and_grid_design_frame() {
     let mut f = fixture(7);
     let s = &mut f["screens"]["screen/a"];
-    s["components"]["label-b"] = json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
+    s["components"]["label-b"] =
+        json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
     s["layout"] = json!({"root":{"node":"stack","id":"outer","direction":"ADAPTIVE","children":[{"node":"component","componentId":"label-a"},{"node":"component","componentId":"label-b"}]}});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
@@ -612,9 +613,11 @@ fn root_adaptive_and_grid_design_frame() {
     f["screens"]["screen/a"]["layout"]["root"] = json!({"node":"scaleGroup","id":"g","componentIds":["label-a","label-b"],"designWidthDp":640,"designHeightDp":480});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|x| {
-        x.code == "scale-group-uniform-scale-and-reflow-not-representable"
-    }));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| { x.code == "scale-group-uniform-scale-and-reflow-not-representable" }));
 }
 
 #[test]

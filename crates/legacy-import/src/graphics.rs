@@ -351,7 +351,9 @@ impl Layout<'_> {
                     let rows = (out.len() as u64).div_ceil(columns);
                     let cols = vec![json!({"mode":"fraction","weight":1}); columns as usize];
                     let rows = vec![json!({"mode":"auto"}); rows as usize];
-                    return Some(json!({"id":id,"element":{"type":"grid","columns":cols,"rows":rows,"columnGap":gap,"rowGap":gap},"layout":layout,"children":out}));
+                    return Some(
+                        json!({"id":id,"element":{"type":"grid","columns":cols,"rows":rows,"columnGap":gap,"rowGap":gap},"layout":layout,"children":out}),
+                    );
                 }
                 Some(json!({"id":id,"element":{"type":if row{"row"}else{"column"},"spacing":gap,"wrap":row},"layout":layout,"children":out}))
                     .map(|mut n|{if !row{n["element"].as_object_mut().map(|o|o.remove("wrap"));}n})

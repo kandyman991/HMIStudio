@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "REUSE-03A schema-v2 freeze candidate: canonical model and desktop preview, 12,664/12,664 oracle vectors replayed; review corrected canonical diagnostic paths.",
+  "summary": "REUSE-03A merged; canonical schema v2 frozen. REUSE-03B read-only legacy decoder and mapping in progress.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -13,10 +13,10 @@
   ],
   "criteria": [
     "Resolve O-3 model additions, O-4 expressions and O-1 fixture rights. Freeze model v2 before decoder/mapping integration.",
-    "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
+    "Verify read-only V1\u2013V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Complete independent technical review and exact corrected-head hosted CI for PR #35 before formal schema freeze and merge. Retain documented runtime and editor limitations; legacy decoder mapping waits for verified freeze."
+    "Legacy decoder, complete deterministic mapping, report leaf accounting, and engineering integration remain outstanding. Runtime and native visual acceptance remain deferred."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -26,16 +26,13 @@
   "claimGroup": "RUST-05",
   "assignment": {
     "owner": "ChatGPT",
-    "branch": "feat/reuse-03a-canonical-v2",
+    "branch": "feat/reuse-03b-legacy-import",
     "scope": [
-      "crates/engineering-core/",
-      "crates/project-model/",
-      "crates/tag-engine/",
-      "src-tauri/src/",
-      "src/",
-      "tests/"
+      "crates/legacy-import/",
+      ".github/workflows/ci.yml",
+      "roadmap/ci-plan.mjs"
     ],
-    "observedAt": "2026-11-25T19:25:37Z"
+    "observedAt": "2026-11-25T20:51:28Z"
   },
   "history": [
     {
@@ -96,6 +93,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "Independent review verified predecessor hosted CI and schema/corpus hashes; corrected staged diagnostic pointers to canonical v2 groups, 104 locked offline model tests passed. Formal freeze proposal recorded; final technical review and corrected-head CI remain required.",
+      "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Verified PR #35 merged b9ae1d5 after independent review and all 17 exact-head CI jobs on 1ddf0b4; schema v2 freeze effective. Retained RUST-05 reservation and transferred to REUSE-03B branch by compare-and-set.",
       "record": "docs/reuse/REUSE_03A_MODEL_V2.md"
     }
   ]

@@ -68,8 +68,12 @@
 - PR #8 merged at 4ca18a5973e0b624d06318c4767812989802c29b; exact source 620c09cc347c859b9e9ad8431890fdcfcf55872c passed Desktop CI 45418769428, engineering core CI 45418769365 and handoff CI 45418769375. Native logs show 9 Windows / 10 Linux tests passed, including the new regression.
 - Linux CI DEB extracted into isolated temporary storage; app launched with isolated XDG directories and X11, mapped a window and exited normally after WM_DELETE_WINDOW. No package-manager install, interactive/visual acceptance or native Wayland test. Windows desktop unavailable. Acceptance issue #10 tracks the outstanding D-008 gates.
 - RUST-04A preparatory draft from the merged source: nested row/column insertion and sibling order, typed engine transactions, pure selection-rule tests. No new dependencies, schema changes or native permissions. No local build/test claim. Existing #7/#9 are independent.
+## RUST-04A merged / RUST-04B candidate — 2026-11-24
+- PR #11 merged at 58d83ca540463d9507c1cd76555d0bac5bb6378b. Reviewed source 6030fa387a3fee3bd2b13ae8779ff2c690db0db5; desktop CI 45421552926 and handoff 45421552619 passed, 7 frontend tests on both platforms, 9 Windows / 10 Linux native tests. No blocking findings.
+- Issue #10 records owner Windows checklist 9/9, Linux CI and isolated launch/close, waiver of duplicate Linux manual tests. Owner explicitly authorized #11 merge while rejecting current visual direction. Visual acceptance carried into RUST-04; original HTML was unavailable at that historical observation, since recovered in PR #13. D-008 follow-up records scope.
+- RUST-04B branch feat/rust-04b-layout-rendering adds base flow CSS mapping, size/arrangement editing via Rust commands, grouped toolbars/library/ruler/inspector and pure tests. No new dependencies, native permissions or schema changes. Unsupported layout/live/responsive features explicitly marked; no visual parity or local test claim.
 ## Next exact action
-Complete issue #10 before marking RUST-02 accepted; review and test RUST-04A draft, retain dependency gate, then extend semantic layout editing and preview.
+Verify fresh exact-head hosted CI and final review of corrected RUST-04B, then engineering merge when authorized. Continue RUST-04B.1 visual alignment before RUST-04C pointer manipulation; retain #10/RUST-04 visual acceptance.
 
 ## Maintenance
 Append or supersede entries when milestone state changes. Include date, source SHA, PR/CI/test links, failures and next action. Do not paste private chat or secrets. Live GitHub evidence overrides stale observations; owner-approved documented decisions govern intent.
@@ -212,3 +216,8 @@ Append or supersede entries when milestone state changes. Include date, source S
 ## PR #13 visual reference reconciliation — 2026-11-25
 - Reviewed original reference at de777d7368fa2ffe6c95c3f27c49a89802989c8d against main 9c09e363d5df08114202a42ec0c9aa8bca664b80. Verified 116579 bytes, documented SHA-256 and Git blob hash; no application code or dependencies changed. Previous Desktop CI 45431128554 and handoff 45431128532 passed on predecessor only.
 - RUST-04 scope reserved for docs/original-visual-reference; canonical milestone and generated views updated. PR #12 remains separate. Visual fidelity and issue #10 acceptance are not claimed. Re-review exact-head hosted checks before merge; do not release the reservation until merge or abandonment.
+
+## RUST-04B independent review corrections — 2026-11-25
+- PR #12 predecessor 1dd36b5 reconciled with main 0a74f65 (PR #13 original HTML reference merged). Scope reserved as RUST-04B under RUST-04. Corrected visual baseline, fit/zoom, hidden interaction and preview limits; no Rust/IPC/dependency changes.
+- Local 13 frontend tests, TypeScript, Vite and isolated Chromium fixture passed; details in docs/LAYOUT_DESIGNER.md. Original reference hash verified. No native visual acceptance, runtime parity or PLC operation claimed.
+- Fresh exact-head hosted Required CI and handoff required; previous passing runs do not carry over. Keep reservation until merge or explicit abandonment. RUST-04B.1 then RUST-04C planned in canonical roadmap.

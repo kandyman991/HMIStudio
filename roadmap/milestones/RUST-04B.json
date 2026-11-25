@@ -4,7 +4,7 @@
   "track": "Engineering",
   "phase": "proposed",
   "counts": true,
-  "summary": "Draft PR #12 implements a model-backed layout preview and workspace changes.",
+  "summary": "Reconciled PR #12 corrects the semantic flow preview and aligns the workspace with the recovered owner-approved prototype.",
   "dependencies": [
     {
       "id": "RUST-04A",
@@ -16,7 +16,7 @@
     "Review inspector transactions and preserve further responsive, runtime parity and pointer-manipulation scope.",
     "Reconcile with the owner-approved visual reference and preserve manual RUST-04 acceptance."
   ],
-  "proposal": "Draft PR #12 is a candidate for the layout-rendering slice. Visual acceptance remains open.",
+  "proposal": "RUST-04B corrected candidate; 13 frontend tests, TypeScript, Vite and isolated Chromium fixture passed. Fresh exact-head hosted CI and engineering integration pending. Native visual acceptance remains open.",
   "prs": [
     {
       "number": 12,
@@ -51,9 +51,41 @@
     }
   ],
   "docs": [
-    "docs/LAYOUT_DESIGNER.md"
+    "docs/LAYOUT_DESIGNER.md",
+    "docs/reference/README.md"
   ],
   "parent": "RUST-04",
   "claimGroup": "RUST-04",
-  "completionPr": 12
+  "completionPr": 12,
+  "assignment": {
+    "owner": "ChatGPT",
+    "branch": "feat/rust-04b-layout-rendering",
+    "scope": [
+      "AGENTS.md",
+      "package.json",
+      "src/layout-preview.ts",
+      "src/main.tsx",
+      "src/style.css",
+      "tests/layout-preview.test.mjs"
+    ],
+    "observedAt": "2026-11-25T13:14:03Z"
+  },
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "started",
+      "summary": "Reserved RUST-04B and reconciled predecessor 1dd36b5 with main 0a74f65 (original visual reference merged in PR #13).",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "completion_proposed",
+      "summary": "Corrected preview numeric parsing, wrap alignment, hidden interaction, unsupported semantics, compact reference-based workspace and bounded fit/zoom. Local frontend and isolated browser validation passed; fresh hosted CI required.",
+      "record": "docs/LAYOUT_DESIGNER.md"
+    }
+  ],
+  "blockers": [
+    "Fresh exact-head hosted Required CI and engineering handoff before integration.",
+    "Native desktop visual comparison/acceptance remains with RUST-04 and issue #10; subsequent RUST-04B.1 alignment and RUST-04C interaction are separate."
+  ]
 }

@@ -40,3 +40,111 @@ footer{gap:12px;overflow:hidden}footer span{overflow:hidden;text-overflow:ellips
 
 .recovery-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#40382a;color:#f7e2ac}
 header>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* RUST-04B: provisional industrial engineering workspace, not prototype parity. */
+:root{font-size:12px;background:#131820;color:#d8e2ee}
+.studio header{height:37px;flex:none;background:#18212b;padding:0 14px;border-bottom:1px solid #374655}
+.studio header strong{letter-spacing:.12em;color:#8fc6ff}
+.build-label{font-size:10px;letter-spacing:.06em;white-space:nowrap}
+.studio nav{padding:2px 8px;background:#202a35}
+.menu>button{padding:5px 9px}
+.ribbon{background:#273340;padding:5px 9px;gap:0;align-items:stretch}
+.tool-group{padding:3px 9px;border-right:1px solid #465566;display:flex;flex-direction:column;justify-content:space-between;gap:5px}
+.tool-group>div{display:flex;gap:3px;flex-wrap:wrap}
+.tool-group small{color:#a4b5c7;letter-spacing:.08em;font-size:9px;text-align:center}
+.tool-group button{font-size:11px;padding:5px 7px;min-height:26px}
+.tool-group button[aria-pressed=true]{background:#315675}
+.dock-panel{background:#1d2732}
+.dock-panel h3,.diagnostics h3{background:#263441;color:#b9d4ee;font-size:10px;letter-spacing:.08em;padding:8px 10px}
+.tree{padding:5px 4px 10px}
+.layer{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-block:5px}
+.component-library{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:4px;padding:8px}
+.component-library button{display:grid;justify-items:center;gap:3px;padding:6px 3px;font-size:11px}
+.component-library button span{font-size:20px;color:#8bc1fa}
+.screen-tabs{padding:4px 4px 0;gap:2px;background:#18222d;min-height:32px}
+.screen-tab button{border-radius:3px 3px 0 0}
+.designer-bar{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;background:#293847;color:#b8d0e7;border-block:1px solid #3c4b5c;font-size:11px}
+.designer-bar span{color:#9db1c5}
+.viewport{display:block;padding:22px;background-color:#151e28;background-image:linear-gradient(#263240 1px,transparent 1px),linear-gradient(90deg,#263240 1px,transparent 1px);background-size:20px 20px}
+.artboard-wrap{width:800px;margin:0 auto}
+.artboard-caption{display:flex;justify-content:space-between;color:#b9cce0;padding:6px 0;gap:12px}
+.artboard-caption span{color:#e1c28a}
+.artboard-ruler{height:22px;background:repeating-linear-gradient(90deg,#64788e 0 1px,transparent 1px 10px),#263441;display:flex;color:#d1dfed;border-bottom:1px solid #708398}
+.artboard-ruler span{width:100px;flex:none;font-size:10px;padding:3px 4px}
+.artboard{isolation:isolate;width:800px;height:480px;background:#e9eef3;color:#203447;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;outline:1px solid #8195a9;box-shadow:0 8px 24px #0008}
+.preview-node{box-sizing:border-box}
+.preview-flow{outline:1px dashed #7995ab;outline-offset:-1px}
+.preview-node.preview-selected{outline:2px solid #1682e9;outline-offset:-2px}
+.preview-component,.preview-unsupported{font:inherit;border:0;border-radius:2px;min-width:0;min-height:0;color:#203447;background:#d7e4ef;white-space:pre-wrap;overflow-wrap:anywhere}
+.preview-component.text{background:transparent}
+.preview-component.button{background:#256b9a;color:white}
+.preview-component.gauge{display:grid;gap:2px;background:#cddce8}
+.preview-component.gauge strong{font-size:24px}
+.preview-component.placeholder,.preview-unsupported{background:#eadbbd;color:#6b4b12}
+.preview-note{font-size:11px;color:#aebed0;margin:10px 0}
+.inspector-tabs{padding:5px;gap:2px}
+.inspector-tabs button{font-size:10px;padding:5px}
+.layout-field{padding:8px 10px;display:grid;gap:6px;border-bottom:1px solid #354354}
+.layout-field label{display:grid;gap:4px;color:#b7c9dc}
+.layout-field select,.layout-field input:not([type=checkbox]){width:100%;min-width:0;background:#111b25;border:1px solid #46596d;color:#dce5f1;border-radius:3px;padding:5px;font:inherit}
+.layout-field .check-line{display:flex;align-items:center;gap:6px}
+.layout-warning{color:#e1c28a}
+footer{background:#223a50;color:#d7e5f4;padding:5px 10px}
+
+/* RUST-04B reference alignment: shell tokens and proportions from docs/reference/hmi-forge.html.
+   Editor-only styling; no prototype state, mock PLC, or runtime behavior. */
+:root{color-scheme:dark;--shell:#151a23;--panel:#191f2a;--raised:#202836;--field:#121823;--edge:#2b3545;--ink:#e8edf5;--muted:#a1afc2;--mint:#62e2c3;--amber:#f2bb61;background:var(--shell);color:var(--ink);font-size:13px}
+button{background:var(--raised);border-color:var(--edge)}
+button:hover:not(:disabled){background:#2a3748}
+button:focus-visible,.splitter:focus-visible{outline-color:var(--mint)}
+.studio-icon{width:18px;height:18px;flex:none;vertical-align:middle}
+.studio .studio-top{height:58px;padding:0 13px;gap:12px;background:var(--shell);border-color:var(--edge);justify-content:flex-start}
+.brand,.header-project,.top-actions,.canvas-foot,.output-tabs,.dock-add{display:flex;align-items:center;gap:8px;min-width:0}
+.brand{flex:none;gap:10px}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:#21443d;color:var(--mint)}
+.brand-mark .studio-icon{width:23px;height:23px}.studio header .brand strong{font-size:16px;color:var(--ink);letter-spacing:0;line-height:1.05}.brand em{color:var(--mint);font-style:normal}.brand small{display:block;font-size:9px;letter-spacing:.16em;margin-top:5px}
+.studio header .header-project{padding-left:12px;border-left:1px solid var(--edge);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}.header-project .studio-icon{margin-right:7px;color:var(--mint)}
+.build-label{border:1px solid var(--edge);padding:4px 7px;border-radius:4px;font-size:10px}.top-actions{flex:none}.top-actions button{display:flex;align-items:center;gap:6px;padding:7px 10px}.top-actions .primary{color:var(--mint);border-color:#387667;background:#21443d}
+.studio nav{min-height:34px;background:var(--shell);border-color:var(--edge);flex-wrap:wrap;flex:none}
+.menu>button{padding:6px 9px}.dropdown{background:var(--raised);border:1px solid var(--edge);border-radius:5px;z-index:30}
+.ribbon{min-height:46px;padding:5px 9px;background:var(--panel);border-color:var(--edge);gap:8px;align-items:center;flex:none}
+.tool-group{display:flex;flex-direction:row;align-items:center;gap:3px;padding:0 8px 0 0;border-right:1px solid var(--edge)}
+.tool-group:last-child{border:0;padding:0}.tool-group button{display:flex;align-items:center;gap:6px;justify-content:center;font-size:12px;min-height:30px;min-width:30px;background:transparent;border:1px solid transparent;padding:5px}
+.tool-group button:hover:not(:disabled),.tool-group button[aria-pressed=true]{background:#243a3b;color:var(--mint);border-color:#315d57}
+.workspace-label{font-size:11px;color:var(--muted)}
+.activity-rail{flex:0 0 49px;order:-1;display:flex;flex-direction:column;align-items:center;padding:6px 4px;gap:4px;background:var(--shell);border-right:1px solid var(--edge)}
+.activity-rail button{width:39px;height:39px;padding:0;border:1px solid transparent;background:transparent;color:var(--muted);display:grid;place-items:center}
+.activity-rail button:hover:not(:disabled),.activity-rail button[aria-pressed=true]{color:var(--mint);background:#203b38;border-color:#315d57}
+.activity-rail .studio-icon{width:21px;height:21px}
+.dock-panel{background:var(--panel);border-color:var(--edge)}.dock-panel h3{font-size:12px;letter-spacing:.02em;padding:12px;background:var(--panel);color:var(--ink);border-color:var(--edge)}
+.dock-heading{font-size:10px;color:var(--muted);letter-spacing:.09em;padding:10px 12px 4px}.tree{padding:3px 4px}.layer{min-height:27px;color:var(--muted);font-size:12px}.layer .studio-icon{width:14px;height:14px;color:var(--mint)}
+.layer.active,.screen-tab button.active,.inspector-tabs button.active{background:#233b3a;color:var(--mint)}.dock-add{margin:7px 8px;color:var(--mint);background:transparent}
+.component-library{grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:6px}.component-library button{min-height:54px;gap:5px;color:var(--muted);background:var(--raised)}.component-library .studio-icon{width:22px;height:22px;color:var(--mint)}
+.splitter{background:var(--edge)}.splitter:hover,.splitter:focus-visible{background:var(--mint)}
+.designer{background:#111722}.screen-tabs{flex:none;min-height:38px;padding:4px 6px 0;background:#171e2a;border-bottom:1px solid var(--edge)}
+.screen-tab button{background:transparent;border-color:transparent}.screen-tab button.active{border-bottom:2px solid var(--mint)}
+.designer-bar{flex:none;background:#171e2a;color:var(--ink);border-color:var(--edge);font-size:11px}.designer-bar span{color:var(--muted)}
+.viewport{background-color:#111722;background-image:radial-gradient(#2b3545 1px,transparent 1px);background-size:16px 16px;padding:16px;min-height:0}
+.artboard-wrap{width:826px;margin:0 auto}.artboard-caption{padding-left:26px;color:var(--muted)}.artboard-caption span{color:var(--amber)}
+.artboard-ruler{margin-left:26px;background:repeating-linear-gradient(90deg,#526174 0 1px,transparent 1px 10px),#1c2633;color:var(--muted);border-color:var(--edge)}
+.artboard-row{display:flex;align-items:flex-start}.artboard-ruler-y{flex:0 0 26px;height:480px;display:flex;flex-direction:column;background:repeating-linear-gradient(0deg,#526174 0 1px,transparent 1px 10px),#1c2633;color:var(--muted);border-right:1px solid var(--edge);font-size:10px}
+.artboard-ruler-y span{height:100px;flex:none;padding:3px 2px;background:linear-gradient(#1c2633 20px,transparent 20px)}.artboard-ruler-y span:last-child{height:80px}
+.artboard{background:#182735;color:var(--ink);outline-color:#435471}
+.preview-flow{outline-color:#4c6578}.preview-node.preview-selected{outline-color:var(--mint)}
+.preview-component,.preview-unsupported{color:var(--ink);background:#26394b}.preview-component.text{background:transparent;color:var(--ink)}.preview-component.button{background:#27584f;color:#e7fff8}.preview-component.gauge{background:#243b4e}.preview-component.placeholder,.preview-unsupported{background:#3d3527;color:var(--amber)}
+.preview-component:hover:not(:disabled),.preview-unsupported:hover:not(:disabled){filter:brightness(1.12)}.preview-component:focus-visible,.preview-unsupported:focus-visible{outline-color:var(--mint)}
+.preview-note{padding-left:26px;color:var(--muted)}
+.canvas-foot{min-height:32px;flex:none;padding:4px 10px;background:#171e2a;border-top:1px solid var(--edge);font-size:11px;overflow:hidden}.canvas-foot .studio-icon{color:var(--mint)}.canvas-foot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inspector-tabs{background:var(--panel);border-color:var(--edge);padding:0 5px;gap:0;flex-wrap:wrap}.inspector-tabs button{background:transparent;border:0;border-radius:0;padding:8px 5px;font-size:11px;color:var(--muted);border-bottom:2px solid transparent}.inspector-tabs button.active{border-color:var(--mint);background:transparent}
+.layout-field{border-color:var(--edge)}.layout-field label,.field{color:var(--muted)}.layout-field select,.layout-field input:not([type=checkbox]),.field input,dd{background:var(--field);border-color:var(--edge);color:var(--ink)}
+.diagnostics{background:#19212c;border-color:var(--edge);min-height:0}.output-tabs{position:sticky;top:0;background:var(--panel);padding:0 7px;border-bottom:1px solid var(--edge);min-height:35px}
+.output-tabs button{background:transparent;border:0;border-radius:0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;padding:7px;color:var(--muted)}.output-tabs button[aria-pressed=true]{border-color:var(--mint);color:var(--mint)}.output-tabs button span{font-size:10px;color:var(--muted)}.diagnostics p{color:var(--ink);overflow-wrap:anywhere}
+footer{min-height:29px;background:var(--shell);border-top:1px solid var(--edge);border-bottom:0;color:var(--muted);flex:none}.no-plc{color:var(--amber)}
+@media(max-width:900px){.build-label,.workspace-label{display:none}.studio .studio-top{gap:7px}.top-actions button{padding:6px}.dock-panel{max-width:35%}.activity-rail{flex-basis:44px}.activity-rail button{width:34px;height:34px}}
+@media(max-width:620px){.top-actions{display:none}.studio header .header-project{flex:1}.ribbon{gap:3px}.tool-group{padding-right:3px}.tool-group button{min-width:27px;padding:4px}.dock-workspace .designer{min-width:80px}.dock-panel{max-width:31%}footer span:last-child{display:none}}
+
+/* Fit/zoom changes only the view transform, never model dimensions. */
+.artboard-scale{position:relative;overflow:hidden}
+.artboard-logical{width:826px;height:502px;position:absolute;top:0;left:0;transform-origin:top left}
+.artboard-caption,.preview-note{padding-left:0;overflow-wrap:anywhere}
+.artboard-caption span{flex:none}
+.zoom-tools button{font-variant-numeric:tabular-nums}

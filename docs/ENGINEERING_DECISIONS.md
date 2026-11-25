@@ -106,3 +106,7 @@ Communication authorization and command recovery are separate operations. Ordina
 - an operator-initiated, command-specific recovery operation that verifies state before clearing.
 
 PLC-side watchdogs remain required for physical momentary commands. Development and isolated simulation reads and writes remain permitted without production approval. The engine-session scope of the block, which is lost when the engine process ends, is a recorded limitation that the EngineDriver integration and protocol 4 must address.
+
+### D-008 follow-up — Scoped RUST-02 acceptance and visual continuation (owner direction, 2026-11-24)
+
+Issue #10 records Windows functional checklist 9/9, Linux CI and isolated X11 launch/clean close, and owner waiver of duplicate manual Linux functional checks. Owner rejected the earlier visual direction and authorized PR #11 engineering merge. Visual acceptance remains open in RUST-04; not waived. The recovered original HTML is now preserved by PR #13. This entry was called D-009 in the original PR #12 draft; use D-008 follow-up to avoid colliding with the existing selective-reuse D-009. No generalized Linux or later acceptance waiver.

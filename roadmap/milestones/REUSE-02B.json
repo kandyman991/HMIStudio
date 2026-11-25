@@ -1,0 +1,48 @@
+{
+  "id": "REUSE-02B",
+  "title": "Controlled engine source import",
+  "track": "Reuse",
+  "phase": "merged",
+  "counts": true,
+  "summary": "Source-only engine import merged in PR #16 after advisory remediation and exact-head validation.",
+  "dependencies": [
+    {
+      "id": "REUSE-02A",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify exact approved import, provenance and notices, Windows/Linux test-server suites, and Linux advisory gate.",
+    "Complete independent review while preserving protocol and production/release boundaries."
+  ],
+  "prs": [
+    {
+      "number": 16,
+      "head": "5fe9dbaa08e7fab3ca7f4270b987fbb42d406969",
+      "branch": "feat/reuse-02b-engine-import",
+      "state": "merged",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45458106267,
+          "name": "Desktop CI",
+          "head": "5fe9dbaa08e7fab3ca7f4270b987fbb42d406969",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45458106080,
+          "name": "Engineering handoff snapshot",
+          "head": "5fe9dbaa08e7fab3ca7f4270b987fbb42d406969",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "78f3a64c06d00afcc392edccad9da9fd757d0392"
+    }
+  ],
+  "docs": [
+    "docs/reuse/REUSE_02A_IMPORT_PLAN.md"
+  ],
+  "parent": "REUSE-02"
+}

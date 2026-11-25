@@ -10,7 +10,7 @@
 ## Workflow
 - Branch from verified main; one scoped milestone per PR. Do not overwrite concurrent work.
 - Document decisions, acceptance criteria, limitations and reproducible tests. Require exact-head CI and independent review before merge. Never claim unrun checks passed. No force pushes to main.
-- Batch reviewed fixes and run targeted preflight before pushing; avoid unnecessary builds, repeated uploads and CI churn. Follow docs/CI_RUNNER_POLICY.md.
+- Batch reviewed fixes and run targeted preflight before pushing. Follow CI-02 in docs/CI_RUNNER_POLICY.md: require exact-head Required CI and handoff, applicable independent checks and review; use change-aware routing, cache dependencies and skip irrelevant installer jobs. Packaging-affecting changes, release tags and milestone/manual installer requests still require both bundles. Do not call a skipped check passed.
 - Public repository: never transfer private source, customer projects, proprietary drivers, credentials, signing material or SDKs without documented authorization and license review. No project license is assumed until owner chooses one. Never publish raw private chats or private operational records.
 - Prefer standard hosted CI; never run untrusted public PRs on private self-hosted machines. Minimize permissions, artifact retention and secrets. Commit lockfiles; review dependency licenses and vulnerabilities.
 - Tauri 2 desktop shell; HTML/CSS/TypeScript frontend; Rust authoritative engineering core. Typed commands only, no generic shell or privileged filesystem bridge.
@@ -18,6 +18,16 @@
 - Versioned framework-independent project model; semantic nested layout constraints, distinct editor/runtime responsibilities. Verify Kotlin/Compose interoperability for Windows, Linux and Android; support standalone bundles and project-only publishing.
 - Development/simulation reads and writes, operator commands, setpoints, alarms, recipes and runtime tests need no production approval. Actual machinery commissioning, trusted deployment, release signing and licensing are separate.
 - Label placeholders; do not claim production connectivity, deployment or milestone acceptance until verified.
+
+## Living roadmap
+- Before starting implementation, run python3 roadmap/claim.py list and reserve the milestone and exact path scope using python3 roadmap/claim.py claim ID --owner AGENT --branch BRANCH --scope PATH... . Copy the emitted scope into the milestone assignment. Reservations are compare-and-set Git refs. Keep the reservation until implementation merges or is explicitly abandoned; release your own claim with python3 roadmap/claim.py release ID --owner AGENT --branch BRANCH.
+- Required CI rejects implementation PRs without a matching reservation, path scope, milestone change and appended dated history. Record the actual PR number in completionPr for a proposal that completes the milestone; intermediate PRs remain in_progress. List applicable dedicated workflow names in requiredWorkflows. Existing PRs must reconcile with new main and reserve scope before integration. The migration PR is the one-time bootstrap exception.
+- Reconciliation can propose a verified merge transition; no automation records human acceptance or waives independent review. Review synchronization PRs normally. Keep credentials only in approved repository secrets.
+- At task start, handoff and completion proposal update the relevant `roadmap/milestones/<ID>.json` file with verified scope, branch/assignment, blockers, links and dated history. Check open PRs and coordinate assignments before editing shared records.
+- Use `proposed` for review candidates. Record `merged` after verifying the actual merge on the default branch. Record `accepted` only after the milestone evidence required by D-008 is recorded. A proposal can have successful exact-head CI and still await merge and acceptance.
+- Regenerate with `node roadmap/generate.mjs` and verify with `node roadmap/generate.mjs --check --verify-migration`. Never hand edit `docs/MILESTONE_PLAN.md` or `roadmap/dashboard.html`. Resolve concurrent milestone changes in their source files and regenerate both views.
+- PR, issue and CI snapshots require observation timestamps and verified exact heads. Keep private information out of public records. See `roadmap/README.md`.
+
 
 ## Engineering merge versus milestone acceptance (binding D-008)
 - Routine development PRs do not require owner installation, manual desktop testing or visual sign-off. Require compilation, automated tests, exact-head CI, independent review, applicable dependency security/license checks and installer generation when packaging is affected.

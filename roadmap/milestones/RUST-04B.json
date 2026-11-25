@@ -1,0 +1,59 @@
+{
+  "id": "RUST-04B",
+  "title": "Model-driven layout rendering",
+  "track": "Engineering",
+  "phase": "proposed",
+  "counts": true,
+  "summary": "Draft PR #12 implements a model-backed layout preview and workspace changes.",
+  "dependencies": [
+    {
+      "id": "RUST-04A",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Review and verify supported row/column constraints, sizing, padding, arrangement, wrapping, visibility and clipping.",
+    "Review inspector transactions and preserve further responsive, runtime parity and pointer-manipulation scope.",
+    "Reconcile with the owner-approved visual reference and preserve manual RUST-04 acceptance."
+  ],
+  "proposal": "Draft PR #12 is a candidate for the layout-rendering slice. Visual acceptance remains open.",
+  "prs": [
+    {
+      "number": 12,
+      "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+      "branch": "feat/rust-04b-layout-rendering",
+      "state": "draft",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45434390655,
+          "name": "Desktop CI",
+          "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45434390848,
+          "name": "Engineering handoff snapshot",
+          "head": "1dd36b5f1f1cf7fe5eed3f610bcae4b93e78ee20",
+          "state": "completed",
+          "result": "success"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "number": 10,
+      "label": "RUST-02 — Windows/Linux desktop milestone acceptance",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md"
+  ],
+  "parent": "RUST-04",
+  "claimGroup": "RUST-04",
+  "completionPr": 12
+}

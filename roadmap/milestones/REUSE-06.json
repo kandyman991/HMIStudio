@@ -1,0 +1,35 @@
+{
+  "id": "REUSE-06",
+  "title": "Migration acceptance and retirement",
+  "track": "Reuse",
+  "phase": "planned",
+  "counts": true,
+  "summary": "Proposed reuse part of RUST-08.",
+  "dependencies": [
+    {
+      "id": "REUSE-02",
+      "gate": "merged"
+    },
+    {
+      "id": "REUSE-03",
+      "gate": "merged"
+    },
+    {
+      "id": "REUSE-04",
+      "gate": "merged"
+    },
+    {
+      "id": "REUSE-05",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify migration, publish and desktop/Android runtime scenarios on simulation and test servers, including D-033 device checks where authorized.",
+    "Record automated gates, owner RUST-08 acceptance, retirement plan and final notices. Verify or carry forward unverified deployment items."
+  ],
+  "docs": [
+    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+  ],
+  "parent": "RUST-08",
+  "claimGroup": "RUST-08"
+}

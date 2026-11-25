@@ -17,6 +17,6 @@ The prototype is documentation, not application code or a runtime dependency. Ke
 
 ## Next action
 
-Finish PR #12 under existing engineering gates. Then use this reference for RUST-04B.1 (workspace visual alignment), before RUST-04C (direct manipulation). Compare actual desktop screenshots and interactions to the reference during RUST-04 acceptance. F-001's missing-source blocker is resolved by recovery; implementation fidelity is still unverified. No private legacy repository code transfer or license grant is implied. Sample data is presented by the prototype as a virtual PLC demonstration; no real plant connection is authorized.
+PR #13 preserves this reference independently of PR #12 (RUST-04B model-driven layout rendering). Reconcile and review PR #12 separately against current main and this reference. After RUST-04B integration, use the reference for RUST-04B.1 (workspace visual alignment), before RUST-04C (direct manipulation); record those follow-up scopes in the canonical roadmap before implementation. Compare actual desktop screenshots and interactions to the reference during RUST-04 acceptance. F-001's missing-source blocker is resolved by recovery; implementation fidelity is still unverified. No private legacy repository code transfer or license grant is implied. Sample data is presented by the prototype as a virtual PLC demonstration; no real plant connection is authorized.
 
 To inspect, download the HTML and open it as a standalone local browser prototype. Do not use it for production commissioning.

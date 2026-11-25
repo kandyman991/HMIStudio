@@ -1,0 +1,79 @@
+{
+  "id": "RUST-04",
+  "title": "Semantic layout editor",
+  "track": "Engineering",
+  "phase": "in_progress",
+  "counts": false,
+  "summary": "Initial nested editing merged. PR #13 preserves the recovered visual reference; PR #12 is a separate model-backed layout candidate. Desktop visual acceptance remains outstanding.",
+  "dependencies": [
+    {
+      "id": "RUST-02",
+      "gate": "accepted",
+      "note": "Issue #10 covers desktop workspace acceptance."
+    },
+    {
+      "id": "RUST-03B",
+      "gate": "merged"
+    }
+  ],
+  "criteria": [
+    "Verify visual component operations, nested constraints, alignment and responsive preview.",
+    "Complete manual desktop designer acceptance."
+  ],
+  "prs": [
+    {
+      "number": 13,
+      "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+      "branch": "docs/original-visual-reference",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z",
+      "runs": [
+        {
+          "id": 45431128554,
+          "name": "Desktop CI",
+          "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45431128532,
+          "name": "Engineering handoff snapshot",
+          "head": "de777d7368fa2ffe6c95c3f27c49a89802989c8d",
+          "state": "completed",
+          "result": "success"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "number": 10,
+      "label": "RUST-02 \u2014 Windows/Linux desktop milestone acceptance",
+      "state": "open",
+      "observedAt": "2026-11-25T09:01:59Z"
+    }
+  ],
+  "docs": [
+    "docs/LAYOUT_DESIGNER.md",
+    "docs/reference/README.md"
+  ],
+  "assignment": {
+    "owner": "ChatGPT",
+    "branch": "docs/original-visual-reference",
+    "scope": [
+      "AGENTS.md",
+      "docs/FAILED_APPROACHES.md",
+      "docs/reference/README.md",
+      "docs/reference/hmi-forge.html"
+    ],
+    "observedAt": "2026-11-25T13:03:47Z"
+  },
+  "history": [
+    {
+      "date": "2026-11-25",
+      "type": "handoff",
+      "summary": "Independently reviewed PR #13 and reconciled with main 9c09e363. Verified original HTML byte count, SHA-256 and Git blob; scoped reservation RUST-04. No application or acceptance change. PR #12 remains separate; exact-head hosted CI pending.",
+      "record": "docs/reference/README.md"
+    }
+  ]
+}

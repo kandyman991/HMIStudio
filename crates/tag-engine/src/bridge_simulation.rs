@@ -1,6 +1,7 @@
 //! Generation-scoped resynchronization of an explicitly isolated read-only loopback child.
 use crate::bridge_dispatch::{Message, PointValue, Quality, SourceState, Value, ValueType};
-use crate::bridge_supervisor::Supervisor;
+use crate::bridge_supervisor::{check_cancel, Supervisor};
+use crate::driver::CancelToken;
 use std::{
     collections::BTreeMap,
     io,
@@ -119,7 +120,18 @@ impl SimulationBridge {
         points: &[SimPoint],
         timeout: Duration,
     ) -> io::Result<Snapshot> {
+        self.resynchronize_cancellable(executable, points, timeout, &CancelToken::new())
+    }
+
+    pub(crate) fn resynchronize_cancellable(
+        &mut self,
+        executable: &Path,
+        points: &[SimPoint],
+        timeout: Duration,
+        cancel: &CancelToken,
+    ) -> io::Result<Snapshot> {
         self.invalidate();
+        check_cancel(cancel)?;
         self.generation = self
             .generation
             .checked_add(1)
@@ -134,19 +146,24 @@ impl SimulationBridge {
                 .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "baseline timeout"))
         };
         let mut baseline = Baseline::new(points)?;
-        let mut session = Supervisor::start(executable, remaining()?)?;
+        let mut session = Supervisor::start_cancellable(executable, remaining()?, cancel)?;
         // No unsolicited data may precede the configuration/start sequence.
         if session.poll_event()?.is_some() {
             return Err(invalid("pre-configuration event"));
         }
-        session.start_loopback(points, deadline)?;
+        session.start_loopback(points, deadline, cancel)?;
         while !baseline.complete() {
+            check_cancel(cancel)?;
             remaining()?;
             match session.poll_event()? {
                 Some(event) => baseline.apply(event)?,
-                None => std::thread::sleep(Duration::from_millis(1)),
+                None => {
+                    cancel.wait(Duration::from_millis(1));
+                }
             }
         }
+        check_cancel(cancel)?;
+        remaining()?;
         self.baseline = Some(baseline);
         self.session = Some(session);
         self.refresh()

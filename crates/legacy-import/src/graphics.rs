@@ -776,9 +776,8 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     "COMPONENT" => mark(m, &p, "kind", &t, "root"),
                     "FACEPLATE" => {
                         let ct = format!("/v2/components/definitions/{}", classifications.len());
-                        classifications.push(
-                            json!({"definition":id,"classification":{"kind":"faceplate"}}),
-                        );
+                        classifications
+                            .push(json!({"definition":id,"classification":{"kind":"faceplate"}}));
                         mark(m, &p, "kind", &ct, "classification");
                     }
                     _ => return refuse(m, &path(&p, "kind"), "unknown-definition-kind"),

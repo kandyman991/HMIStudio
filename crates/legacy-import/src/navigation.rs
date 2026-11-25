@@ -90,9 +90,7 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
         .as_array()?
         .iter()
         .find(|x| x["tag"] == id)?;
-    if tag["dataType"] != "bool"
-        || tag["access"] != "readWrite"
-        || policy["writeConfirmed"] != true
+    if tag["dataType"] != "bool" || tag["access"] != "readWrite" || policy["writeConfirmed"] != true
     {
         return None;
     }

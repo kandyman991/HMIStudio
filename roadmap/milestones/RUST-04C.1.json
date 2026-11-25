@@ -2,7 +2,7 @@
   "id": "RUST-04C.1",
   "title": "Native graphical manipulation corrections",
   "track": "Engineering",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
   "summary": "Correct Windows acceptance failures in semantic flow selection, drag/reorder and nested reparenting while preserving the accepted workspace appearance.",
   "dependencies": [
@@ -45,29 +45,38 @@
       "type": "completion_proposed",
       "summary": "Draft PR #32 opened for correction candidate; final exact-head hosted CI and independent review required. Native Windows retest remains open at RUST-04.",
       "record": "docs/LAYOUT_DESIGNER.md"
+    },
+    {
+      "date": "2026-11-25",
+      "type": "merged",
+      "summary": "GitHub verified designated completion PR #32 merged at 992b8d8c9db1 with successful recorded exact-head workflows. Acceptance remains separate."
     }
   ],
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "fix/rust-04c1-native-drag",
-    "scope": [
-      "src/designer.ts",
-      "src/main.tsx",
-      "src/style.css",
-      "tests/designer.test.mjs"
-    ],
-    "observedAt": "2026-11-25T15:42:06Z"
-  },
-  "proposal": "Corrected compact drag hit area, empty auto flow drop target and gap insertion; local frontend and rendered pointer regressions passed. Exact-head hosted CI and independent review pending; Windows acceptance retest belongs to RUST-04.",
   "completionPr": 32,
   "prs": [
     {
       "number": 32,
-      "head": "9fc1e7c7515f3112afe7ebec6438ca0136fd44c7",
+      "head": "babcbc55c503761daaed2784dba68fb6da332334",
       "branch": "fix/rust-04c1-native-drag",
-      "state": "draft",
-      "runs": [],
-      "observedAt": "2026-11-25T15:46:24Z"
+      "state": "merged",
+      "runs": [
+        {
+          "id": 45648715125,
+          "name": "Desktop CI",
+          "head": "babcbc55c503761daaed2784dba68fb6da332334",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45648715203,
+          "name": "Engineering handoff snapshot",
+          "head": "babcbc55c503761daaed2784dba68fb6da332334",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "merge": "992b8d8c9db19074afb89ec22880b053e1fb8621",
+      "observedAt": "2026-11-25T15:53:24Z"
     }
   ]
 }

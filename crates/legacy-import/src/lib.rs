@@ -8,6 +8,7 @@ mod navigation;
 mod primitives;
 mod resources;
 mod review;
+mod source;
 pub use review::ReviewOnlyContract;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
@@ -37,6 +38,9 @@ pub struct MigrationReport {
     pub importer_version: &'static str,
     pub findings: Vec<Finding>,
     pub id_map: BTreeMap<String, String>,
+    /// Mapped/preserved source paths whose reported destination does not
+    /// resolve in the final serialized canonical model. Local audit only.
+    pub unresolved_targets: Vec<String>,
 }
 pub struct ImportOutcome {
     /// None whenever any source field or validation gate is refused.
@@ -268,6 +272,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         importer_version: "0.1.0",
         findings: vec![],
         id_map: BTreeMap::new(),
+        unresolved_targets: Vec::new(),
     };
     let stop = |mut r: MigrationReport, code| {
         r.findings.push(refused("".into(), code));
@@ -308,7 +313,8 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         review_only_alarms = review_alarms(&v, &mut m);
         review_only_contracts = review::collect(&v, &mut m);
         m.mark("/schemaVersion", "/schemaVersion");
-        map_project(&v, &mut m, &project_id)
+        source::validate(&v, ver.unwrap_or_default(), &mut m)
+            .and_then(|()| map_project(&v, &mut m, &project_id))
     } else {
         m.fail("/schemaVersion", "unsupported-or-missing-version");
         None
@@ -323,6 +329,17 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     } else {
         project
     };
+    if let Some(project) = &project {
+        if let Ok(serialized) = serde_json::to_value(project) {
+            report.unresolved_targets = report
+                .findings
+                .iter()
+                .filter(|f| f.disposition != "refused")
+                .filter(|f| f.target.as_deref().is_none_or(|p| serialized.pointer(p).is_none()))
+                .map(|f| f.path.clone())
+                .collect();
+        }
+    }
     let resource_bytes = if project.is_some() {
         m.resource_bytes
     } else {

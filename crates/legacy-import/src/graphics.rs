@@ -241,7 +241,10 @@ fn approximate(m: &mut Mapping, p: &str, t: &str) {
 }
 // The design-frame preview assumes font scale 1. Dynamic local measurement
 // is not expressible in the frozen model; never claim runtime equivalence.
-fn minimum_width(v: &Value) -> Option<f64> {
+fn minimum_width(v: &Value, depth: usize) -> Option<f64> {
+    if depth > 48 {
+        return None;
+    }
     match v.get("node")?.as_str()? {
         "component" => {
             let width = dim(v.get("minWidthDp"), 160.)?;
@@ -254,7 +257,7 @@ fn minimum_width(v: &Value) -> Option<f64> {
             }
             let mut widest: f64 = 0.;
             for child in v.get("children")?.as_array()? {
-                widest = widest.max(minimum_width(child)?);
+                widest = widest.max(minimum_width(child, depth + 1)?);
             }
             Some(widest + 2. * pad)
         }
@@ -314,7 +317,7 @@ impl Layout<'_> {
                     "ADAPTIVE" if depth == 0 => {
                         let mut needed = gap * children.len().saturating_sub(1) as f64;
                         for child in children {
-                            needed += minimum_width(child)?;
+                            needed += minimum_width(child, depth + 1)?;
                         }
                         self.design_width >= self.design_height
                             && needed <= self.design_width - 2. * pad
@@ -323,7 +326,7 @@ impl Layout<'_> {
                     "GRID" if self.ver >= 3 && depth == 0 => {
                         let mut widest: f64 = 1.;
                         for child in children {
-                            widest = widest.max(minimum_width(child)?);
+                            widest = widest.max(minimum_width(child, depth + 1)?);
                         }
                         let inner = self.design_width - 2. * pad;
                         let fitting = ((inner + gap) / (widest + gap)).floor().max(1.);
@@ -408,6 +411,22 @@ impl Layout<'_> {
                         &path(&np, "visible"),
                         "adaptive-hidden-layout-not-mapped",
                     );
+                }
+                // Relocate destinations belonging to this source node only;
+                // sibling paths can have the same former array index.
+                let old = m.findings.get(&path(&np, "id"))
+                    .and_then(|f| f.target.as_deref())
+                    .and_then(|s| s.strip_suffix("/id"))
+                    .map(str::to_owned)?;
+                for (source, finding) in &mut m.findings {
+                    if source.starts_with(&format!("{np}/")) {
+                        if let Some(suffix) = finding.target.as_deref()
+                            .and_then(|s| s.strip_prefix(&old))
+                            .filter(|s| s.is_empty() || s.starts_with('/'))
+                        {
+                            finding.target = Some(format!("{t}{suffix}"));
+                        }
+                    }
                 }
                 preserve_geometry(m, &np, t, &mut n);
                 if let Some(z) = source.get("zIndex") {
@@ -785,6 +804,28 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         // Allocate all reusable IDs before placing instances.
         for (k, x) in ds {
             let p = path("/componentDefinitions", k);
+            if k == "standard.label" {
+                let valid = x.as_object()?.keys().all(|key| {
+                    matches!(
+                        key.as_str(),
+                        "id" | "displayName" | "type" | "bindingSlots" | "defaultProperties"
+                    )
+                }) && x["id"] == k
+                    && x["displayName"] == "Label"
+                    && x["type"] == "label"
+                    && x["defaultProperties"] == json!({"text":"Label"})
+                    && x.get("bindingSlots").is_none_or(|v| v == &json!({}));
+                if !valid {
+                    return refuse(m, &p, "standard-catalog-signature-mismatch");
+                }
+                let target = "/extensions/hmiforge.standardLabel";
+                doc["extensions"]["hmiforge.standardLabel"] = x.clone();
+                for field in ["id", "displayName", "type", "bindingSlots"] {
+                    m.mark(&path(&p, field), &path(target, field));
+                }
+                m.mark(&format!("{p}/defaultProperties/text"), &format!("{target}/defaultProperties/text"));
+                continue;
+            }
             if x["id"].as_str() != Some(k) || x["type"].as_str() != Some("composite") || ver < 6 {
                 return refuse(m, &p, "standard-or-unsupported-definition");
             }
@@ -793,6 +834,9 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         }
         for (k, x) in ds {
             let p = path("/componentDefinitions", k);
+            if k == "standard.label" {
+                continue;
+            }
             let t = format!("/components/{}", definitions.len());
             let id = def_ids.get(k)?;
             mark(m, &p, "id", &t, "id");

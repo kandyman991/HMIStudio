@@ -824,3 +824,27 @@ fn baseline_jpeg_resource_and_trailing_bytes_refusal() {
     assert!(a.project.is_none());
     assert!(a.resource_bytes.is_empty());
 }
+
+#[test]
+fn restricted_svg_transfer_and_active_content_refusal() {
+    use sha2::{Digest, Sha256};
+    let mut f = fixture(7);
+    let data = r##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="3"><rect x="0" y="0" width="2" height="3" fill="#112233"/></svg>"##;
+    let hash = format!("{:x}", Sha256::digest(data.as_bytes()));
+    f["assets"]["vector"] = json!({"id":"vector","name":"Synthetic rectangle","kind":"SVG","sha256":hash,"sizeBytes":data.len(),"widthPx":2,"heightPx":3,"data":data});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("svgImage");
+    c["properties"] = json!({"assetId":"vector","fit":"CONTAIN"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    assert_eq!(p.resources[0].media_type.as_deref(), Some("image/svg+xml"));
+    assert_eq!(a.resource_bytes[&p.resources[0].path], data.as_bytes());
+    let bad = data.replace("<rect", "<rect onclick=\"alert(1)\"");
+    let asset = &mut f["assets"]["vector"];
+    asset["sha256"] = json!(format!("{:x}", Sha256::digest(bad.as_bytes())));
+    asset["sizeBytes"] = json!(bad.len());
+    asset["data"] = json!(bad);
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.resource_bytes.is_empty());
+}

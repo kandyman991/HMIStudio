@@ -34,7 +34,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "composite" => "instance",
         "line" => "line",
         "arrow" => "arrow",
-        "image" => "image",
+        "image" | "svgImage" => "image",
         "dropDown" => "dropDown",
         "polygon" => "polygon",
         "motor" | "conveyor" | "valve" | "pump" | "tank" | "pipe" => "instance",
@@ -833,7 +833,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
-                    if e["type"] == "image" {
+                    if matches!(e["type"].as_str(), Some("image" | "svgImage")) {
                         return refuse(m, &ep, "nested-image-not-mapped");
                     }
                     if e["type"] == "dropDown" {
@@ -906,8 +906,8 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let (def, class) = super::primitives::symbol(c, n, &cp, &nt, kind, &ids, m)?;
                     symbol_defs.push(def);
                     classifications.push(class);
-                } else if c["type"] == "image" {
-                    super::resources::image(c, n, &cp, &nt, m, ver)?;
+                } else if matches!(c["type"].as_str(), Some("image" | "svgImage")) {
+                    super::resources::image(c, n, &cp, &nt, m, ver, &v["assets"])?;
                 } else if c["type"] == "dropDown" {
                     if ver < 10 {
                         return refuse(m, &cp, "dropdown-version-mismatch");

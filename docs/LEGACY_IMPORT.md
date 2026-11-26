@@ -81,3 +81,5 @@ Explicit v7+ RGB theme tokens, theme name and dark hint map to the canonical def
 ### REUSE-03B.4 — extended resource compatibility
 
 Baseline 099714a passed 29/29 importer tests on both operating systems (run 45773509186). JPEG resource transfer now accepts bounded baseline sequential JFIF-style envelopes with one scan and terminal EOI, in addition to strict Base64, source hash, size and dimensions. Progressive, multi-scan, metadata-rich and unsupported JPEGs refuse. Structural validation is not entropy/pixel decoding. Added synthetic 2x3 JPEG regression.
+
+A restricted SVG subset admits literal SVG namespace, integer dimensions, optional matching viewBox, bounded self-closing rectangles and explicit RGB fill only. It validates source SHA-256 and UTF-8 byte count before returning bytes; XML entities, styles, scripts, event handlers, external references, other elements and attributes refuse, including when the source digest matches. SVG and raster component references must match the resource kind. This is an intentionally narrow static geometry grammar, not a general SVG sanitizer.

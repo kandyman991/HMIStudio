@@ -2,6 +2,7 @@
 use super::{path, Mapping};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 
 fn digit(b: u8) -> Option<u8> {
     match b {
@@ -165,6 +166,94 @@ fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     None
 }
 
+// Parse only a deliberately small, non-extensible static SVG grammar.
+// No entity expansion, namespaces other than the literal root SVG namespace,
+// scripts, styles, references, nested elements or processing instructions.
+fn attributes(mut s: &str) -> Option<BTreeMap<&str, &str>> {
+    let mut attrs = BTreeMap::new();
+    while !s.is_empty() {
+        if !s.starts_with(' ') {
+            return None;
+        }
+        s = s.trim_start_matches(' ');
+        if s.is_empty() {
+            break;
+        }
+        let (key, tail) = s.split_once("=\"")?;
+        if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphabetic()) {
+            return None;
+        }
+        let (value, tail) = tail.split_once('"')?;
+        if value.contains(['<', '>', '&']) || attrs.insert(key, value).is_some() {
+            return None;
+        }
+        s = tail;
+    }
+    Some(attrs)
+}
+
+fn positive_integer(s: &str) -> Option<u32> {
+    if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let n = s.parse::<u32>().ok()?;
+    (n <= 4096).then_some(n)
+}
+
+fn svg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    let xml = std::str::from_utf8(bytes).ok()?.trim();
+    if !xml.is_ascii() || xml.len() > 256 * 1024 {
+        return None;
+    }
+    let root = xml.strip_prefix("<svg")?;
+    let (header, body) = root.split_once('>')?;
+    let mut attrs = attributes(header)?;
+    if attrs.remove("xmlns")? != "http://www.w3.org/2000/svg" {
+        return None;
+    }
+    let w = positive_integer(attrs.remove("width")?)?;
+    let h = positive_integer(attrs.remove("height")?)?;
+    if w == 0 || h == 0 || u64::from(w) * u64::from(h) > 16_000_000 {
+        return None;
+    }
+    if let Some(view_box) = attrs.remove("viewBox") {
+        if view_box != format!("0 0 {w} {h}") {
+            return None;
+        }
+    }
+    if !attrs.is_empty() {
+        return None;
+    }
+    let mut body = body.strip_suffix("</svg>")?.trim();
+    let mut count = 0;
+    while !body.is_empty() {
+        let (element, tail) = body.split_once("/>")?;
+        let mut attrs = attributes(element.strip_prefix("<rect")?)?;
+        let x = positive_integer(attrs.remove("x")?)?;
+        let y = positive_integer(attrs.remove("y")?)?;
+        let width = positive_integer(attrs.remove("width")?)?;
+        let height = positive_integer(attrs.remove("height")?)?;
+        let fill = attrs.remove("fill")?;
+        if width == 0
+            || height == 0
+            || x + width > w
+            || y + height > h
+            || fill.len() != 7
+            || !fill.starts_with('#')
+            || !fill[1..].bytes().all(|b| b.is_ascii_hexdigit())
+            || !attrs.is_empty()
+        {
+            return None;
+        }
+        count += 1;
+        if count > 1024 {
+            return None;
+        }
+        body = tail.trim();
+    }
+    (count > 0).then_some((w, h))
+}
+
 pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let Some(assets) = v.get("assets") else {
         return Some(());
@@ -184,7 +273,12 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             m.fail(&p, "unsupported-asset-kind-or-id");
             return None;
         }
-        let bytes = decode(a.get("data")?.as_str()?)?;
+        let data = a.get("data")?.as_str()?;
+        let bytes = if a["kind"] == "SVG" {
+            data.as_bytes().to_vec()
+        } else {
+            decode(data)?
+        };
         let digest = format!("{:x}", Sha256::digest(&bytes));
         if a["sha256"].as_str() != Some(digest.as_str())
             || a["sizeBytes"].as_u64()? != bytes.len() as u64
@@ -192,9 +286,10 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             m.fail(&p, "asset-integrity-mismatch");
             return None;
         }
-        let (ext, media, dimensions) = match a["kind"].as_str()? {
-            "PNG" => ("png", "image/png", png_dimensions(&bytes)),
-            "JPEG" => ("jpg", "image/jpeg", jpeg_dimensions(&bytes)),
+        let (ext, media, kind, dimensions) = match a["kind"].as_str()? {
+            "PNG" => ("png", "image/png", "image", png_dimensions(&bytes)),
+            "JPEG" => ("jpg", "image/jpeg", "image", jpeg_dimensions(&bytes)),
+            "SVG" => ("svg", "image/svg+xml", "vector", svg_dimensions(&bytes)),
             _ => {
                 m.fail(&p, "unsupported-asset-kind-or-id");
                 return None;
@@ -215,7 +310,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             &path(&p, "name"),
             &format!("{t}/extensions/legacyName"),
         )?;
-        resources.push(json!({"id":id,"kind":"image","path":file,"mediaType":media,"sha256":digest,"extensions":{"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h}}));
+        resources.push(json!({"id":id,"kind":kind,"path":file,"mediaType":media,"sha256":digest,"extensions":{"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h}}));
         for (src, dst) in [
             ("id", "id"),
             ("kind", "mediaType"),
@@ -240,18 +335,17 @@ pub(super) fn image(
     t: &str,
     m: &mut Mapping,
     version: u64,
+    assets: &Value,
 ) -> Option<()> {
     if version < 7 {
         return None;
     }
     let props = c.get("properties")?.as_object()?;
-    let id = m
-        .ids
-        .get(&path(
-            &path("/assets", props.get("assetId")?.as_str()?),
-            "id",
-        ))?
-        .clone();
+    let old = props.get("assetId")?.as_str()?;
+    if (c["type"] == "svgImage") != (assets[old]["kind"] == "SVG") {
+        return None;
+    }
+    let id = m.ids.get(&path(&path("/assets", old), "id"))?.clone();
     let fit = match props
         .get("fit")
         .and_then(Value::as_str)

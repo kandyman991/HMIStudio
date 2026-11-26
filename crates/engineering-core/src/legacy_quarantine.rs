@@ -113,6 +113,23 @@ fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
+fn read_recovery_bytes(bundle: &Path, fs: &dyn FileSystem) -> Result<Option<Vec<u8>>, ImportError> {
+    match fs.read_limited(&review_recovery_path(bundle), MAX_BUNDLE_BYTES) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(ImportError::InvalidRecovery),
+    }
+}
+
+/// Identify even malformed recovery data before asking for a user's decision.
+/// Only absence is treated as no recovery; unreadable data must be preserved.
+pub fn review_recovery_identity(
+    bundle: &Path,
+    fs: &dyn FileSystem,
+) -> Result<Option<String>, ImportError> {
+    Ok(read_recovery_bytes(bundle, fs)?.map(|bytes| digest(&bytes)))
+}
+
 fn canonical(project: &Project) -> Result<String, ImportError> {
     save_project(project).map_err(|_| ImportError::InvalidBundle)
 }
@@ -328,6 +345,7 @@ impl QuarantinedImport {
     ) -> Result<Self, ImportError> {
         let mut review = Self::reopen(path, config.clone(), fs.clone())?;
         let (project, recovery_sha256) = review.read_recovery()?;
+        review.verify_recovery_base()?;
         review.session = ProjectSession::bare(project, config, fs);
         review.session.storage.autosaved_state = Some(review.session.current_state_id());
         review.recovery_sha256 = Some(recovery_sha256);
@@ -342,14 +360,19 @@ impl QuarantinedImport {
         Ok(())
     }
 
+    fn recovery_bytes(&self) -> Result<Option<Vec<u8>>, ImportError> {
+        read_recovery_bytes(&self.path, self.session.fs.as_ref())
+    }
+
     fn read_recovery(&self) -> Result<(Project, String), ImportError> {
-        let fs = self.session.fs.as_ref();
-        let bytes = fs
-            .read_limited(&review_recovery_path(&self.path), MAX_BUNDLE_BYTES)
-            .map_err(|_| ImportError::InvalidRecovery)?;
+        let bytes = self.recovery_bytes()?.ok_or(ImportError::InvalidRecovery)?;
+        self.decode_recovery(&bytes)
+    }
+
+    fn decode_recovery(&self, bytes: &[u8]) -> Result<(Project, String), ImportError> {
         // A valid envelope for the same base is not necessarily the snapshot
         // this session published or recovered. Preserve external replacements.
-        let recovery_sha256 = digest(&bytes);
+        let recovery_sha256 = digest(bytes);
         if self
             .recovery_sha256
             .as_ref()
@@ -358,7 +381,7 @@ impl QuarantinedImport {
             return Err(ImportError::InvalidRecovery);
         }
         let envelope: RecoveryEnvelope =
-            serde_json::from_slice(&bytes).map_err(|_| ImportError::InvalidRecovery)?;
+            serde_json::from_slice(bytes).map_err(|_| ImportError::InvalidRecovery)?;
         let body = serde_json::to_vec(&envelope.body).map_err(|_| ImportError::InvalidRecovery)?;
         if envelope.format != RECOVERY_FORMAT
             || envelope.version != 1
@@ -386,9 +409,7 @@ impl QuarantinedImport {
         let dir = sidecar_dir(&self.path);
         if !self.is_dirty() {
             if self.recovery_sha256.is_some() {
-                self.session.storage.autosaved_state = None;
                 self.discard_recovery()?;
-                self.recovery_sha256 = None;
             }
             return Ok(AutosaveOutcome::Clean);
         }
@@ -398,12 +419,14 @@ impl QuarantinedImport {
             self.session.storage.autosaved_state = None;
         })?;
         // Never replace an unresolved or foreign recovery slot.
-        if fs.exists(&path) {
+        if let Some(bytes) = self.recovery_bytes().inspect_err(|_| {
+            self.session.storage.autosaved_state = None;
+        })? {
             if self.recovery_sha256.is_none() {
                 self.session.storage.autosaved_state = None;
                 return Err(ImportError::InvalidRecovery);
             }
-            let (previous, _) = self.read_recovery().inspect_err(|_| {
+            let (previous, _) = self.decode_recovery(&bytes).inspect_err(|_| {
                 self.session.storage.autosaved_state = None;
             })?;
             if self.session.storage.autosaved_state == Some(self.session.current_state_id())
@@ -453,37 +476,53 @@ impl QuarantinedImport {
     }
 
     /// Retire this session's recovery only after explicit discard or a committed save.
-    pub fn discard_recovery(&self) -> Result<(), ImportError> {
+    pub fn discard_recovery(&mut self) -> Result<(), ImportError> {
         let fs = self.session.fs.as_ref();
         let path = review_recovery_path(&self.path);
         if self.recovery_sha256.is_some() {
-            if fs.exists(&path) {
+            // Invalidate the advertised snapshot even when retirement fails.
+            self.session.storage.autosaved_state = None;
+            if let Some(bytes) = self.recovery_bytes()? {
                 self.verify_recovery_base()?;
-                self.read_recovery()?;
-            }
-            match fs.remove_file(&path) {
-                Ok(()) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(_) => return Err(ImportError::Io("recovery remove")),
+                self.decode_recovery(&bytes)?;
+                match fs.remove_file(&path) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(_) => return Err(ImportError::Io("recovery remove")),
+                }
             }
             fs.sync_dir(&sidecar_dir(&self.path))
                 .map_err(|_| ImportError::Io("recovery sync"))?;
+            self.recovery_sha256 = None;
         }
         Ok(())
     }
 
     pub fn snapshot(&self) -> ProjectSnapshot {
         let mut snapshot = self.session.snapshot();
-        snapshot.status.path = Some(self.path.display().to_string());
+        self.project_review_status(&mut snapshot.status);
         snapshot
+    }
+
+    fn project_review_status(&self, status: &mut crate::session::SessionStatus) {
+        status.path = Some(self.path.display().to_string());
+        status.autosave_current = self.recovery_current();
     }
 
     pub fn is_dirty(&self) -> bool {
         self.session.is_dirty()
     }
 
+    /// A clean review is current only after its obsolete owned recovery has
+    /// been retired. Generic project status treats every clean state as
+    /// current, even if review cleanup failed and an old slot remains.
     pub fn recovery_current(&self) -> bool {
-        self.session.status().autosave_current
+        if self.is_dirty() {
+            self.recovery_sha256.is_some()
+                && self.session.storage.autosaved_state == Some(self.session.current_state_id())
+        } else {
+            self.recovery_sha256.is_none()
+        }
     }
 
     /// The review session exposes editing, validation and history only.
@@ -506,12 +545,26 @@ impl QuarantinedImport {
                 },
             };
         }
-        crate::dispatch(
+        let (mut response, _) = crate::dispatch(
             &mut self.session,
             request,
             &hmi_project_model::MigrationRegistry::builtin(),
-        )
-        .0
+        );
+        // All review response paths must describe the same persistence state
+        // as the review snapshot, including undo/redo and status queries.
+        match &mut response {
+            crate::Response::Snapshot { snapshot } => {
+                self.project_review_status(&mut snapshot.status);
+            }
+            crate::Response::Status { status } | crate::Response::Nothing { status } => {
+                self.project_review_status(status);
+            }
+            crate::Response::Changed { outcome } => {
+                self.project_review_status(&mut outcome.status);
+            }
+            _ => {}
+        }
+        response
     }
 
     pub fn report(&self) -> &Value {
@@ -531,7 +584,9 @@ impl QuarantinedImport {
         &mut self,
         transaction: Transaction,
     ) -> Result<TransactionOutcome, TransactionError> {
-        self.session.execute(transaction)
+        let mut outcome = self.session.execute(transaction)?;
+        self.project_review_status(&mut outcome.status);
+        Ok(outcome)
     }
 
     /// Persist edits in a new review bundle; never overwrite an existing

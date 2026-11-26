@@ -693,12 +693,90 @@ fn review_recovery_clean_undo_does_not_retire_snapshot_of_changed_base() {
     let mut base = std::fs::read(&path).unwrap();
     base.push(b'\n');
     std::fs::write(&path, &base).unwrap();
+    let undone = review.request(Request::Undo {
+        expected_revision: Some(review.snapshot().revision),
+    });
+    assert!(matches!(undone, Response::Changed { outcome }
+        if !outcome.status.dirty && !outcome.status.autosave_current));
+    assert!(!review.is_dirty());
+    assert!(!review.snapshot().status.autosave_current);
+    assert!(review.autosave().is_err());
+    assert!(!review.recovery_current());
+    assert!(!review.snapshot().status.autosave_current);
+    assert!(
+        matches!(review.request(Request::Status {}), Response::Status { status }
+        if !status.autosave_current)
+    );
+    assert!(
+        matches!(review.request(Request::Snapshot {}), Response::Snapshot { snapshot }
+        if !snapshot.status.autosave_current)
+    );
+    assert!(review.discard_recovery().is_err());
+    assert_eq!(std::fs::read(&slot).unwrap(), recovery);
+}
+
+#[test]
+fn review_recovery_status_is_consistent_across_undo_redo_and_cleanup() {
+    let dir = TempDir::new("review-recovery-status");
+    let path = dir.join("review.bundle");
+    let slot = review_recovery_path(&path);
+    let mut review =
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs())
+            .unwrap();
+    assert!(review.recovery_current());
+    let screen = review.snapshot().project.screens[0].id.clone();
+    let outcome = review
+        .execute(Transaction::single(Command::RenameScreen {
+            screen,
+            name: "Pending".into(),
+        }))
+        .unwrap();
+    assert!(!outcome.status.autosave_current);
+    assert_eq!(outcome.status.path, Some(path.display().to_string()));
+    review.autosave().unwrap();
+    assert!(review.recovery_current());
+    let undone = review.request(Request::Undo {
+        expected_revision: Some(review.snapshot().revision),
+    });
+    assert!(matches!(undone, Response::Changed { outcome }
+        if !outcome.status.dirty && !outcome.status.autosave_current));
+    assert!(slot.exists());
+    assert!(!review.recovery_current());
+    let redone = review.request(Request::Redo {
+        expected_revision: Some(review.snapshot().revision),
+    });
+    assert!(matches!(redone, Response::Changed { outcome }
+        if outcome.status.dirty && outcome.status.autosave_current));
     let _ = review.request(Request::Undo {
         expected_revision: Some(review.snapshot().revision),
     });
-    assert!(!review.is_dirty());
-    assert!(review.autosave().is_err());
+    assert!(!review.snapshot().status.autosave_current);
+    review.autosave().unwrap();
+    assert!(!slot.exists());
+    assert!(review.recovery_current());
+    assert!(
+        matches!(review.request(Request::Status {}), Response::Status { status }
+        if !status.dirty && status.autosave_current && status.path == Some(path.display().to_string()))
+    );
+}
+
+#[test]
+fn explicit_review_recovery_retirement_invalidates_dirty_snapshot() {
+    let dir = TempDir::new("review-recovery-retire");
+    let path = dir.join("review.bundle");
+    let slot = review_recovery_path(&path);
+    let mut review =
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs())
+            .unwrap();
+    rename_review(&mut review, "Pending");
+    review.autosave().unwrap();
+    assert!(review.recovery_current());
+    review.discard_recovery().unwrap();
+    assert!(!slot.exists());
+    assert!(review.is_dirty());
     assert!(!review.recovery_current());
-    assert!(review.discard_recovery().is_err());
-    assert_eq!(std::fs::read(&slot).unwrap(), recovery);
+    assert!(!review.snapshot().status.autosave_current);
+    review.autosave().unwrap();
+    assert!(slot.exists());
+    assert!(review.recovery_current());
 }

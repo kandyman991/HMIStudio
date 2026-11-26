@@ -2,7 +2,8 @@
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
     legacy_quarantine::{
-        requires_review, review_recovery_path, QuarantinedImport, MAX_LEGACY_SOURCE_BYTES,
+        requires_review, review_recovery_identity, review_recovery_path, QuarantinedImport,
+        MAX_LEGACY_SOURCE_BYTES,
     },
     persistence::sidecar_dir,
     AutosaveOutcome, ProjectSession, ProjectSnapshot, SaveOptions, SessionConfig,
@@ -360,11 +361,14 @@ impl Host {
             } => {
                 let mut message = review_message(bundle);
                 message.push_str(". ");
-                if bundle.is_dirty()
-                    && !bundle.recovery_current()
+                if !bundle.recovery_current()
                     && !self.autosave_message.starts_with("Autosave failed:")
                 {
-                    message.push_str("Review recovery snapshot pending");
+                    message.push_str(if bundle.is_dirty() {
+                        "Review recovery snapshot pending"
+                    } else {
+                        "Obsolete review recovery cleanup pending"
+                    });
                 } else {
                     message.push_str(&self.autosave_message);
                 }
@@ -725,7 +729,8 @@ impl Host {
         }
         let guard = lock_dir(&sidecar_dir(&path))?;
         let recovery = review_recovery_path(&path);
-        let pending = safe_file(&recovery)?;
+        let identity = review_recovery_identity(&path, &GuardedFileSystem).map_err(err)?;
+        let pending = identity.is_some();
         let Some(recover) = decide(pending)? else {
             return Ok(false);
         };
@@ -736,6 +741,13 @@ impl Host {
             QuarantinedImport::reopen(&path, config(&self.untitled), fs)
         }
         .map_err(err)?;
+        // The confirmation may have been open while an external writer
+        // replaced the snapshot. Do not recover or discard different bytes.
+        if review_recovery_identity(&path, &GuardedFileSystem).map_err(err)? != identity {
+            return Err(
+                "Review recovery changed during confirmation; reopen to decide again".into(),
+            );
+        }
         let mut discard_sync_failed = false;
         if pending && !recover {
             remove_recovery(&recovery)?;
@@ -825,9 +837,9 @@ impl Host {
 
     // Discard only the active project's recovery after explicit confirmation.
     // Call only after a successful candidate open or immediately before exit.
-    pub fn clear_active_recovery(&self) -> Result<()> {
-        if let ActiveProject::Review { bundle, .. } = &self.active {
-            self.preflight()?;
+    pub fn clear_active_recovery(&mut self) -> Result<()> {
+        self.preflight()?;
+        if let ActiveProject::Review { bundle, .. } = &mut self.active {
             return bundle.discard_recovery().map_err(err);
         }
         remove_recovery(&self.active_recovery()?)
@@ -1456,6 +1468,76 @@ mod tests {
             .unwrap());
         assert!(!slot.exists());
         assert!(host.is_review() && !host.is_dirty());
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    fn native_review_recovery_changed_during_confirmation_is_preserved() {
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        drop(host);
+        let slot = review_recovery_path(&path);
+        fs::write(&slot, b"old recovery").unwrap();
+        let mut host = Host::new(&app).unwrap();
+        let before = host.snapshot();
+        assert!(host
+            .open_review_with(&path, false, |pending| {
+                assert!(pending);
+                fs::write(&slot, b"replacement recovery").unwrap();
+                Ok(Some(false))
+            })
+            .is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&slot).unwrap(), b"replacement recovery");
+    }
+
+    #[test]
+    fn native_review_undo_reports_pending_cleanup_and_retains_changed_base_recovery() {
+        use crate::session_host::WorkspaceRequest;
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        let before = host.snapshot();
+        host.request(
+            WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Pending".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        let slot = review_recovery_path(&path);
+        let recovery = fs::read(&slot).unwrap();
+        let mut base = fs::read(&path).unwrap();
+        base.push(b'\n');
+        fs::write(&path, &base).unwrap();
+        host.request(
+            WorkspaceRequest::Undo {
+                expected_revision: host.snapshot().revision,
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        assert!(!host.is_dirty());
+        assert!(!host.snapshot().status.autosave_current);
+        assert!(host.persistence_message().contains("cleanup pending"));
+        host.autosave();
+        assert!(host.persistence_message().contains("Autosave failed"));
+        assert!(!host.snapshot().status.autosave_current);
+        assert_eq!(fs::read(&slot).unwrap(), recovery);
         assert!(host.production_candidate().is_err());
     }
 

@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 adds versioned replay, isolated simulation, image migration and review-edit crash recovery.",
+  "summary": "Draft PR #36 adds versioned replay, isolated simulation, image migration and review-edit crash recovery with ownership and confirmation safeguards.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify recovery candidate exact-head Windows/Linux hosted CI and independent technical review. Actual publisher and live connection admission, archive/package decoding and remaining migration semantics remain open."
+    "Verify corrected recovery candidate exact-head Windows/Linux hosted CI and independent review before continuing migration. Actual publisher and live connection admission, archive/package decoding and remaining migration semantics remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "63914d631c1bc1492eeb4f584bea598a23136f25",
+      "head": "7af99d36d8b24d1a02382b49e45f663a3a9eba96",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45891124844,
+          "id": 45901662617,
           "name": "Desktop CI",
-          "head": "63914d631c1bc1492eeb4f584bea598a23136f25",
+          "head": "7af99d36d8b24d1a02382b49e45f663a3a9eba96",
           "state": "completed",
-          "result": "success"
+          "result": "failure"
         },
         {
-          "id": 45891124805,
+          "id": 45901662675,
           "name": "Tag engine CI",
-          "head": "63914d631c1bc1492eeb4f584bea598a23136f25",
+          "head": "7af99d36d8b24d1a02382b49e45f663a3a9eba96",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45891124815,
+          "id": 45901662650,
           "name": "Engineering handoff snapshot",
-          "head": "63914d631c1bc1492eeb4f584bea598a23136f25",
+          "head": "7af99d36d8b24d1a02382b49e45f663a3a9eba96",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T21:31:08Z"
+      "observedAt": "2026-11-26T22:06:55Z"
     }
   ],
   "assignment": {
@@ -253,6 +253,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Independently reviewed versioned replay at 63914d6; all three workflows passed. Implemented separate exact-base-bound review recovery with native writer locking and explicit restore/discard/cancel; local engineering core 81, importer 54 and isolated native host 19 tests passed. Successor hosted CI and independent recovery review remain pending.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified d9c930d all workflows passed; 7af99d3 failed the same clean-undo recovery status regression on both engineering-core platforms. Corrected review response status, retirement ownership, bounded reads and native confirmation identity. Local engineering core 85 and isolated host 21 tests passed; successor hosted CI and independent review pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

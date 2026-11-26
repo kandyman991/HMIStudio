@@ -163,8 +163,8 @@ fn industrial_fixture() -> Value {
     f["variables"]["label-a"]["engineeringUnit"] = json!("rpm");
     f["variables"]["second"] = json!({"id":"second","path":"Second","type":"LONG","access":"READ_ONLY","engineeringUnit":"rpm"});
     f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"s7","displayName":"Synthetic source","configuration":{"host":"example.invalid","port":"102","rack":"0","slot":"1","pollIntervalMs":"200","timeoutMs":"2000"},"commissioningAllowed":true});
-    f["externalMappings"]["map-a"] = json!({"id":"map-a","internalVariableId":"label-a","sourceId":"src/a","externalAddress":"DB1.DBD0","access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":-9007199254740992i64,"max":9007199254740992i64,"step":2,"confirm":false}});
-    f["externalMappings"]["map-b"] = json!({"id":"map-b","internalVariableId":"second","sourceId":"src/a","externalAddress":"DB1.DBD8","access":"READ"});
+    f["externalMappings"]["map-a"] = json!({"id":"map-a","internalVariableId":"label-a","sourceId":"src/a","externalAddress":"DB1.DINT0","access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":-9007199254740992i64,"max":9007199254740992i64,"step":2,"confirm":false}});
+    f["externalMappings"]["map-b"] = json!({"id":"map-b","internalVariableId":"second","sourceId":"src/a","externalAddress":"DB1.DINT8","access":"READ"});
     f["security"] = json!({"permissions":{"custom/a":{"id":"custom/a","displayName":"Custom"}},"roles":{"role/a":{"id":"role/a","displayName":"Operator","permissions":["custom/a","operate"]}},"anonymousRoleId":"role/a","autoLogoutMinutes":3});
     f["screens"]["screen/a"]["requiredPermission"] = json!("custom/a");
     f["screens"]["screen/a"]["components"]["label-a"]["requiredPermission"] = json!("operate");
@@ -275,6 +275,7 @@ fn momentary_and_maintained_defaults() {
     let mut f = industrial_fixture();
     f["variables"]["label-a"]["access"] = json!("COMMAND");
     f["variables"]["label-a"]["type"] = json!("BOOL");
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("DB1.X0.0");
     f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
     for (kind, expected) in [("MOMENTARY", "momentary"), ("MAINTAINED", "maintained")] {
         f["externalMappings"]["map-a"]["command"] = json!({"kind":kind});
@@ -298,6 +299,8 @@ fn momentary_and_maintained_defaults() {
 fn opcua_and_loopback_declarations() {
     let mut f = industrial_fixture();
     f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"opcua","configuration":{"endpoint":"opc.tcp://example.invalid:4840","securityPolicy":"Basic256Sha256","securityMode":"SignAndEncrypt","publishingIntervalMs":"200"}});
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("ns=2;i=100");
+    f["externalMappings"]["map-b"]["externalAddress"] = json!("ns=2;i=101");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
     assert!(p.has_v2_features());
@@ -648,6 +651,7 @@ fn typed_boolean_action_policy_and_pulse_agreement() {
     let mut f = industrial_fixture();
     f["schemaVersion"] = json!(10);
     f["variables"]["label-a"]["type"] = json!("BOOL");
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("DB1.X0.0");
     f["variables"]["label-a"]["access"] = json!("COMMAND");
     f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
     f["externalMappings"]["map-a"]["command"] = json!({"kind":"MAINTAINED"});
@@ -1010,7 +1014,7 @@ fn writable_shared_endpoint_and_debug_redaction() {
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
     let debug = format!("{a:?}");
-    for private in ["example.invalid", "DB1.DBD0", "Synthetic source", "role/a"] {
+    for private in ["example.invalid", "DB1.DINT0", "Synthetic source", "role/a"] {
         assert!(!debug.contains(private));
     }
 }
@@ -1053,4 +1057,37 @@ fn absent_startup_uses_admitted_screen_order() {
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_none());
+}
+
+#[test]
+fn typed_s7_address_bounds_and_overlap() {
+    let f = industrial_fixture();
+    for address in ["DB1.DBD0", "DB1.REAL0", "DB0.DINT0", "DB1.DINT65535", "DB1.DINT4294967295", "é", "DB1.DINT2", "db01.dint0"] {
+        let mut bad = f.clone();
+        bad["externalMappings"]["map-b"]["externalAddress"] = json!(address);
+        let a = import_portable(&serde_json::to_vec(&bad).unwrap());
+        assert!(a.project.is_none(), "{address}");
+    }
+    let mut good = f;
+    good["externalMappings"]["map-b"]["externalAddress"] = json!("DB1.DINT4");
+    assert!(import_portable(&serde_json::to_vec(&good).unwrap())
+        .project
+        .is_some());
+}
+
+#[test]
+fn opcua_node_identity_and_invalid_address_refusal() {
+    let mut f = industrial_fixture();
+    f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"opcua","configuration":{"endpoint":"opc.tcp://example.invalid:4840","securityPolicy":"None","securityMode":"None"}});
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("ns=2;i=100");
+    f["externalMappings"]["map-b"]["externalAddress"] = json!("ns=2;s=Other");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_some());
+    for address in ["ns=02;i=0100", "ns=65536;i=100", "ns=2;i=4294967296", "ns=2;s=", "invalid"] {
+        f["externalMappings"]["map-b"]["externalAddress"] = json!(address);
+        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+            .project
+            .is_none(), "{address}");
+    }
 }

@@ -1,6 +1,7 @@
 //! Read-only portable legacy import, initial conservative mapping slice.
 //! No filesystem writes, archive extraction, I/O, or runtime authorization.
 use hmi_project_model::{model::Project, serialization::load_project};
+mod address;
 mod graphics;
 mod industrial;
 mod navigation;

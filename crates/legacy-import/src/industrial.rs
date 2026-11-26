@@ -91,6 +91,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let mut connections = Vec::new();
     let mut policies = Vec::new();
     let mut source_ids = BTreeMap::new();
+    let mut source_drivers = BTreeMap::new();
     let mut physical_endpoints = BTreeMap::new();
     if let Some(sources) = map_obj(v, "externalSources", m, "/connections")? {
         for (i, (key, x)) in sources.iter().enumerate() {
@@ -208,6 +209,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                 physical_endpoints.insert(key.as_str(), endpoint.to_ascii_lowercase());
             }
             source_ids.insert(key.as_str(), id.clone());
+            source_drivers.insert(key.as_str(), legacy);
             connections.push(c);
             policies.push(json!({"connection":id,"driver":policy,"commissioningAllowed":allowed}));
         }
@@ -257,6 +259,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     }
     let mut mapped = BTreeSet::new();
     let mut addresses = BTreeMap::new();
+    let mut spans: Vec<(&str, super::address::Span, bool)> = Vec::new();
     let mut endpoint_usage = BTreeMap::new();
     let mut writes = Vec::new();
     if let Some(mappings) = map_obj(v, "externalMappings", m, "/tags")? {
@@ -302,7 +305,37 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                 return None;
             }
             // Alias writes cannot be proven equivalent under a single tag policy.
-            let key = (source, addr);
+            let normalized = match *source_drivers.get(source)? {
+                "s7" => {
+                    let span = super::address::s7(addr, tags[i]["dataType"].as_str()?, writable)
+                        .or_else(|| {
+                            m.fail(&path(&p, "externalAddress"), "invalid-or-ambiguous-s7-address");
+                            None
+                        })?;
+                    if spans.iter().any(|(s, other, write)| {
+                        *s == source
+                            && (writable || *write)
+                            && span.area == other.area
+                            && span.start < other.end
+                            && other.start < span.end
+                    }) {
+                        return fail(
+                            m,
+                            &path(&p, "externalAddress"),
+                            "ambiguous-writable-address-alias",
+                        );
+                    }
+                    spans.push((source, span, writable));
+                    addr.to_owned()
+                }
+                "opcua" => super::address::opcua(addr).or_else(|| {
+                    m.fail(&path(&p, "externalAddress"), "invalid-or-unsupported-opcua-node");
+                    None
+                })?,
+                "loopback" => addr.to_owned(),
+                _ => return None,
+            };
+            let key = (source, normalized);
             if let Some(previous_writable) = addresses.insert(key, writable) {
                 if writable || previous_writable {
                     return fail(

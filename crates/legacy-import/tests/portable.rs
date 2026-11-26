@@ -1339,3 +1339,39 @@ fn guarded_write_declarations_require_v9() {
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
 }
+
+#[test]
+fn every_version_feature_boundary() {
+    let mut v2 = fixture(2);
+    v2["screens"]["screen/a"]["layout"] = json!({"root":{"node":"stack","id":"root","direction":"COLUMN","children":[{"node":"component","componentId":"label-a"}]}});
+    let mut v3 = v2.clone();
+    v3["screens"]["screen/a"]["layout"]["root"]["direction"] = json!("GRID");
+    v3["screens"]["screen/a"]["layout"]["root"]["columns"] = json!(1);
+    let mut v4 = fixture(4);
+    v4["variables"]["label-a"]["type"] = json!("STRING");
+    v4["screens"]["screen/a"]["components"]["label-a"]["expressions"] = json!({"text":"`label-a` + '!' "});
+    let mut v5 = fixture(5);
+    v5["screenOrder"] = json!(["screen/a"]);
+    let mut v6 = fixture(6);
+    v6["componentDefinitions"]["def"] = json!({"id":"def","displayName":"Reusable","type":"composite","composition":{"elements":{"part":{"id":"part","type":"label","properties":{"text":"Inside"}}}}});
+    let mut v7 = fixture(7);
+    v7["theme"] = json!({"id":"custom-theme","name":"Custom","dark":true,"tokens":{"vessel":"#123456"}});
+    let mut v8 = fixture(8);
+    v8["security"] = json!({"roles":{},"permissions":{}});
+    let mut v10 = fixture(10);
+    v10["enumerations"]["mode"] = json!({"id":"mode","name":"Mode","entries":[{"value":0,"text":"Off"}]});
+    for (version, mut project) in [
+        (2, v2), (3, v3), (4, v4), (5, v5), (6, v6),
+        (7, v7), (8, v8), (9, industrial_fixture()), (10, v10),
+    ] {
+        project["schemaVersion"] = json!(version);
+        let a = import_portable(&serde_json::to_vec(&project).unwrap());
+        assert!(a.project.is_some(), "v{version}: {:?}", a.report);
+        assert!(a.report.has_complete_mapping());
+        project["schemaVersion"] = json!(version - 1);
+        let a = import_portable(&serde_json::to_vec(&project).unwrap());
+        assert!(a.project.is_none(), "v{} admitted newer feature", version - 1);
+        assert!(a.resource_bytes.is_empty());
+        assert!(!a.report.has_complete_mapping());
+    }
+}

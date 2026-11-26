@@ -56,16 +56,18 @@ fn handlers(
             };
             let tp = format!("{t}/actions/{i}");
             let action = match a.get("action")?.as_str()? {
-                "navigate.screen" => {
+                "navigate.screen" if !screen => {
                     let old = a.get("screenId")?.as_str()?;
                     let id = m.ids.get(&path(&path("/screens", old), "id"))?.clone();
                     m.mark(&path(&sp, "screenId"), &path(&tp, "screen"));
                     json!({"type":"navigate","screen":id})
                 }
-                "navigate.back" => json!({"type":"back"}),
-                "navigate.startup" => json!({"type":"navigateStartup"}),
+                "navigate.back" if !screen => json!({"type":"back"}),
+                "navigate.startup" if !screen => json!({"type":"navigateStartup"}),
                 "popup.close" if version >= 10 => json!({"type":"closePopup"}),
-                "value.set" | "value.toggle" | "value.pulse" if version >= 10 => {
+                "value.set" | "value.toggle" | "value.pulse" | "value.step"
+                    if version >= 10 =>
+                {
                     typed_action(a, &sp, &tp, doc, m)?
                 }
                 _ => {
@@ -111,6 +113,13 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
             m.mark(&format!("{p}/value/value"), &path(t, "value"));
             json!({"type":"writeTag","target":target,"value":value})
         }
+        "value.step" if tag["dataType"] == "int32" && policy["command"] == "setpoint" => {
+            let action = integer_step(a, &target, policy)?;
+            for (src, dest) in [("by", "step"), ("min", "min"), ("max", "max")] {
+                m.mark(&path(p, src), &path(t, dest));
+            }
+            action
+        }
         "value.toggle" if tag["dataType"] == "bool" && policy["command"] == "maintained" => {
             json!({"type":"toggleTag","target":target})
         }
@@ -127,6 +136,31 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
     };
     m.mark(&path(p, "variableId"), &format!("{t}/target/tag"));
     Some(action)
+}
+
+// Int32 arithmetic (including the addition before clamping) is exact in
+// binary64. Require both explicit clamps and a compatible write policy.
+// Runtime no-op, quality and confirmation behavior still require acceptance.
+fn integer_step(a: &Value, target: &Value, policy: &Value) -> Option<Value> {
+    fn exact_i32(v: &Value) -> Option<f64> {
+        let n = v.as_f64()?;
+        (n.fract() == 0. && (f64::from(i32::MIN)..=f64::from(i32::MAX)).contains(&n))
+            .then_some(n)
+    }
+    let step = exact_i32(a.get("by")?)?;
+    let min = exact_i32(a.get("min")?)?;
+    let max = exact_i32(a.get("max")?)?;
+    let limits = &policy["limits"];
+    if step == 0.
+        || min >= max
+        || !limits["step"].is_null()
+        || min < exact_i32(limits.get("min")?)?
+        || max > exact_i32(limits.get("max")?)?
+        || policy["confirmationRequired"] != true
+    {
+        return None;
+    }
+    Some(json!({"type":"stepTag","target":target,"step":step,"min":min,"max":max}))
 }
 
 // Admit only exact values in the policy range. Do not guess the alignment

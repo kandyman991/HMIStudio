@@ -37,7 +37,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "image" | "svgImage" => "image",
         "dropDown" => "dropDown",
         "polygon" => "polygon",
-        "motor" | "conveyor" | "valve" | "pump" | "tank" | "pipe" => "instance",
+        "motor" | "conveyor" | "valve" | "pump" | "tank" | "pipe" | "thermalIndicator" => {
+            "instance"
+        }
         _ => return refuse(m, &path(p, "type"), "component-kind-not-mapped"),
     };
     let id = m.id(&path(p, "id"), key, "node");

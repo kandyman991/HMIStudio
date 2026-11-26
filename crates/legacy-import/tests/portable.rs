@@ -896,3 +896,65 @@ fn named_style_default_and_component_override_precedence() {
         .project
         .is_none());
 }
+
+#[test]
+fn bounded_integer_step_and_invalid_clamps() {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["variables"]["label-a"]["type"] = json!("INT");
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":0,"max":100});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("button");
+    c["actions"] = json!({"press":{"action":"value.step","variableId":"label-a","by":-2,"min":0,"max":100}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let action = &d["v2"]["components"]["handlers"][0]["actions"][0];
+    assert_eq!(action["type"], "stepTag");
+    assert_eq!(action["step"].as_f64(), Some(-2.));
+    assert_eq!(action["min"].as_f64(), Some(0.));
+    assert_eq!(action["max"].as_f64(), Some(100.));
+    for (key, value) in [
+        ("by", json!(0)),
+        ("by", json!(0.5)),
+        ("min", Value::Null),
+        ("min", json!(-1)),
+        ("max", json!(101)),
+    ] {
+        let mut bad = f.clone();
+        bad["screens"]["screen/a"]["components"]["label-a"]["actions"]["press"][key] = value;
+        assert!(import_portable(&serde_json::to_vec(&bad).unwrap())
+            .project
+            .is_none());
+    }
+}
+
+#[test]
+fn passive_thermal_value_and_additional_status_refusal() {
+    let mut f = fixture(7);
+    f["variables"]["label-a"]["type"] = json!("DOUBLE");
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("thermalIndicator");
+    c["properties"] = json!({});
+    c["bindings"] = json!({"value":"label-a"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        d["screens"][0]["root"]["children"][0]["element"]["parameters"]["temperature"],
+        d["tags"][0]["id"]
+    );
+    f["screens"]["screen/a"]["components"]["label-a"]["bindings"]["active"] = json!("label-a");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+
+#[test]
+fn screen_lifecycle_navigation_is_refused() {
+    let mut f = fixture(10);
+    f["screens"]["screen/a"]["actions"] = json!({"open":{"action":"navigate.startup"}});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

@@ -95,6 +95,7 @@ pub(super) fn symbol_kind(kind: &str) -> Option<K> {
         "pump" => Some(K::Pump),
         "tank" => Some(K::Tank),
         "pipe" => Some(K::Pipe),
+        "thermalIndicator" => Some(K::ThermalIndicator),
         _ => None,
     }
 }
@@ -117,7 +118,11 @@ pub(super) fn symbol(
     }
     let mut parameters = json!({});
     for (slot, _) in kind.slots() {
-        let legacy_slot = if kind == K::Pipe { "flow" } else { slot };
+        let legacy_slot = match kind {
+            K::Pipe => "flow",
+            K::ThermalIndicator => "value",
+            _ => slot,
+        };
         let legacy = bindings.get(legacy_slot)?.as_str()?;
         parameters[*slot] = json!(ids.get(legacy)?);
         m.mark(

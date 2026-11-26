@@ -889,9 +889,6 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
-                    if matches!(e["type"].as_str(), Some("image" | "svgImage")) {
-                        return refuse(m, &ep, "nested-image-not-mapped");
-                    }
                     if e["type"] == "dropDown" {
                         return refuse(m, &ep, "nested-dropdown-not-mapped");
                     }
@@ -905,6 +902,9 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                         return refuse(m, &ep, "faceplate-direct-placement");
                     }
                     let mut n = component(e, key, &ep, &et, m)?;
+                    if matches!(e["type"].as_str(), Some("image" | "svgImage")) {
+                        super::resources::image(e, &mut n, &ep, &et, m, ver, &v["assets"])?;
+                    }
                     resolve_instance(e, &mut n, &ep, &et, m, &def_ids)?;
                     parameter_bindings(e, &mut n, &ep, &et, m, &param_types)?;
                     root["children"].as_array_mut()?.push(n);

@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Schema v2 frozen; draft PR #36 integrates portable import review, isolated native project simulation and session-loss reporting.",
+  "summary": "Draft PR #36 integrates isolated native simulation and extends portable migration to images in reusable definitions.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Independent technical review and corrected-head CI for native simulation session-loss handling. Actual publisher and live project connection enforcement, archive/package admission, unresolved migration semantics and review-edit crash recovery remain open."
+    "Verify corrected-head CI. Actual publisher and live connection admission, archive/package decoding, remaining migration semantics and review-edit crash recovery remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
+      "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45869026942,
+          "id": 45871477172,
           "name": "Desktop CI",
-          "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
-          "state": "completed",
-          "result": "failure"
-        },
-        {
-          "id": 45869027164,
-          "name": "Tag engine CI",
-          "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
+          "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45869027079,
+          "id": 45871477557,
+          "name": "Tag engine CI",
+          "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45871477571,
           "name": "Engineering handoff snapshot",
-          "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
+          "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T17:39:00Z"
+      "observedAt": "2026-11-26T19:55:08Z"
     }
   ],
   "assignment": {
@@ -229,6 +229,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Exact head e643e61 passed frontend, all standalone crate jobs, Tag engine CI and handoff; both native desktop jobs stopped at the same rustfmt difference in the Unix test command. Applied the exact formatting correction; native compilation and both real-child regressions remain pending on the corrected head.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Reviewed native session loss, command refusal, transport recovery and isolation at 0636ff3. Both native child regressions passed on Windows and Linux. Corrected pending-IPC sample expiry and lost Start reply recovery; advanced portable migration to nested image declarations with transactional refusal of absent assets.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

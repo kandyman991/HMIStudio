@@ -45,6 +45,18 @@ type SimulationRequest = { action:"start"; revision:number }
   | { action:"write"; session:number; tag:string; value:string }
   | { action:"pulse"; session:number; tag:string };
 
+// A lost IPC response must not hold the workspace busy forever. A late reply
+// is ignored. Only reads are retried by the periodic refresh.
+async function invokeSimulation(request:SimulationRequest,generation:number):Promise<SimulationOutcome>{
+  let timer:number|undefined;
+  try{
+    const timeout=new Promise<never>((_,reject)=>{
+      timer=window.setTimeout(()=>reject(new Error("No native response. Operation outcome unknown.")),15000);
+    });
+    return await Promise.race([invoke<SimulationOutcome>("simulation_request",{request,generation}),timeout]);
+  }finally{window.clearTimeout(timer);}
+}
+
 function SimulatedTag({point,disabled,write,pulse}:{point:SimulationPoint;disabled:boolean;write:(value:string)=>void;pulse:()=>void}){
   const [value,setValue]=useState("");
   return <form className="field" onSubmit={event=>{event.preventDefault();if(!disabled&&value.trim())write(value);}}>
@@ -189,7 +201,7 @@ function Studio(){
     inFlight.current=true;
     setBusy(true);
     try{
-      const reply=await invoke<SimulationOutcome>("simulation_request",{request,generation:generation.current});
+      const reply=await invokeSimulation(request,generation.current);
       switch(reply.status){
         case "active":
           setSimulation(reply.simulation);
@@ -229,6 +241,13 @@ function Studio(){
     }
     finally{inFlight.current=false;setBusy(false);}
   },[pendingRecovery]);
+  // Expire displayed samples even while polling is blocked by an IPC call
+  // or a native dialog. Only a verified response makes them visible again.
+  useEffect(()=>{
+    if(!simulation)return;
+    const timer=window.setTimeout(()=>setSimulationUnavailable(true),3000);
+    return()=>window.clearTimeout(timer);
+  },[simulation]);
   const simulationSession=simulation?.session;
   useEffect(()=>{
     if(simulationSession===undefined)return;

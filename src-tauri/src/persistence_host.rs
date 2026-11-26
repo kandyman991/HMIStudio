@@ -424,6 +424,12 @@ impl Host {
                     message: "Project changed. Refresh before starting simulation".into(),
                 };
             }
+            // A previous start may have succeeded even if its IPC reply was lost.
+            match self.runtime.refresh(None) {
+                Ok(Some(simulation)) => return RuntimeOutcome::Active { simulation },
+                Err(message) => return RuntimeOutcome::Lost { message },
+                Ok(None) => {}
+            }
         }
         let session = request.session();
         match self.simulate(generation, request, confirm) {
@@ -925,6 +931,10 @@ mod tests {
             panic!("simulation did not start");
         };
         let session = first.session;
+        assert!(matches!(
+            host.simulation_outcome(generation, start(), || false),
+            RuntimeOutcome::Active { simulation } if simulation.session == session
+        ));
         let count = first
             .points
             .iter()

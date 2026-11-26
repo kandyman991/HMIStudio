@@ -786,6 +786,23 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
     assert_eq!(p.resources.len(), 1);
     assert_eq!(a.resource_bytes[&p.resources[0].path], bytes);
+    f["componentDefinitions"]["def"] = json!({"id":"def","displayName":"Reusable","type":"composite",
+        "composition":{"elements":{"part":{"id":"part","type":"image","properties":{"assetId":"a","fit":"COVER"}}}}});
+    let imported = import_portable(&serde_json::to_vec(&f).unwrap());
+    let project = imported
+        .project
+        .unwrap_or_else(|| panic!("{:?}", imported.report));
+    let doc = serde_json::to_value(&project).unwrap();
+    let props = &doc["components"][0]["root"]["children"][0]["properties"];
+    assert_eq!(props["source"], doc["resources"][0]["id"]);
+    assert_eq!(props["contentScale"], "crop");
+    assert_eq!(imported.resource_bytes.len(), 1);
+    let mut missing = f.clone();
+    missing["componentDefinitions"]["def"]["composition"]["elements"]["part"]["properties"]
+        ["assetId"] = json!("missing");
+    let refused = import_portable(&serde_json::to_vec(&missing).unwrap());
+    assert!(refused.project.is_none());
+    assert!(refused.resource_bytes.is_empty());
     f["assets"]["a"]["sizeBytes"] = json!(1);
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());

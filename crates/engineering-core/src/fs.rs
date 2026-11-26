@@ -5,7 +5,7 @@
 //! failed renames deterministically. The trait is intentionally narrow: it
 //! is not, and must never become, a generic filesystem bridge for the UI.
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -14,6 +14,13 @@ use std::sync::Mutex;
 pub trait FileSystem: Send + Sync {
     /// Reads a whole file.
     fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
+    /// Read at most limit + 1 bytes, refusing larger files before allocation.
+    fn read_limited(&self, _path: &Path, _limit: usize) -> io::Result<Vec<u8>> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "no bounded read support",
+        ))
+    }
     /// Exclusively creates `path`, writes `data`, flushes and syncs it to
     /// stable storage before returning.
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()>;
@@ -46,6 +53,17 @@ pub struct StdFileSystem;
 impl FileSystem for StdFileSystem {
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         std::fs::read(path)
+    }
+
+    fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)?
+            .take((limit as u64).saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > limit {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "file too large"));
+        }
+        Ok(bytes)
     }
 
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
@@ -174,6 +192,10 @@ fn injected() -> io::Error {
 impl FileSystem for FaultyFileSystem {
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         StdFileSystem.read(path)
+    }
+
+    fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        StdFileSystem.read_limited(path, limit)
     }
 
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {

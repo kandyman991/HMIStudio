@@ -33,7 +33,7 @@ pub(crate) fn reserved_extension(key: &str) -> bool {
 
 /// Fail closed on any import marker, including malformed or older provenance.
 pub fn requires_review(project: &Project) -> bool {
-    project.extensions.contains_key(MARKER) || project.extensions.contains_key("hmiforge.idMap")
+    project.extensions.keys().any(|key| reserved_extension(key))
 }
 
 /// Required import-specific precondition for future production publishing
@@ -64,6 +64,8 @@ pub enum ImportError {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Payload {
+    // Private local evidence; never include in reports or telemetry.
+    source: String,
     original_project: String,
     project: String,
     report: Value,
@@ -174,10 +176,24 @@ fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
     let original = decode_project(&payload.original_project)?;
     let current = decode_project(&payload.project)?;
     verify_report(&payload.report, &original)?;
+    // A checksum is not proof of report completeness. Replay the exact admitted
+    // bytes and compare all immutable import evidence, including resources.
+    let replay = import_portable(payload.source.as_bytes());
+    if !replay.report.has_complete_mapping()
+        || serde_json::to_value(replay.report).map_err(|_| ImportError::InvalidBundle)?
+            != payload.report
+        || replay.resource_bytes != payload.resources
+        || canonical(&replay.project.ok_or(ImportError::InvalidBundle)?)?
+            != payload.original_project
+    {
+        return Err(ImportError::InvalidBundle);
+    }
     verify_resources(&original, &payload.resources)?;
     verify_resources(&current, &payload.resources)?;
     if original.id != current.id
-        || original.extensions.get("hmiforge.idMap") != current.extensions.get("hmiforge.idMap")
+        || [MARKER, "hmiforge.idMap", "hmiforge.standardCatalog"]
+            .iter()
+            .any(|key| original.extensions.get(*key) != current.extensions.get(*key))
     {
         return Err(ImportError::InvalidBundle);
     }
@@ -190,6 +206,7 @@ pub struct QuarantinedImport {
     session: ProjectSession,
     payload: Payload,
     path: PathBuf,
+    warnings: Vec<&'static str>,
 }
 
 impl QuarantinedImport {
@@ -208,17 +225,21 @@ impl QuarantinedImport {
         let project = outcome.project.ok_or(ImportError::Refused)?;
         let text = canonical(&project)?;
         let payload = Payload {
+            source: std::str::from_utf8(source)
+                .map_err(|_| ImportError::Refused)?
+                .to_owned(),
             original_project: text.clone(),
             project: text,
             report: serde_json::to_value(outcome.report).map_err(|_| ImportError::InvalidBundle)?,
             resources: outcome.resource_bytes,
         };
         let project = verify_payload(&payload)?;
-        write_new(&payload, target, fs.as_ref())?;
+        let warnings = write_new(&payload, target, fs.as_ref())?;
         Ok(Self {
             session: ProjectSession::with_fs(project, config, fs),
             payload,
             path: target.to_path_buf(),
+            warnings,
         })
     }
 
@@ -228,16 +249,19 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
-        let bytes = fs.read(path).map_err(|_| ImportError::Io("read"))?;
-        if bytes.len() > MAX_BUNDLE_BYTES {
-            return Err(ImportError::SizeLimit);
-        }
+        let bytes = fs.read_limited(path, MAX_BUNDLE_BYTES).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::InvalidData {
+                ImportError::SizeLimit
+            } else {
+                ImportError::Io("read")
+            }
+        })?;
         let envelope: Envelope =
             serde_json::from_slice(&bytes).map_err(|_| ImportError::InvalidBundle)?;
         let serialized =
             serde_json::to_vec(&envelope.payload).map_err(|_| ImportError::InvalidBundle)?;
         if envelope.format != FORMAT
-            || envelope.version != 1
+            || envelope.version != 2
             || envelope.sha256 != digest(&serialized)
         {
             return Err(ImportError::InvalidBundle);
@@ -247,6 +271,7 @@ impl QuarantinedImport {
             session: ProjectSession::with_fs(project, config, fs),
             payload: envelope.payload,
             path: path.to_path_buf(),
+            warnings: Vec::new(),
         })
     }
 
@@ -262,6 +287,11 @@ impl QuarantinedImport {
         &self.path
     }
 
+    /// Non-fatal durability or cleanup warnings from the last publication.
+    pub fn warnings(&self) -> &[&'static str] {
+        &self.warnings
+    }
+
     pub fn execute(
         &mut self,
         transaction: Transaction,
@@ -275,10 +305,11 @@ impl QuarantinedImport {
         let mut payload = self.payload.clone();
         payload.project = canonical(self.session.project())?;
         verify_payload(&payload)?;
-        write_new(&payload, target, self.session.fs.as_ref())?;
+        let warnings = write_new(&payload, target, self.session.fs.as_ref())?;
         self.session.storage.saved_state = Some(self.session.current_state_id());
         self.payload = payload;
         self.path = target.to_path_buf();
+        self.warnings = warnings;
         Ok(())
     }
 
@@ -288,11 +319,15 @@ impl QuarantinedImport {
     }
 }
 
-fn write_new(payload: &Payload, target: &Path, fs: &dyn FileSystem) -> Result<(), ImportError> {
+fn write_new(
+    payload: &Payload,
+    target: &Path,
+    fs: &dyn FileSystem,
+) -> Result<Vec<&'static str>, ImportError> {
     let body = serde_json::to_vec(payload).map_err(|_| ImportError::InvalidBundle)?;
     let envelope = Envelope {
         format: FORMAT.into(),
-        version: 1,
+        version: 2,
         sha256: digest(&body),
         payload: payload.clone(),
     };
@@ -304,13 +339,19 @@ fn write_new(payload: &Payload, target: &Path, fs: &dyn FileSystem) -> Result<()
     // Unlike rename, an exclusive same-volume hard link cannot replace an
     // existing destination even if it appears after the staging operation.
     let result = fs.link_new(&tmp, target);
-    let _ = fs.remove_file(&tmp);
+    let cleanup = fs.remove_file(&tmp);
     result.map_err(|_| ImportError::Io("publish new bundle"))?;
+    let mut warnings = Vec::new();
+    if cleanup.is_err() {
+        warnings.push("published bundle; temporary file cleanup failed");
+    }
     let parent = target
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
     // Publication already committed; do not report rollback after this point.
-    let _ = fs.sync_dir(parent);
-    Ok(())
+    if fs.sync_dir(parent).is_err() {
+        warnings.push("published bundle; directory sync failed");
+    }
+    Ok(warnings)
 }

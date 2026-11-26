@@ -103,3 +103,63 @@ fn corrupt_bundle_refused_and_existing_target_unchanged() {
     std::fs::write(&path, serde_json::to_vec(&tampered).unwrap()).unwrap();
     assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
 }
+
+#[test]
+fn failed_save_copy_preserves_session_and_previous_bundle() {
+    let dir = TempDir::new("review-save-fault");
+    let path = dir.join("review.bundle");
+    let target = dir.join("failed.bundle");
+    let fs = Arc::new(FaultyFileSystem::new(Fault::RenameFails, "failed.bundle", 0));
+    let mut review =
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), fs.clone())
+            .unwrap();
+    let original = std::fs::read(&path).unwrap();
+    let screen = review.snapshot().project.screens[0].id.clone();
+    review
+        .execute(Transaction::single(Command::RenameScreen {
+            screen,
+            name: "Unsaved edit".into(),
+        }))
+        .unwrap();
+    let before = review.snapshot();
+    assert!(review.save_copy(&target).is_err());
+    assert!(fs.fired());
+    assert_eq!(review.snapshot(), before);
+    assert_eq!(review.path(), path.as_path());
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    assert!(!target.exists());
+    assert_eq!(std::fs::read_dir(&dir.0).unwrap().count(), 1);
+}
+
+#[test]
+fn catalog_provenance_alone_refuses_production_and_plain_save() {
+    let dir = TempDir::new("catalog-marker");
+    let path = dir.join("review.bundle");
+    let review =
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs()).unwrap();
+    let mut project = review.snapshot().project.as_ref().clone();
+    project.extensions.remove("hmistudio.importQuarantine");
+    project.extensions.remove("hmiforge.idMap");
+    project
+        .extensions
+        .insert("hmiforge.standardCatalog".into(), json!(null));
+    assert!(check_production_admission(&project).is_err());
+    let mut session = ProjectSession::new(project, SessionConfig::default());
+    assert!(session
+        .save_as(&dir.join("plain.json"), SaveOptions::default())
+        .is_err());
+}
+
+#[test]
+fn bounded_bundle_read_refuses_oversize() {
+    let dir = TempDir::new("oversize-review");
+    let path = dir.join("oversize.bundle");
+    std::fs::File::create(&path)
+        .unwrap()
+        .set_len(64 * 1024 * 1024 + 1)
+        .unwrap();
+    assert!(matches!(
+        QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()),
+        Err(hmi_engineering_core::legacy_quarantine::ImportError::SizeLimit)
+    ));
+}

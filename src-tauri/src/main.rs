@@ -146,9 +146,7 @@ fn pick_review(app: &AppHandle, saving: bool) -> Result<Option<PathBuf>, String>
             .set_file_name("project.hmi-review")
             .blocking_save_file()
     } else {
-        dialog
-            .set_title("Open review bundle")
-            .blocking_pick_file()
+        dialog.set_title("Open review bundle").blocking_pick_file()
     };
     selected
         .map(|p| p.into_path().map_err(|e| e.to_string()))

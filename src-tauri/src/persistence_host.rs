@@ -188,7 +188,10 @@ impl FileSystem for GuardedFileSystem {
     fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
         safe_file(from).map_err(io::Error::other)?;
         if safe_file(to).map_err(io::Error::other)? {
-            return Err(io::Error::new(io::ErrorKind::AlreadyExists, "bundle exists"));
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "bundle exists",
+            ));
         }
         StdFileSystem.link_new(from, to)
     }
@@ -281,10 +284,9 @@ impl Host {
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.review.as_ref().map_or_else(
-            || self.session.is_dirty(),
-            QuarantinedImport::is_dirty,
-        )
+        self.review
+            .as_ref()
+            .map_or_else(|| self.session.is_dirty(), QuarantinedImport::is_dirty)
     }
 
     pub fn path(&self) -> Option<&Path> {
@@ -458,7 +460,8 @@ impl Host {
         let cleanup = self.clear_active_recovery();
         self.autosave_message = review_message(&candidate);
         if cleanup.is_err() {
-            self.autosave_message.push_str("; previous recovery retained");
+            self.autosave_message
+                .push_str("; previous recovery retained");
         }
         self.review = Some(candidate);
         self.project_lock = None;
@@ -475,10 +478,11 @@ impl Host {
             return Err("Choose a new review bundle filename".into());
         }
         let fs = Arc::new(GuardedFileSystem);
-        let bytes = fs.read_limited(source, MAX_LEGACY_SOURCE_BYTES).map_err(err)?;
-        let candidate =
-            QuarantinedImport::import_new(&bytes, &target, config(&self.untitled), fs)
-                .map_err(err)?;
+        let bytes = fs
+            .read_limited(source, MAX_LEGACY_SOURCE_BYTES)
+            .map_err(err)?;
+        let candidate = QuarantinedImport::import_new(&bytes, &target, config(&self.untitled), fs)
+            .map_err(err)?;
         self.activate_review(candidate);
         Ok(())
     }
@@ -707,8 +711,14 @@ mod tests {
         let stripped = t.0.join("stripped.hmi.json");
         let mut project = host.snapshot().project;
         project.extensions.clear();
-        fs::write(&stripped, hmi_project_model::save_project(&project).unwrap()).unwrap();
-        assert!(host.open_with(&stripped, false, |_| Ok(Some(false))).is_err());
+        fs::write(
+            &stripped,
+            hmi_project_model::save_project(&project).unwrap(),
+        )
+        .unwrap();
+        assert!(host
+            .open_with(&stripped, false, |_| Ok(Some(false)))
+            .is_err());
         assert!(host.is_review());
         assert_eq!(fs::read(&source).unwrap(), original);
     }

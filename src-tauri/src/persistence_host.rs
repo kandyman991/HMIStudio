@@ -978,10 +978,7 @@ mod tests {
             .status()
             .unwrap();
         #[cfg(unix)]
-        let status = Command::new("kill")
-            .args(["-KILL", &pid])
-            .status()
-            .unwrap();
+        let status = Command::new("kill").args(["-KILL", &pid]).status().unwrap();
         assert!(status.success());
         let deadline = Instant::now() + Duration::from_secs(4);
         loop {

@@ -752,7 +752,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [f8d14cf](https://github.com/kandyman991/HMIStudio/commit/f8d14cf5461544bbcb836f941625d6347412e0aa) · snapshot 2026-11-26T17:32:00Z · [Desktop CI #45856773687](https://github.com/kandyman991/HMIStudio/actions/runs/45856773687) success, [Tag engine CI #45856773651](https://github.com/kandyman991/HMIStudio/actions/runs/45856773651) success, [Engineering handoff snapshot #45856773629](https://github.com/kandyman991/HMIStudio/actions/runs/45856773629) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [e643e61](https://github.com/kandyman991/HMIStudio/commit/e643e61c783aa2f1b6cec1c55ede912ef605ed91) · snapshot 2026-11-26T17:39:00Z · [Desktop CI #45869026942](https://github.com/kandyman991/HMIStudio/actions/runs/45869026942) failure, [Tag engine CI #45869027164](https://github.com/kandyman991/HMIStudio/actions/runs/45869027164) success, [Engineering handoff snapshot #45869027079](https://github.com/kandyman991/HMIStudio/actions/runs/45869027079) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -781,6 +781,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified PR #36 at 8f7d063 and RUST-05 reservation e7b6ea0. Extended the retained claim to e36947b for owner-approved draft-only packaging deferral. Added canonical native isolated simulation with Windows/Linux real-child regressions. Production quarantine and schema v2 are preserved. Exact-head hosted CI and technical review remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Hosted Windows and Linux detected S7 writable-byte aliasing in the synthetic fixture at 2d5ccd1. Corrected fixture addressing, added native admission preflight and enforce canonical engineering ranges for simulated writes. Independent review and corrected-head CI remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified f8d14cf: all 19 hosted jobs passed, including Windows 16+1 and Linux 17+1 native tests; installers skipped. Candidate review corrections add typed session outcomes, stale-value hiding, periodic native refresh and forced real-child exit/restart coverage. Retain the RUST-05 claim; corrected-head CI and review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Exact head e643e61 passed frontend, all standalone crate jobs, Tag engine CI and handoff; both native desktop jobs stopped at the same rustfmt difference in the Unix test command. Applied the exact formatting correction; native compilation and both real-child regressions remain pending on the corrected head. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

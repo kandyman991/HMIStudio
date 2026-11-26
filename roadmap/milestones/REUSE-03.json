@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
+      "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45856773687,
+          "id": 45869026942,
           "name": "Desktop CI",
-          "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
+          "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
           "state": "completed",
-          "result": "success"
+          "result": "failure"
         },
         {
-          "id": 45856773651,
+          "id": 45869027164,
           "name": "Tag engine CI",
-          "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
+          "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45856773629,
+          "id": 45869027079,
           "name": "Engineering handoff snapshot",
-          "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
+          "head": "e643e61c783aa2f1b6cec1c55ede912ef605ed91",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T17:32:00Z"
+      "observedAt": "2026-11-26T17:39:00Z"
     }
   ],
   "assignment": {
@@ -223,6 +223,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified f8d14cf: all 19 hosted jobs passed, including Windows 16+1 and Linux 17+1 native tests; installers skipped. Candidate review corrections add typed session outcomes, stale-value hiding, periodic native refresh and forced real-child exit/restart coverage. Retain the RUST-05 claim; corrected-head CI and review pending.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Exact head e643e61 passed frontend, all standalone crate jobs, Tag engine CI and handoff; both native desktop jobs stopped at the same rustfmt difference in the Unix test command. Applied the exact formatting correction; native compilation and both real-child regressions remain pending on the corrected head.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

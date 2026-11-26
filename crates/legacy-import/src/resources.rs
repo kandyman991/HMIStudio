@@ -99,6 +99,72 @@ fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     None
 }
 
+// Conservative baseline JPEG envelope: one sequential scan, bounded
+// dimensions, marker lengths and a terminal EOI. No entropy/pixel decoding.
+fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    let mut rest = bytes.strip_prefix(&[0xff, 0xd8])?;
+    let mut dimensions = None;
+    let mut components = 0;
+    while !rest.is_empty() {
+        if rest.first() != Some(&0xff) {
+            return None;
+        }
+        let marker = *rest.get(1)?;
+        rest = rest.get(2..)?;
+        let len = usize::from(u16::from_be_bytes(rest.get(..2)?.try_into().ok()?));
+        if len < 2 {
+            return None;
+        }
+        let data = rest.get(2..len)?;
+        rest = rest.get(len..)?;
+        match marker {
+            0xc0 => {
+                if dimensions.is_some() || data.first() != Some(&8) {
+                    return None;
+                }
+                let h = u32::from(u16::from_be_bytes(data.get(1..3)?.try_into().ok()?));
+                let w = u32::from(u16::from_be_bytes(data.get(3..5)?.try_into().ok()?));
+                components = usize::from(*data.get(5)?);
+                if !matches!(components, 1 | 3)
+                    || data.len() != 6 + 3 * components
+                    || w == 0
+                    || h == 0
+                    || u64::from(w) * u64::from(h) > 16_000_000
+                {
+                    return None;
+                }
+                dimensions = Some((w, h));
+            }
+            0xda => {
+                let size = dimensions?;
+                if usize::from(*data.first()?) != components
+                    || data.len() != 4 + 2 * components
+                    || data.get(data.len() - 3..) != Some(&[0, 63, 0])
+                {
+                    return None;
+                }
+                let mut i = 0;
+                while i < rest.len() {
+                    if rest[i] != 0xff {
+                        i += 1;
+                        continue;
+                    }
+                    match *rest.get(i + 1)? {
+                        0x00 | 0xd0..=0xd7 => i += 2,
+                        0xd9 if i > 0 && i + 2 == rest.len() => return Some(size),
+                        _ => return None,
+                    }
+                }
+                return None;
+            }
+            0xe0 if data.starts_with(b"JFIF\0") => {}
+            0xdb | 0xc4 | 0xdd => {}
+            _ => return None,
+        }
+    }
+    None
+}
+
 pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let Some(assets) = v.get("assets") else {
         return Some(());
@@ -114,7 +180,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let mut resources = Vec::new();
     for (key, a) in assets {
         let p = path("/assets", key);
-        if a["id"].as_str() != Some(key.as_str()) || a["kind"] != "PNG" {
+        if a["id"].as_str() != Some(key.as_str()) {
             m.fail(&p, "unsupported-asset-kind-or-id");
             return None;
         }
@@ -126,7 +192,15 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             m.fail(&p, "asset-integrity-mismatch");
             return None;
         }
-        let (w, h) = png_dimensions(&bytes)?;
+        let (ext, media, dimensions) = match a["kind"].as_str()? {
+            "PNG" => ("png", "image/png", png_dimensions(&bytes)),
+            "JPEG" => ("jpg", "image/jpeg", jpeg_dimensions(&bytes)),
+            _ => {
+                m.fail(&p, "unsupported-asset-kind-or-id");
+                return None;
+            }
+        };
+        let (w, h) = dimensions?;
         if a.get("widthPx").map(Value::as_f64).unwrap_or(Some(100.))? != f64::from(w)
             || a.get("heightPx").map(Value::as_f64).unwrap_or(Some(100.))? != f64::from(h)
         {
@@ -134,14 +208,14 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             return None;
         }
         let id = m.id(&path(&p, "id"), key, "asset");
-        let file = format!("assets/{digest}.png");
+        let file = format!("assets/{digest}.{ext}");
         let t = format!("/resources/{}", resources.len());
         let name = m.text(
             a.get("name")?,
             &path(&p, "name"),
             &format!("{t}/extensions/legacyName"),
         )?;
-        resources.push(json!({"id":id,"kind":"image","path":file,"mediaType":"image/png","sha256":digest,"extensions":{"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h}}));
+        resources.push(json!({"id":id,"kind":"image","path":file,"mediaType":media,"sha256":digest,"extensions":{"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h}}));
         for (src, dst) in [
             ("id", "id"),
             ("kind", "mediaType"),

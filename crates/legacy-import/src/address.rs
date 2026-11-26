@@ -5,6 +5,7 @@ pub(super) struct Span {
     pub area: String,
     pub start: u32,
     pub end: u32,
+    pub integer_range: Option<(i64, i64)>,
 }
 
 fn decimal(s: &str) -> Option<u32> {
@@ -19,6 +20,16 @@ pub(super) fn s7(address: &str, ty: &str, writable: bool) -> Option<Span> {
         return None;
     }
     let upper = address.to_ascii_uppercase();
+    // Normalize the engine's M/I/E/Q/A shorthand bit syntax before parsing.
+    let shorthand;
+    let upper = if upper.as_bytes().first().is_some_and(|b| b"MIEQA".contains(b))
+        && upper.as_bytes().get(1).is_some_and(u8::is_ascii_digit)
+    {
+        shorthand = format!("{}.X{}", &upper[..1], &upper[1..]);
+        shorthand.as_str()
+    } else {
+        upper.as_str()
+    };
     let (area, rest) = upper.split_once('.')?;
     let area = match area {
         "M" => "M".to_owned(),
@@ -55,11 +66,21 @@ pub(super) fn s7(address: &str, ty: &str, writable: bool) -> Option<Span> {
         ("STRING", "string", Some(n)) if (1..=254).contains(&n) && !writable => n + 2,
         _ => return None,
     };
+    let integer_range = match kind {
+        "BYTE" | "B" | "USINT" => Some((0, 255)),
+        "SINT" => Some((-128, 127)),
+        "WORD" | "UINT" => Some((0, 65535)),
+        "INT" => Some((-32768, 32767)),
+        "DINT" => Some((i64::from(i32::MIN), i64::from(i32::MAX))),
+        "DWORD" | "UDINT" => Some((0, i64::from(u32::MAX))),
+        _ => None,
+    };
     let end = offset.checked_add(size)?;
     (end <= 65536).then_some(Span {
         area,
         start: offset,
         end,
+        integer_range,
     })
 }
 

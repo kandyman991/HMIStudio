@@ -8,7 +8,7 @@ fn present(v: &Value) -> bool {
         && v.as_array().is_none_or(|x| !x.is_empty())
 }
 
-fn component(c: &Value, p: &str, version: u64, m: &mut Mapping) -> Option<()> {
+fn component(c: &Value, p: &str, version: u64, v: &Value, m: &mut Mapping) -> Option<()> {
     for (key, min) in [
         ("expressions", 4),
         ("actions", 5),
@@ -27,6 +27,33 @@ fn component(c: &Value, p: &str, version: u64, m: &mut Mapping) -> Option<()> {
     {
         m.fail(&path(p, "type"), "source-feature-version-mismatch");
         return None;
+    }
+    if let Some(id) = c.get("componentDefinitionId").filter(|x| !x.is_null()) {
+        let id = id.as_str()?;
+        let definition = &v["componentDefinitions"][id];
+        if c["type"] != "composite"
+            && (definition["type"] != c["type"] || super::catalog::recognize(id, definition).is_none())
+        {
+            m.fail(&path(p, "componentDefinitionId"), "standard-instance-reference-mismatch");
+            return None;
+        }
+    }
+    if version < 10 {
+        if let Some(events) = c["actions"].as_object() {
+            for (event, action) in events {
+                let kind = action["action"].as_str();
+                if event != "press" || !matches!(
+                    kind,
+                    Some("navigate.screen" | "navigate.back" | "navigate.startup")
+                        | Some("open.faceplate") if version >= 6 || kind != Some("open.faceplate")
+                ) || action.get("parameters").is_some_and(present)
+                    || action.get("modal").is_some_and(|x| x != true)
+                {
+                    m.fail(&path(&path(p, "actions"), event), "source-feature-version-mismatch");
+                    return None;
+                }
+            }
+        }
     }
     Some(())
 }
@@ -62,7 +89,7 @@ pub(super) fn validate(v: &Value, version: u64, m: &mut Mapping) -> Option<()> {
         }
         if let Some(cs) = screen.get("components") {
             for (key, c) in cs.as_object()? {
-                component(c, &path(&path(&p, "components"), key), version, m)?;
+                component(c, &path(&path(&p, "components"), key), version, v, m)?;
             }
         }
     }
@@ -85,6 +112,7 @@ pub(super) fn validate(v: &Value, version: u64, m: &mut Mapping) -> Option<()> {
                         c,
                         &path(&path(&path(&p, "composition"), "elements"), key),
                         version,
+                        v,
                         m,
                     )?;
                 }

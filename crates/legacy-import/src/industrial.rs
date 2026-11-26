@@ -305,6 +305,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                 return None;
             }
             // Alias writes cannot be proven equivalent under a single tag policy.
+            let mut physical_range = None;
             let normalized = match *source_drivers.get(source)? {
                 "s7" => {
                     let span = super::address::s7(addr, tags[i]["dataType"].as_str()?, writable)
@@ -328,6 +329,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                             "ambiguous-writable-address-alias",
                         );
                     }
+                    physical_range = span.integer_range;
                     spans.push((source, span, writable));
                     addr.to_owned()
                 }
@@ -380,6 +382,17 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                     va,
                     m,
                 )?;
+                if let Some((min, max)) = physical_range {
+                    let limits = &w["limits"];
+                    if limits["min"].as_i64().is_none_or(|n| n < min)
+                        || limits["max"].as_i64().is_none_or(|n| n > max)
+                        || limits.get("step").is_some_and(|x| {
+                            x.as_i64().is_none_or(|step| step > max - min)
+                        })
+                    {
+                        return fail(m, &path(&p, "command"), "write-limits-exceed-s7-range");
+                    }
+                }
                 field(m, &p, "writeConfirmed", &wt, "writeConfirmed");
                 writes.push(w);
             } else {

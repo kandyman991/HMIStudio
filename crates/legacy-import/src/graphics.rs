@@ -209,9 +209,19 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     } else {
         json!({"type":"component","kind":canonical})
     };
-    Some(
-        json!({"id":id,"name":name,"element":element,"layout":{"position":{"x":geo[0],"y":geo[1]},"width":fixed(geo[2]),"height":fixed(geo[3]),"visibility":if visible{"visible"}else{"hidden"}},"properties":props}),
-    )
+    let mut result = json!({"id":id,"name":name,"element":element,"layout":{"position":{"x":geo[0],"y":geo[1]},"width":fixed(geo[2]),"height":fixed(geo[3]),"visibility":if visible{"visible"}else{"hidden"}},"properties":props});
+    if kind != "composite" {
+        if let Some(def) = v.get("componentDefinitionId").filter(|x| !x.is_null()) {
+            result["extensions"]["hmiforge.standardDefinition"] = def.clone();
+            m.mark(&path(p, "componentDefinitionId"), &format!("{t}/extensions/hmiforge.standardDefinition"));
+            if let Some(f) = m.findings.get_mut(&path(p, "componentDefinitionId")) {
+                f.disposition = "preserved";
+                f.code = "standard-catalog-preserved";
+                f.message = "Validated standard catalog reference retained as inactive evidence.";
+            }
+        }
+    }
+    Some(result)
 }
 
 // Source geometry remains available for the design editor; the adaptive layout

@@ -163,7 +163,7 @@ fn industrial_fixture() -> Value {
     f["variables"]["label-a"]["engineeringUnit"] = json!("rpm");
     f["variables"]["second"] = json!({"id":"second","path":"Second","type":"LONG","access":"READ_ONLY","engineeringUnit":"rpm"});
     f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"s7","displayName":"Synthetic source","configuration":{"host":"example.invalid","port":"102","rack":"0","slot":"1","pollIntervalMs":"200","timeoutMs":"2000"},"commissioningAllowed":true});
-    f["externalMappings"]["map-a"] = json!({"id":"map-a","internalVariableId":"label-a","sourceId":"src/a","externalAddress":"DB1.DINT0","access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":-9007199254740992i64,"max":9007199254740992i64,"step":2,"confirm":false}});
+    f["externalMappings"]["map-a"] = json!({"id":"map-a","internalVariableId":"label-a","sourceId":"src/a","externalAddress":"DB1.DINT0","access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":-2147483648i64,"max":2147483647i64,"step":2,"confirm":false}});
     f["externalMappings"]["map-b"] = json!({"id":"map-b","internalVariableId":"second","sourceId":"src/a","externalAddress":"DB1.DINT8","access":"READ"});
     f["security"] = json!({"permissions":{"custom/a":{"id":"custom/a","displayName":"Custom"}},"roles":{"role/a":{"id":"role/a","displayName":"Operator","permissions":["custom/a","operate"]}},"anonymousRoleId":"role/a","autoLogoutMinutes":3});
     f["screens"]["screen/a"]["requiredPermission"] = json!("custom/a");
@@ -188,7 +188,7 @@ fn industrial_mapping_and_leaf_accounting() {
     let v = serde_json::to_value(&p).unwrap();
     let i = &v["v2"]["industrial"];
     assert_eq!(i["connections"][0]["commissioningAllowed"], true);
-    assert_eq!(i["tags"][0]["limits"]["min"], json!(-9007199254740992i64));
+    assert_eq!(i["tags"][0]["limits"]["min"], json!(-2147483648i64));
     assert_eq!(i["tags"][0]["confirmationRequired"], true);
     assert_eq!(i["tags"][0]["writeConfirmed"], true);
     assert_eq!(i["security"]["autoLogoutSeconds"], 180);
@@ -699,6 +699,9 @@ fn passive_faceplate_declaration_and_direct_placement_refusal() {
 fn exact_numeric_constant_action_and_policy_bounds() {
     let mut f = industrial_fixture();
     f["schemaVersion"] = json!(10);
+    f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"opcua","configuration":{"endpoint":"opc.tcp://example.invalid:4840","securityPolicy":"None","securityMode":"None"}});
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("ns=2;i=100");
+    f["externalMappings"]["map-b"]["externalAddress"] = json!("ns=2;i=101");
     f["externalMappings"]["map-a"]["command"] =
         json!({"kind":"SETPOINT","min":-9007199254740992i64,"max":9007199254740992i64});
     let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
@@ -1182,5 +1185,39 @@ fn catalog_signature_rejects_changed_slot_semantics() {
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
     f["componentDefinitions"]["standard.button"]["bindingSlots"]["command"]["writable"] = json!(false);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+}
+
+#[test]
+fn physical_s7_integer_limits_and_bit_shorthand() {
+    let mut f = industrial_fixture();
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("DB1.INT0");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":-32768,"max":32767});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    f["externalMappings"]["map-a"]["command"]["max"] = json!(32768);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("M0.0");
+    f["variables"]["label-a"]["type"] = json!("BOOL");
+    f["variables"]["label-a"]["access"] = json!("COMMAND");
+    f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"MAINTAINED"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    f["variables"]["second"]["type"] = json!("BOOL");
+    f["variables"]["second"]["engineeringUnit"] = Value::Null;
+    f["externalMappings"]["map-b"]["externalAddress"] = json!("M.X0.1");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+}
+
+#[test]
+fn explicit_standard_reference_integrity() {
+    let mut f = fixture(1);
+    f["componentDefinitions"]["standard.label"] = json!({"id":"standard.label","displayName":"Label","type":"label","defaultProperties":{"text":"Label"}});
+    f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] = json!("standard.label");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] = json!("standard.button");
     assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
 }

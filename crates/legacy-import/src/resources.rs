@@ -310,12 +310,12 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             &path(&p, "name"),
             &format!("{t}/extensions/legacyName"),
         )?;
-        resources.push(json!({"id":id,"kind":kind,"path":file,"mediaType":media,"sha256":digest,"extensions":{"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h}}));
+        resources.push(json!({"id":id,"kind":kind,"path":file,"mediaType":media,"sha256":digest,"extensions":{"legacyName":name,"legacySizeBytes":bytes.len(),"legacyWidthPx":w,"legacyHeightPx":h}}));
         for (src, dst) in [
             ("id", "id"),
             ("kind", "mediaType"),
             ("sha256", "sha256"),
-            ("sizeBytes", "sha256"),
+            ("sizeBytes", "extensions/legacySizeBytes"),
             ("widthPx", "extensions/legacyWidthPx"),
             ("heightPx", "extensions/legacyHeightPx"),
             ("data", "path"),
@@ -341,28 +341,33 @@ pub(super) fn image(
         return None;
     }
     let props = c.get("properties")?.as_object()?;
-    let old = props.get("assetId")?.as_str()?;
-    if (c["type"] == "svgImage") != (assets[old]["kind"] == "SVG") {
+    let asset_path = format!("{p}/properties/assetId");
+    let Some(old) = props.get("assetId").and_then(Value::as_str) else {
+        m.fail(&asset_path, "invalid-image-asset-reference");
+        return None;
+    };
+    let Some(asset) = assets.get(old) else {
+        m.fail(&asset_path, "missing-image-asset");
+        return None;
+    };
+    if (c["type"] == "svgImage") != (asset["kind"] == "SVG") {
+        m.fail(&asset_path, "image-asset-kind-mismatch");
         return None;
     }
     let id = m.ids.get(&path(&path("/assets", old), "id"))?.clone();
-    let fit = match props
-        .get("fit")
-        .and_then(Value::as_str)
-        .unwrap_or("CONTAIN")
-    {
-        "CONTAIN" => "fit",
-        "COVER" => "crop",
-        "STRETCH" => "fill",
-        "CENTER" => "none",
-        _ => return None,
+    let fit = match props.get("fit").map(Value::as_str) {
+        None | Some(Some("CONTAIN")) => "fit",
+        Some(Some("COVER")) => "crop",
+        Some(Some("STRETCH")) => "fill",
+        Some(Some("CENTER")) => "none",
+        _ => {
+            m.fail(&format!("{p}/properties/fit"), "invalid-image-fit");
+            return None;
+        }
     };
     n["properties"]["source"] = json!(id);
     n["properties"]["contentScale"] = json!(fit);
-    m.mark(
-        &format!("{p}/properties/assetId"),
-        &format!("{t}/properties/source"),
-    );
+    m.mark(&asset_path, &format!("{t}/properties/source"));
     m.mark(
         &format!("{p}/properties/fit"),
         &format!("{t}/properties/contentScale"),

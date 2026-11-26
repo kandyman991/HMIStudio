@@ -794,15 +794,78 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
         .unwrap_or_else(|| panic!("{:?}", imported.report));
     let doc = serde_json::to_value(&project).unwrap();
     let props = &doc["components"][0]["root"]["children"][0]["properties"];
+    let size = imported
+        .report
+        .findings
+        .iter()
+        .find(|f| f.path == "/assets/a/sizeBytes")
+        .unwrap();
+    assert_eq!(
+        doc.pointer(size.target.as_deref().unwrap()),
+        Some(&json!(bytes.len()))
+    );
     assert_eq!(props["source"], doc["resources"][0]["id"]);
     assert_eq!(props["contentScale"], "crop");
     assert_eq!(imported.resource_bytes.len(), 1);
-    let mut missing = f.clone();
-    missing["componentDefinitions"]["def"]["composition"]["elements"]["part"]["properties"]
-        ["assetId"] = json!("missing");
-    let refused = import_portable(&serde_json::to_vec(&missing).unwrap());
-    assert!(refused.project.is_none());
-    assert!(refused.resource_bytes.is_empty());
+    for component in [
+        "/screens/screen~1a/components/label-a",
+        "/componentDefinitions/def/composition/elements/part",
+    ] {
+        let mut default_fit = f.clone();
+        default_fit.pointer_mut(component).unwrap()["properties"]
+            .as_object_mut()
+            .unwrap()
+            .remove("fit");
+        let imported = import_portable(&serde_json::to_vec(&default_fit).unwrap());
+        let project = imported
+            .project
+            .unwrap_or_else(|| panic!("{:?}", imported.report));
+        let doc = serde_json::to_value(project).unwrap();
+        let target = imported
+            .report
+            .findings
+            .iter()
+            .find(|f| f.path == format!("{component}/properties/assetId"))
+            .and_then(|f| f.target.as_deref())
+            .and_then(|p| p.strip_suffix("/source"))
+            .unwrap();
+        assert_eq!(
+            doc.pointer(&format!("{target}/contentScale")),
+            Some(&json!("fit"))
+        );
+        for (field, value, code) in [
+            (
+                "properties/assetId",
+                json!("missing"),
+                "missing-image-asset",
+            ),
+            (
+                "properties/assetId",
+                json!(false),
+                "invalid-image-asset-reference",
+            ),
+            ("properties/fit", json!(false), "invalid-image-fit"),
+            ("properties/fit", json!("unknown"), "invalid-image-fit"),
+            ("type", json!("svgImage"), "image-asset-kind-mismatch"),
+        ] {
+            let mut bad = f.clone();
+            *bad.pointer_mut(&format!("{component}/{field}")).unwrap() = value;
+            let result = import_portable(&serde_json::to_vec(&bad).unwrap());
+            let field = if field == "type" {
+                "properties/assetId"
+            } else {
+                field
+            };
+            let path = format!("{component}/{field}");
+            assert!(result.project.is_none());
+            assert!(result.resource_bytes.is_empty());
+            assert!(result
+                .report
+                .findings
+                .iter()
+                .any(|f| f.code == code && f.path == path));
+        }
+    }
     f["assets"]["a"]["sizeBytes"] = json!(1);
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());

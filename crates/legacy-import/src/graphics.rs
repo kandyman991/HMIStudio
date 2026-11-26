@@ -90,6 +90,10 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
             mark(m, p, "properties", t, "properties");
         }
         for (k, x) in o {
+            // Resource properties are validated when their asset IDs can be resolved.
+            if matches!(kind, "image" | "svgImage") && matches!(k.as_str(), "assetId" | "fit") {
+                continue;
+            }
             let raw = x.as_str()?;
             let target = match (kind, k.as_str()) {
                 ("label" | "button", "text") => "text",

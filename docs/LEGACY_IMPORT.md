@@ -275,3 +275,7 @@ ChatGPT reviewed source `0636ff3` on 2026-11-26. The isolated supervisor invalid
 Two recovery findings were corrected. A pending invocation or competing operation could leave samples visible indefinitely. The panel expires samples three seconds after the last verified reply and releases a pending simulation request after fifteen seconds. A timeout leaves the operation outcome unknown. Automatic retries only read. A lost Start reply previously produced a command rejection on retry. After validating the generation and revision, Start now returns the existing healthy session or reports its loss. The real-child regression checks session identity on retry.
 
 The importer now resolves image and svgImage asset references inside reusable definitions through the same version, resource and fit checks as screen images. A regression checks a shared PNG, crop mode and atomic refusal for a missing nested asset. Renderer parity, archive decoding, other migration gaps, review-edit crash recovery and production consumers remain open.
+
+### REUSE-03B.11 image migration report corrections
+
+The source asset size now points to the verified numeric byte count in the canonical resource extensions. Previously its destination pointed to the SHA-256 string. Screen and reusable images identify invalid references, absent assets, asset type mismatches and invalid fit modes at the corresponding property path. An omitted fit uses CONTAIN. A refused import returns no project or resource bytes.

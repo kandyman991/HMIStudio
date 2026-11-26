@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 integrates isolated native simulation and extends portable migration to images in reusable definitions.",
+  "summary": "Draft PR #36 integrates isolated simulation and records field-specific image import failures and verified asset sizes.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
+      "head": "4d1da3bb1f65b3ad2c5a1a4666cac57442c6d318",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45871477172,
+          "id": 45887275546,
           "name": "Desktop CI",
-          "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
+          "head": "4d1da3bb1f65b3ad2c5a1a4666cac57442c6d318",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45871477557,
+          "id": 45887275497,
           "name": "Tag engine CI",
-          "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
+          "head": "4d1da3bb1f65b3ad2c5a1a4666cac57442c6d318",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45871477571,
+          "id": 45887275547,
           "name": "Engineering handoff snapshot",
-          "head": "0636ff3365a43971c40370580a171a5c4ad33d4a",
+          "head": "4d1da3bb1f65b3ad2c5a1a4666cac57442c6d318",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T19:55:08Z"
+      "observedAt": "2026-11-26T20:22:04Z"
     }
   ],
   "assignment": {
@@ -235,6 +235,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Reviewed native session loss, command refusal, transport recovery and isolation at 0636ff3. Both native child regressions passed on Windows and Linux. Corrected pending-IPC sample expiry and lost Start reply recovery; advanced portable migration to nested image declarations with transactional refusal of absent assets.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified all three workflows on 4d1da3b. Corrected the sizeBytes report destination and field-specific image diagnostics for screen and reusable components. Review the successor and its CI before integration.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

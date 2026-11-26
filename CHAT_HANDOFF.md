@@ -361,3 +361,7 @@ Pinned actual private Kotlin/JVM contract-1 oracle 92a612d compiled separately; 
 ## REUSE-03B.10 review and REUSE-03B.11 migration advancement (2026-11-26)
 
 Reviewed draft PR #36 at `0636ff3`. Both real-child regressions passed on Windows and Linux. [Desktop CI](https://github.com/kandyman991/HMIStudio/actions/runs/45871477172), [Tag engine CI](https://github.com/kandyman991/HMIStudio/actions/runs/45871477557), [handoff](https://github.com/kandyman991/HMIStudio/actions/runs/45871477571). Corrected stale values during pending IPC and idempotent Start recovery. Mapped nested image declarations and tested missing-resource rollback. Local importer tests (54), frontend tests (23) and frontend build passed. Verify successor CI before integration. Keep the draft and RUST-05 claim. Archive/package admission, further migration coverage, review-edit recovery and production consumer enforcement remain open.
+
+## REUSE-03B.11 image migration reports (2026-11-26)
+
+Verified draft #36 at `4d1da3b` against [Desktop CI](https://github.com/kandyman991/HMIStudio/actions/runs/45887275546), [Tag engine CI](https://github.com/kandyman991/HMIStudio/actions/runs/45887275497) and [handoff](https://github.com/kandyman991/HMIStudio/actions/runs/45887275547). All three passed. The successor corrects the asset size destination and adds field-specific image diagnostics on screens and reusable elements. Verify successor CI and independent review. Review-edit crash recovery remains a next implementation target within the retained reservation.

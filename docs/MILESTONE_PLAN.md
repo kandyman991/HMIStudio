@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · Draft PR #36 integrates isolated native simulation and extends portable migration to images in reusable definitions.
+**In progress** · Draft PR #36 integrates isolated simulation and records field-specific image import failures and verified asset sizes.
 
 **Acceptance criteria**
 
@@ -752,7 +752,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [0636ff3](https://github.com/kandyman991/HMIStudio/commit/0636ff3365a43971c40370580a171a5c4ad33d4a) · snapshot 2026-11-26T19:55:08Z · [Desktop CI #45871477172](https://github.com/kandyman991/HMIStudio/actions/runs/45871477172) success, [Tag engine CI #45871477557](https://github.com/kandyman991/HMIStudio/actions/runs/45871477557) success, [Engineering handoff snapshot #45871477571](https://github.com/kandyman991/HMIStudio/actions/runs/45871477571) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [4d1da3b](https://github.com/kandyman991/HMIStudio/commit/4d1da3bb1f65b3ad2c5a1a4666cac57442c6d318) · snapshot 2026-11-26T20:22:04Z · [Desktop CI #45887275546](https://github.com/kandyman991/HMIStudio/actions/runs/45887275546) success, [Tag engine CI #45887275497](https://github.com/kandyman991/HMIStudio/actions/runs/45887275497) success, [Engineering handoff snapshot #45887275547](https://github.com/kandyman991/HMIStudio/actions/runs/45887275547) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -783,6 +783,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified f8d14cf: all 19 hosted jobs passed, including Windows 16+1 and Linux 17+1 native tests; installers skipped. Candidate review corrections add typed session outcomes, stale-value hiding, periodic native refresh and forced real-child exit/restart coverage. Retain the RUST-05 claim; corrected-head CI and review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Exact head e643e61 passed frontend, all standalone crate jobs, Tag engine CI and handoff; both native desktop jobs stopped at the same rustfmt difference in the Unix test command. Applied the exact formatting correction; native compilation and both real-child regressions remain pending on the corrected head. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Reviewed native session loss, command refusal, transport recovery and isolation at 0636ff3. Both native child regressions passed on Windows and Linux. Corrected pending-IPC sample expiry and lost Start reply recovery; advanced portable migration to nested image declarations with transactional refusal of absent assets. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Verified all three workflows on 4d1da3b. Corrected the sizeBytes report destination and field-specific image diagnostics for screen and reusable components. Review the successor and its CI before integration. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

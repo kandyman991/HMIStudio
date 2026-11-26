@@ -763,11 +763,11 @@ fn typed_dropdown_and_policy_bounds() {
 fn png_resource_transfer_is_atomic_and_integrity_checked() {
     use sha2::{Digest, Sha256};
     let mut f = fixture(7);
-    let data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
+    let data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
     let bytes = [
         137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0,
         0, 1, 8, 4, 0, 0, 0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218,
-        99, 252, 255, 31, 0, 3, 3, 2, 0, 239, 163, 69, 153, 0, 0, 0, 0, 73, 69, 78, 68,
+        99, 252, 255, 31, 0, 3, 3, 2, 0, 239, 162, 167, 91, 0, 0, 0, 0, 73, 69, 78, 68,
         174, 66, 96, 130,
     ];
     let hash = format!("{:x}", Sha256::digest(bytes));

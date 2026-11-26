@@ -111,3 +111,73 @@ Recognized unsupported v10 faceplate action declarations and typed text-input pr
 | Inactive preservation | Absolute geometry metadata, separate alarm/faceplate/text-input review records, value-free leaf report | Other unknown source contracts remain in original source; no general arbitrary-payload copy |
 
 No completeness/freeze acceptance is claimed. A source project with any refused leaf or gate still returns no canonical project and no resource bytes. Schema v2 remains frozen. Independent technical review and exact-head CI are pending.
+
+## REUSE-03B.5 — compatibility-gap review (2026-11-26)
+
+Review baseline: PR #36 head 3f6d5ead8fee543652a1d496c52ce9518559c261, Desktop CI 45784954881 (37/37 Windows and Linux), handoff 45784954931. Compared the pinned legacy 92a612d104693800d7119ee4dc0114636b19002f model, HmiProjectJson, HmiProjectValidator, ScreenOrder, StandardComponentCatalog, AccessRules and OperatorActions against frozen canonical v2, importer source and existing migration plan. Schema file Git blob 30110474b6714749441099b605976c38bd2b0e5b is identical at the PR base and reviewed correction head. No local execution, private source transfer or Desktop Commander. This is a source review and gap triage, not an independent sign-off on the full PR.
+
+### Findings and corrections
+
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| B5-01 | High | Exact address comparison scoped to source ID misses split connection declarations for the same endpoint. | Corrected: refuse two source IDs used at the same case-normalized configured endpoint if either is writable. DNS aliases, different protocols/routing, address normalization and byte/bit range overlap still require driver-aware validation. No network discovery. |
+| B5-02 | High | Implicit operate permission for command actions/inputs is not encoded when security exists but requiredPermission is null. | Corrected for admitted write-only event sets and drop-downs; mixed implicit command/navigation restrictions refuse because one node permission cannot express both. No authorization is granted. |
+| B5-03 | Medium | Debug output could expose full successfully mapped project data, addresses and resource bytes. | Corrected: outcome Debug is counts/presence only. Report paths and ID map still contain source keys; local sensitive artifact, not telemetry. |
+| B5-04 | Medium | Valid project with no explicit startup was refused even with unambiguous admitted screen order. | Corrected using first admitted screen, per legacy ScreenOrder.startup; explicit unknown startup still refuses. Multi-screen implicit insertion order remains unsupported. |
+| B5-05 | Blocking | Imported trust flags and warning-bearing canonical project can exist without enforced downstream quarantine. | Not corrected by importer-only code; mandatory engineering-core integration/publish gate. Do not expose import to UI, runtime, deployment or live connection until guarded. |
+| B5-06 | Blocking | Leaf accounting and canonical validation do not prove full legacy source validity, version fidelity or valid target pointers after adaptive relocation. | Need source-validator cross-check and final destination audit; current load_project verifies canonical errors, not source semantics. |
+| B5-07 | Blocking | Resource structural checks do not prove safe pixel decoding or complete SVG parity. | Require bounded decoder validation, sanitized vector subset and package transaction; refuse unsupported data until validated. |
+| B5-08 | High | Inactive sidecar evidence only exists in memory; no transactional persistence or enforcement across reopen/export. | Engineering integration required. Current refusal must remain fail-closed. |
+| B5-09 | High | Legacy live plan limits device writes per event and denies live writes from screen lifecycle events; schema declarations alone do not implement these checks. | Runtime/publish conformance required, including permission, confirmation, arming, quality/readback and no-op stepping. Development simulation is separate from production authorization. |
+
+Three new regression groups cover B5-01/03, B5-02 and B5-04. Expected total 40; corrected-head hosted CI pending.
+
+### Gap taxonomy
+
+I = importer/integration work within v2; S = exact source semantics not representable by frozen declaration contract (or not established); P = policy/runtime parity or publication gate, not a reason to change schema automatically. A canonical equivalent may exist but still be unsafe to activate before P is closed.
+
+| Legacy contract | Classification and resolution |
+|---|---|
+| Portable JSON versions 1–10 | I: strict source validation, version-minimum checks and original synthetic version-specific fixtures (not just same shape with changed version). Legacy serializer may normalize lower declarations; document strict refusal choice. |
+| Screen order, implicit startup, target profiles | I: preserve insertion order during decode or refuse ambiguous order; explicit complete order supported; target profiles require explicit dimensions or inactive evidence, not invented sizes. |
+| Legacy revision bundle and runtime package | I/P: checksummed revision and bounded archive admission, path/duplicate/size limits, independent key verification status; no imported trust. |
+| Full standard catalog definitions | I: recognize exact pinned standard signatures and account for each field; don't ignore nonstandard overrides. Current normal full-catalog exports may refuse. |
+| Variables and simulation defaults | I/P: typed simulation values can be kept as inert evidence until simulator integration; writable internal/sim-only variables need separate simulation contract and explicit live refusal. |
+| Sources, configuration, mappings | I: supported drivers only; driver-aware address validation and canonical overlap checks; no credential ingestion. S: split read/write paths cannot collapse to one tag endpoint. P: commissioning declaration is never actual authority. |
+| Commands | I/P: numeric set/step, bool set/toggle/pulse subsets; widen only after exact type conversion and policy conformance. S: critical reason/second confirmation, write-only momentary, decimal/max-change/readback semantics not fully represented. |
+| Security | I: permission description can be inert local evidence; explicit/implicit restrictions, built-in roles and references validated. S: mixed command and navigation permissions need distinct enforcement; no invented authority. P: local accounts, runtime authorization, role/lock/readback checks. |
+| Absolute layout, row/column, slot alignment, grid | I: bounds, alignment, complete placement and destination remap; design-frame approximation already declared. S: dynamic adaptive local measurement and ScaleGroup proportional scaling plus reflow not established in v2. |
+| Reusable definitions and parameters | I: canonical typed values and explicitly typed tag parameters exist; add compatible read-only numeric/value params, nested forwarding and interpolation only with proof. S: generic numeric variable unions and dynamic templates may require restricted subset. P: writable parameter and nested operator semantics. |
+| Direct bindings, expressions, enumeration use | I: add catalog-verified read-only slots, per-binding transforms and exact enum mappings where equivalent. S: component-specific enumeration association cannot be converted to tag-global behavior when uses differ; dynamic blink/rotation and other legacy targets need exact consumer contract. |
+| button, label, rectangle, ellipse, indicator, numericField, composite | I/P: admitted static/read-only subsets; remaining properties, binding slots, standard definitions, event and renderer parity. |
+| line, arrow, polygon | I/P: fixed-frame primitives supported; extend safe property/geometry coverage. S: exact filled-arrow, dashed stroke and responsive normalized scaling differ. |
+| image, svgImage | I/P: nested resource references, safe full raster decode, wider allowlisted SVG and package persistence; no active content. |
+| motor, pump, valve, conveyor, tank, pipe | I/P: passive slots supported; more read-only slots can be expressed via original reusable composites, with warnings. S: unrepresentable exact original animation/interaction contract must refuse; no forced slot coercion. |
+| sensor, thermalIndicator, flowIndicator | I: use explicit typed read-only canonical display/indicator compositions rather than force value into Boolean active or Boolean flow into numeric flow. S/P: exact symbol classification, fault/active states, units and visual semantics remain unproven. Thermal value-only subset supported. |
+| gauge, levelIndicator | I/P: canonical gauge/progress/display properties and read bindings exist; investigate vertical direction, ranges, thresholds, units and quality before mapping. |
+| switch, slider, numericInput, dropDown | I/P: existing canonical typed controls; admitted dropdown subset only. Map confirmed typed policy, exact ranges/choices, valueChange ordering and runtime write refusal. |
+| textInput | S/P: component contract exists but legacy writable string has no agreed industrial command policy; review-only until policy and input validation established. No change to frozen schema by this PR. |
+| navigate.screen/back/startup, popup.close | I/P: supported declaration subset; check original event admission, target permission and popup stack semantics. |
+| open.popup | I/S/P: existing popup action/screen model; need distinguish pages from popup targets and modal behavior, avoid silently changing multi-use screen semantics. |
+| open.faceplate | I: canonical action and concrete argument map exist; resolve explicit/name-matched parameters with exact types and complete references. S/P: legacy instance press event vs canonical instance click and modal/dispatch timing not established; review-only rather than change trigger. |
+| Alarms | I/P: canonical condition/severity/message fields exist; prior proposed IsTrue mapping is not proof. Legacy declaration does not specify activation, acknowledgement, latching or quality; establish oracle or keep review-only. |
+| Themes, styles | I: explicit tokens, reusable styles, supported per-component cascade; extend static mappings, live named-style references and supported typography. S: exact equipment-state cascade and runtime adaptive token/typography semantics not established. |
+| Inactive preservation | I/P: typed local review records and source hash; add safe allowlisted persisted extensions/report and non-bypassable guard. Unknown payloads/credentials must not be copied arbitrarily. |
+
+The 27 palette kinds plus composite are covered by the catalog rows above. Classification of a gap as S means no proven exact representation at this head, not a proposal to unfreeze schema v2.
+
+### Acceptance gates for PR #36
+
+These gates refine, not replace, the binding migration plan (docs/reuse/LEGACY_PROJECT_MIGRATION.md section 6) and REUSE-03 roadmap criteria. No gate is waived by green hosted CI.
+
+1. Frozen schema and existing canonical consumers unchanged; explicit compare against merged PR #35. No private legacy source/fixture transfer; original synthetic test assets only.
+2. Exact-head Windows/Linux formatting, Clippy, locked tests, rustdoc, Required CI and handoff snapshot all pass; independent reviewer verifies logs, corrections and exact head.
+3. Source admission is strict, version-aware and bounded; supported fixtures for every version contain version-specific features. Negative corpus includes wrong versions, invalid references, duplicate IDs/keys, malformed properties, unknown fields, aliases/overlaps and invalid resource content. Validate against pinned legacy rules and record known stricter refusals.
+4. Every admitted fixture maps deterministically, round-trips via canonical validation and serialization, and accounts for every source leaf with a truthful disposition; every mapped/preserved target resolves or names an explicit transformation. Refused inputs emit no project or resource bytes, and no blocking finding is mapped.
+5. No write/security semantics are approximated or silently discarded. Unknown credential/payload data stays in source; logs/debug/report values remain redacted. Tests cover implicit permissions, mixed action cases, write limits, confirmation, endpoint alias/overlap and typed reference integrity.
+6. Coverage matrix reconciled: every remaining unsupported contract has an explicit negative test and reason, a within-v2 resolution or a documented owner-approved deferral. No claim of full legacy compatibility from a partial subset.
+7. Engineering-session import transaction, atomic resource/report persistence and source read-only guarantee verified. If an unsupported declaration is retained in an editable project, it must carry a persisted, non-bypassable publish/live-connect refusal; until then refuse complete project output. Do not expose an unguarded importer consumer.
+8. Archive/bundle and last-resort package admission bounded and verified, or explicitly deferred by owner to separate scope. A signed source does not authorize deployment. Native/runtime equivalence and engine config revalidation belong to REUSE-04; preserve the downstream refusal gate rather than certify parity here.
+9. Independent technical review finds no unresolved blocking defects in the agreed PR scope; roadmap reservation and milestone state reconciled after verified merge, never before.
+
+Recommended path: finish the within-v2 source validator/reference audit and negative corpus first, then engineering-core quarantine/persistence integration under an expanded reservation, then resolve/explicitly defer semantic gaps. If the owner instead chooses a standalone portable-import foundation PR, record an explicit narrower acceptance decision and retain REUSE-03 in progress with a follow-up reservation; do not silently redefine milestone completion.

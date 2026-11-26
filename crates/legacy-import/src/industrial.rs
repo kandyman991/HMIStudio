@@ -631,7 +631,9 @@ fn security(v: &Value, m: &mut Mapping, ver: u64) -> Option<(Value, Vec<Value>, 
                             for action in list {
                                 if matches!(
                                     action["action"].as_str(),
-                                    Some("value.set" | "value.toggle" | "value.pulse" | "value.step")
+                                    Some(
+                                        "value.set" | "value.toggle" | "value.pulse" | "value.step"
+                                    )
                                 ) {
                                     writes = true;
                                 } else {

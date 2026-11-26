@@ -56,9 +56,12 @@ impl FileSystem for StdFileSystem {
     }
 
     fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        let file = std::fs::File::open(path)?;
+        if file.metadata()?.len() > limit as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "file too large"));
+        }
         let mut bytes = Vec::new();
-        std::fs::File::open(path)?
-            .take((limit as u64).saturating_add(1))
+        file.take((limit as u64).saturating_add(1))
             .read_to_end(&mut bytes)?;
         if bytes.len() > limit {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "file too large"));

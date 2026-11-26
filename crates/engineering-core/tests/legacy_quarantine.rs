@@ -137,7 +137,7 @@ fn catalog_provenance_alone_refuses_production_and_plain_save() {
     let path = dir.join("review.bundle");
     let review =
         QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs()).unwrap();
-    let mut project = review.snapshot().project.as_ref().clone();
+    let mut project = review.snapshot().project;
     project.extensions.remove("hmistudio.importQuarantine");
     project.extensions.remove("hmiforge.idMap");
     project
@@ -162,4 +162,44 @@ fn bounded_bundle_read_refuses_oversize() {
         QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()),
         Err(hmi_engineering_core::legacy_quarantine::ImportError::SizeLimit)
     ));
+}
+
+#[test]
+fn recomputed_checksum_cannot_hide_incomplete_report() {
+    use sha2::{Digest, Sha256};
+
+    // Match the persisted payload field order when recomputing its checksum.
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ChecksumPayload<'a> {
+        source: &'a serde_json::Value,
+        original_project: &'a serde_json::Value,
+        project: &'a serde_json::Value,
+        report: &'a serde_json::Value,
+        resources: &'a serde_json::Value,
+    }
+
+    let dir = TempDir::new("review-replay");
+    let path = dir.join("review.bundle");
+    QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs()).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let mut envelope: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let report = &mut envelope["payload"]["report"];
+    let findings = report["findings"].as_array_mut().unwrap();
+    assert!(!findings.is_empty());
+    findings.pop();
+    let count = findings.len();
+    report["sourceLeafCount"] = json!(count);
+    let payload = &envelope["payload"];
+    let body = serde_json::to_vec(&ChecksumPayload {
+        source: &payload["source"],
+        original_project: &payload["originalProject"],
+        project: &payload["project"],
+        report: &payload["report"],
+        resources: &payload["resources"],
+    })
+    .unwrap();
+    envelope["sha256"] = json!(format!("{:x}", Sha256::digest(&body)));
+    std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
 }

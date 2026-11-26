@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · Draft PR #36 adds versioned replay, isolated simulation, image migration and review-edit crash recovery with ownership and confirmation safeguards.
+**In progress** · Draft PR #36 has CI-verified and independently reviewed review-edit crash recovery, versioned replay, isolated simulation and image migration.
 
 **Acceptance criteria**
 
@@ -748,11 +748,11 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Verify corrected recovery candidate exact-head Windows/Linux hosted CI and independent review before continuing migration. Actual publisher and live connection admission, archive/package decoding and remaining migration semantics remain open.
+- Archive/package decoding and remaining legacy migration semantics remain open. Actual production publisher and live connection admission consumers remain outstanding; no production acceptance.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [7af99d3](https://github.com/kandyman991/HMIStudio/commit/7af99d36d8b24d1a02382b49e45f663a3a9eba96) · snapshot 2026-11-26T22:06:55Z · [Desktop CI #45901662617](https://github.com/kandyman991/HMIStudio/actions/runs/45901662617) failure, [Tag engine CI #45901662675](https://github.com/kandyman991/HMIStudio/actions/runs/45901662675) success, [Engineering handoff snapshot #45901662650](https://github.com/kandyman991/HMIStudio/actions/runs/45901662650) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [58c506b](https://github.com/kandyman991/HMIStudio/commit/58c506bce79681711ae4ce37cb6df5886da8dcb1) · snapshot 2026-11-26T22:38:48Z · [Desktop CI #45902678915](https://github.com/kandyman991/HMIStudio/actions/runs/45902678915) success, [Tag engine CI #45902678968](https://github.com/kandyman991/HMIStudio/actions/runs/45902678968) success, [Engineering handoff snapshot #45902678895](https://github.com/kandyman991/HMIStudio/actions/runs/45902678895) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -787,6 +787,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Image-size mapping now uses importer report revision 0.1.1. Reopen and save-copy replay older 0.1.0 evidence, including both historical asset-size representations, before comparing the full original report and project. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Independently reviewed versioned replay at 63914d6; all three workflows passed. Implemented separate exact-base-bound review recovery with native writer locking and explicit restore/discard/cancel; local engineering core 81, importer 54 and isolated native host 19 tests passed. Successor hosted CI and independent recovery review remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified d9c930d all workflows passed; 7af99d3 failed the same clean-undo recovery status regression on both engineering-core platforms. Corrected review response status, retirement ownership, bounded reads and native confirmation identity. Local engineering core 85 and isolated host 21 tests passed; successor hosted CI and independent review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Independent recovery review (ChatGPT) closed at 58c506b: all three exact-head workflows passed, including Windows/Linux engineering-core and native recovery regressions, real-child simulation and resynchronization. No blocking recovery finding within the documented cooperating-writer boundary. Continue remaining migration semantics and bounded archive/package decoding; PR #36 remains draft. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
@@ -856,7 +857,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 ## Shared reservation snapshot
 
-- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-26T14:13:57Z
+- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-26T15:55:17Z
 
 ## Engineering decisions
 

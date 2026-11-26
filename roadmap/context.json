@@ -81,19 +81,27 @@
       "owner": "ChatGPT",
       "branch": "feat/reuse-03b-legacy-import",
       "scope": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/tag-engine.yml",
         "crates/engineering-core/",
         "crates/hmi-engine/src/engine.rs",
         "crates/hmi-engine/src/main.rs",
         "crates/hmi-engine/tests/isolated_runtime.rs",
         "crates/hmi-engine/tests/legacy_address_conformance.rs",
         "crates/legacy-import/",
+        "crates/tag-engine/src/bridge_project_simulation.rs",
+        "crates/tag-engine/src/bridge_supervisor.rs",
+        "crates/tag-engine/src/lib.rs",
+        "crates/tag-engine/tests/bridge_project_simulation.rs",
         "src-tauri/Cargo.lock",
+        "src-tauri/Cargo.toml",
         "src-tauri/src/main.rs",
         "src-tauri/src/persistence_host.rs",
+        "src-tauri/src/runtime_host.rs",
         "src-tauri/src/session_host.rs",
         "src/main.tsx"
       ],
-      "observedAt": "2026-11-26T14:13:57Z"
+      "observedAt": "2026-11-26T15:55:17Z"
     }
   ]
 }

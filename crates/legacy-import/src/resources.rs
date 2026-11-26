@@ -19,7 +19,7 @@ fn decode(s: &str) -> Option<Vec<u8>> {
         return None;
     }
     let mut out = Vec::with_capacity(s.len() / 4 * 3);
-    let mut chunks = s.as_bytes().chunks_exact(4).peekable();
+    let mut chunks = s.as_bytes().as_chunks::<4>().0.iter().peekable();
     while let Some(c) = chunks.next() {
         let a = digit(c[0])?;
         let b = digit(c[1])?;

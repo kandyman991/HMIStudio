@@ -1184,20 +1184,27 @@ fn catalog_signature_rejects_changed_slot_semantics() {
     f["componentDefinitions"]["standard.button"] = json!({"id":"standard.button","displayName":"Button","type":"button","bindingSlots":{"command":{"role":"command","acceptedTypes":["BOOL"],"required":false,"writable":true}},"defaultProperties":{"text":"Button"}});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
-    f["componentDefinitions"]["standard.button"]["bindingSlots"]["command"]["writable"] = json!(false);
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    f["componentDefinitions"]["standard.button"]["bindingSlots"]["command"]["writable"] =
+        json!(false);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
 }
 
 #[test]
 fn physical_s7_integer_limits_and_bit_shorthand() {
     let mut f = industrial_fixture();
     f["externalMappings"]["map-a"]["externalAddress"] = json!("DB1.INT0");
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
     f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":-32768,"max":32767});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
     f["externalMappings"]["map-a"]["command"]["max"] = json!(32768);
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
     f["externalMappings"]["map-a"]["externalAddress"] = json!("M0.0");
     f["variables"]["label-a"]["type"] = json!("BOOL");
     f["variables"]["label-a"]["access"] = json!("COMMAND");
@@ -1208,25 +1215,34 @@ fn physical_s7_integer_limits_and_bit_shorthand() {
     f["variables"]["second"]["type"] = json!("BOOL");
     f["variables"]["second"]["engineeringUnit"] = Value::Null;
     f["externalMappings"]["map-b"]["externalAddress"] = json!("M.X0.1");
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
 }
 
 #[test]
 fn explicit_standard_reference_integrity() {
     let mut f = fixture(1);
     f["componentDefinitions"]["standard.label"] = json!({"id":"standard.label","displayName":"Label","type":"label","defaultProperties":{"text":"Label"}});
-    f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] = json!("standard.label");
+    f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] =
+        json!("standard.label");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
-    f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] = json!("standard.button");
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] =
+        json!("standard.button");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
 }
 
 #[test]
 fn strict_report_gate_and_default_elision() {
     let f = fixture(1);
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
-    let p = a.project.as_ref().unwrap_or_else(|| panic!("{:?}", a.report));
+    let p = a
+        .project
+        .as_ref()
+        .unwrap_or_else(|| panic!("{:?}", a.report));
     let d = serde_json::to_value(p).unwrap();
     let mut expected = BTreeSet::new();
     paths(&f, "", &mut expected);
@@ -1255,8 +1271,13 @@ fn strict_report_gate_and_default_elision() {
 fn pre_v10_event_contract_is_rejected_before_mapping() {
     let mut f = fixture(5);
     f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!("button");
-    f["screens"]["screen/a"]["components"]["label-a"]["actions"] = json!({"release":{"action":"navigate.back"}});
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"] =
+        json!({"release":{"action":"navigate.back"}});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|f| f.code == "source-feature-version-mismatch"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|f| f.code == "source-feature-version-mismatch"));
 }

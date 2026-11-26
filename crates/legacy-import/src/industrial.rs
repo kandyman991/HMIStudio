@@ -386,9 +386,9 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                     let limits = &w["limits"];
                     if limits["min"].as_i64().is_none_or(|n| n < min)
                         || limits["max"].as_i64().is_none_or(|n| n > max)
-                        || limits.get("step").is_some_and(|x| {
-                            x.as_i64().is_none_or(|step| step > max - min)
-                        })
+                        || limits
+                            .get("step")
+                            .is_some_and(|x| x.as_i64().is_none_or(|step| step > max - min))
                     {
                         return fail(m, &path(&p, "command"), "write-limits-exceed-s7-range");
                     }

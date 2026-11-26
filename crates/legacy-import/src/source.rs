@@ -32,9 +32,13 @@ fn component(c: &Value, p: &str, version: u64, v: &Value, m: &mut Mapping) -> Op
         let id = id.as_str()?;
         let definition = &v["componentDefinitions"][id];
         if c["type"] != "composite"
-            && (definition["type"] != c["type"] || super::catalog::recognize(id, definition).is_none())
+            && (definition["type"] != c["type"]
+                || super::catalog::recognize(id, definition).is_none())
         {
-            m.fail(&path(p, "componentDefinitionId"), "standard-instance-reference-mismatch");
+            m.fail(
+                &path(p, "componentDefinitionId"),
+                "standard-instance-reference-mismatch",
+            );
             return None;
         }
     }
@@ -51,7 +55,10 @@ fn component(c: &Value, p: &str, version: u64, v: &Value, m: &mut Mapping) -> Op
                     || action.get("parameters").is_some_and(present)
                     || action.get("modal").is_some_and(|x| x != true)
                 {
-                    m.fail(&path(&path(p, "actions"), event), "source-feature-version-mismatch");
+                    m.fail(
+                        &path(&path(p, "actions"), event),
+                        "source-feature-version-mismatch",
+                    );
                     return None;
                 }
             }

@@ -22,7 +22,10 @@ pub(super) fn s7(address: &str, ty: &str, writable: bool) -> Option<Span> {
     let upper = address.to_ascii_uppercase();
     // Normalize the engine's M/I/E/Q/A shorthand bit syntax before parsing.
     let shorthand;
-    let upper = if upper.as_bytes().first().is_some_and(|b| b"MIEQA".contains(b))
+    let upper = if upper
+        .as_bytes()
+        .first()
+        .is_some_and(|b| b"MIEQA".contains(b))
         && upper.as_bytes().get(1).is_some_and(u8::is_ascii_digit)
     {
         shorthand = format!("{}.X{}", &upper[..1], &upper[1..]);

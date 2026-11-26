@@ -213,7 +213,10 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     if kind != "composite" {
         if let Some(def) = v.get("componentDefinitionId").filter(|x| !x.is_null()) {
             result["extensions"]["hmiforge.standardDefinition"] = def.clone();
-            m.mark(&path(p, "componentDefinitionId"), &format!("{t}/extensions/hmiforge.standardDefinition"));
+            m.mark(
+                &path(p, "componentDefinitionId"),
+                &format!("{t}/extensions/hmiforge.standardDefinition"),
+            );
             if let Some(f) = m.findings.get_mut(&path(p, "componentDefinitionId")) {
                 f.disposition = "preserved";
                 f.code = "standard-catalog-preserved";
@@ -830,7 +833,8 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                         finding.code = "standard-catalog-preserved";
                         finding.severity = "info";
                         finding.target = Some(format!("{target}{suffix}"));
-                        finding.message = "Recognized standard declaration retained as inactive evidence.";
+                        finding.message =
+                            "Recognized standard declaration retained as inactive evidence.";
                     }
                 }
                 continue;

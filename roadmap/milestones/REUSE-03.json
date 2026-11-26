@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify the review corrections in hosted Windows and Linux CI at the exact PR head. Actual publisher and live connection admission, isolated runtime integration, archive/package admission and unresolved migration semantics remain open."
+    "Verify production admission at the actual publisher and live connection entry points. Isolated runtime integration, archive/package admission and unresolved migration semantics remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -29,33 +29,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+      "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45829699850,
+          "id": 45835880081,
           "name": "Desktop CI",
-          "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+          "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45829699807,
+          "id": 45835880113,
           "name": "Engineering handoff snapshot",
-          "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+          "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45829699781,
+          "id": 45835880330,
           "name": "Tag engine CI",
-          "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+          "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T13:59:23Z"
+      "observedAt": "2026-11-26T14:12:45Z"
     }
   ],
   "assignment": {
@@ -180,6 +180,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Corrected ordinary persistence admission, review save-copy history, stale native requests and restart after interrupted review publication. Production screening is native-only. Actual live/publish enforcement and isolated runtime integration remain acceptance gaps. Verify the new exact head.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified all 19 hosted jobs on corrected source 13aeca7, including Windows/Linux native tests and Required CI. Recorded the tested source and regenerated the dashboard. PR #36 remains a draft and the RUST-05 reservation remains active.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

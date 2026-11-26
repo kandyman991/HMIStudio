@@ -748,11 +748,11 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Verify the review corrections in hosted Windows and Linux CI at the exact PR head. Actual publisher and live connection admission, isolated runtime integration, archive/package admission and unresolved migration semantics remain open.
+- Verify production admission at the actual publisher and live connection entry points. Isolated runtime integration, archive/package admission and unresolved migration semantics remain open.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T12:54:31Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [fc2a531](https://github.com/kandyman991/HMIStudio/commit/fc2a531fea09fb4ae21723062e7bb240a6dc00e6) · snapshot 2026-11-26T13:59:23Z · [Desktop CI #45829699850](https://github.com/kandyman991/HMIStudio/actions/runs/45829699850) success, [Engineering handoff snapshot #45829699807](https://github.com/kandyman991/HMIStudio/actions/runs/45829699807) success, [Tag engine CI #45829699781](https://github.com/kandyman991/HMIStudio/actions/runs/45829699781) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [13aeca7](https://github.com/kandyman991/HMIStudio/commit/13aeca71746a926101c410bc92bce8c477a3d69d) · snapshot 2026-11-26T14:12:45Z · [Desktop CI #45835880081](https://github.com/kandyman991/HMIStudio/actions/runs/45835880081) success, [Engineering handoff snapshot #45835880113](https://github.com/kandyman991/HMIStudio/actions/runs/45835880113) success, [Tag engine CI #45835880330](https://github.com/kandyman991/HMIStudio/actions/runs/45835880330) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -776,6 +776,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified b3b5898: all 19 hosted jobs, seven quarantine, 54 importer and two address differential tests per platform. REUSE-03B.8 reserves native desktop and frontend paths; candidate review import/open/save-copy and production screening, no real publication/live connection implementation or acceptance. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Independent REUSE-03B.8 review started from PR #36 at fc2a531 and main at b9ae1d5. Verified hosted Windows/Linux CI and retained the existing RUST-05 reservation. Review corrections cover recovery, save-copy history, native admission and interrupted bundle publication. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Corrected ordinary persistence admission, review save-copy history, stale native requests and restart after interrupted review publication. Production screening is native-only. Actual live/publish enforcement and isolated runtime integration remain acceptance gaps. Verify the new exact head. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Verified all 19 hosted jobs on corrected source 13aeca7, including Windows/Linux native tests and Required CI. Recorded the tested source and regenerated the dashboard. PR #36 remains a draft and the RUST-05 reservation remains active. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

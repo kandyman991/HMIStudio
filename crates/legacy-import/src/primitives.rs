@@ -146,7 +146,7 @@ pub(super) fn symbol(
 }
 
 // A legacy arrow has a filled triangular head, whereas the canonical
- // arrow is a line with a head. Only same-color cardinal arrows are admitted.
+// arrow is a line with a head. Only same-color cardinal arrows are admitted.
 pub(super) fn arrow(
     v: &Value,
     p: &str,
@@ -196,7 +196,8 @@ pub(super) fn arrow(
     if let Some(f) = m.findings.get_mut(&path(p, "type")) {
         f.code = "arrow-renderer-approximation";
         f.severity = "warning";
-        f.message = "Cardinal arrow geometry mapped; filled-head and resize parity not established.";
+        f.message =
+            "Cardinal arrow geometry mapped; filled-head and resize parity not established.";
     }
     m.contracts.push(json!({"id":id,"contract":contract}));
     Some(())

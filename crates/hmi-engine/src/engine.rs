@@ -211,18 +211,19 @@ pub async fn run(requests: Receiver<Request>, out: Sender<Message>) {
 /// Simulation writes do not require production arming; type, access, limits,
 /// connection state and pulse semantics still apply.
 pub async fn run_isolated(requests: Receiver<Request>, out: Sender<Message>) {
-    let factory: driver::DriverFactory = std::sync::Arc::new(
-        |source, points, credentials, sink| {
+    let factory: driver::DriverFactory =
+        std::sync::Arc::new(|source, points, credentials, sink| {
             if source.driver != "loopback" || !source.settings.is_empty() || credentials.is_some() {
-                return Err(driver::DriverError("isolated runtime requires memory only".into()));
+                return Err(driver::DriverError(
+                    "isolated runtime requires memory only".into(),
+                ));
             }
             Ok(Box::new(driver::loopback::LoopbackDriver::new(
                 source.clone(),
                 points,
                 sink,
             )))
-        },
-    );
+        });
     run_mode(requests, out, factory, Limits::default(), true).await
 }
 
@@ -599,7 +600,10 @@ impl Engine {
                 let decision = if !stale
                     && ((self.isolated && !self.simulation_paused)
                         || (!self.isolated
-                            && self.armed.as_ref().is_some_and(|armed| armed.actor == actor)))
+                            && self
+                                .armed
+                                .as_ref()
+                                .is_some_and(|armed| armed.actor == actor)))
                 {
                     guard::check_write(
                         &GuardState {
@@ -666,7 +670,10 @@ impl Engine {
                 let decision = if stale
                     || (self.isolated && self.simulation_paused)
                     || (!self.isolated
-                        && !self.armed.as_ref().is_some_and(|armed| armed.actor == actor))
+                        && !self
+                            .armed
+                            .as_ref()
+                            .is_some_and(|armed| armed.actor == actor))
                 {
                     Err(WriteRefusal::WritesDisarmed)
                 } else if self.pulses.contains_key(&variable_id)

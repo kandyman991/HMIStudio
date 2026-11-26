@@ -649,6 +649,7 @@ fn typed_boolean_action_policy_and_pulse_agreement() {
     f["schemaVersion"] = json!(10);
     f["variables"]["label-a"]["type"] = json!("BOOL");
     f["variables"]["label-a"]["access"] = json!("COMMAND");
+    f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
     f["externalMappings"]["map-a"]["command"] = json!({"kind":"MAINTAINED"});
     let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
     c["type"] = json!("button");

@@ -1221,3 +1221,42 @@ fn explicit_standard_reference_integrity() {
     f["screens"]["screen/a"]["components"]["label-a"]["componentDefinitionId"] = json!("standard.button");
     assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
 }
+
+#[test]
+fn strict_report_gate_and_default_elision() {
+    let f = fixture(1);
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.as_ref().unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(p).unwrap();
+    let mut expected = BTreeSet::new();
+    paths(&f, "", &mut expected);
+    assert_eq!(a.report.source_leaf_count, Some(expected.len()));
+    assert!(a.report.destination_audit_completed);
+    for finding in &a.report.findings {
+        if let Some(original) = &finding.elided_target {
+            assert!(d.pointer(original).is_none());
+            assert!(d.pointer(finding.target.as_deref().unwrap()).is_some());
+        }
+    }
+    let mut report = a.report.clone();
+    report.unresolved_targets.push("/synthetic".into());
+    assert!(!report.has_complete_mapping());
+    report.unresolved_targets.clear();
+    report.source_leaf_count = Some(expected.len() + 1);
+    assert!(!report.has_complete_mapping());
+    let mut f = f;
+    f["unknown"] = json!("unexpected");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(!a.report.has_complete_mapping());
+}
+
+#[test]
+fn pre_v10_event_contract_is_rejected_before_mapping() {
+    let mut f = fixture(5);
+    f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!("button");
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"] = json!({"release":{"action":"navigate.back"}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.report.findings.iter().any(|f| f.code == "source-feature-version-mismatch"));
+}

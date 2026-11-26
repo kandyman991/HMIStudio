@@ -28,6 +28,10 @@ pub struct Finding {
     pub severity: &'static str,
     pub disposition: &'static str,
     pub target: Option<String>,
+    /// Intended destination omitted by canonical default serialization.
+    /// target then points to the containing canonical object.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub elided_target: Option<String>,
     pub message: &'static str,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -42,6 +46,21 @@ pub struct MigrationReport {
     /// Mapped/preserved source paths whose reported destination does not
     /// resolve in the final serialized canonical model. Local audit only.
     pub unresolved_targets: Vec<String>,
+    pub source_leaf_count: Option<usize>,
+    pub destination_audit_completed: bool,
+}
+impl MigrationReport {
+    /// Strict report completeness gate, not a runtime/deployment authorization.
+    pub fn has_complete_mapping(&self) -> bool {
+        self.destination_audit_completed
+            && self.source_leaf_count == Some(self.findings.len())
+            && self.unresolved_targets.is_empty()
+            && self.findings.iter().all(|f| {
+                matches!(f.disposition, "mapped" | "preserved")
+                    && f.severity != "blocking"
+                    && f.target.is_some()
+            })
+    }
 }
 pub struct ImportOutcome {
     /// None whenever any source field or validation gate is refused.
@@ -146,6 +165,7 @@ fn refused(p: String, code: &'static str) -> Finding {
         severity: "blocking",
         disposition: "refused",
         target: None,
+        elided_target: None,
         message: "Source field or admission gate is unsupported or invalid; no project emitted.",
     }
 }
@@ -274,6 +294,8 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         findings: vec![],
         id_map: BTreeMap::new(),
         unresolved_targets: Vec::new(),
+        source_leaf_count: None,
+        destination_audit_completed: false,
     };
     let stop = |mut r: MigrationReport, code| {
         r.findings.push(refused("".into(), code));
@@ -306,6 +328,8 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     if !leaves(&v, "", &mut m.findings) {
         return stop(report, "leaf-or-path-limit");
     }
+    let source_paths: BTreeSet<_> = m.findings.keys().cloned().collect();
+    report.source_leaf_count = Some(source_paths.len());
     let ver = v.get("schemaVersion").and_then(Value::as_u64);
     report.source_schema_version = ver;
     let mut review_only_alarms = Vec::new();
@@ -323,6 +347,9 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     if project.is_none() {
         m.fail("", "invalid-or-unsupported-project");
     }
+    if source_paths.iter().any(|p| !m.findings.contains_key(p)) {
+        m.fail("", "incomplete-source-leaf-accounting");
+    }
     report.id_map = m.ids;
     report.findings = m.findings.into_values().collect();
     let project = if report.findings.iter().any(|f| f.disposition == "refused") {
@@ -332,6 +359,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     };
     if let Some(project) = &project {
         if let Ok(serialized) = serde_json::to_value(project) {
+            report.destination_audit_completed = true;
             report.unresolved_targets = report
                 .findings
                 .iter()
@@ -629,5 +657,50 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
         doc["v2"]["components"]["components"] = json!(m.contracts);
     }
     doc["extensions"]["hmiforge.idMap"] = json!(m.ids);
-    load_project(&doc.to_string()).ok().map(|x| x.project)
+    let project = load_project(&doc.to_string()).ok()?.project;
+    let canonical = serde_json::to_value(&project).ok()?;
+    audit_elided_targets(v, &doc, &canonical, m);
+    Some(project)
+}
+
+// Only anchor omissions proven by the pre-normalization canonical document,
+// or explicitly mapped empty top-level collections. Never rewrite arbitrary
+// unresolved pointers: those remain visible and fail the report gate.
+fn audit_elided_targets(source: &Value, draft: &Value, canonical: &Value, m: &mut Mapping) {
+    for f in m.findings.values_mut() {
+        if !matches!(f.disposition, "mapped" | "preserved") {
+            continue;
+        }
+        let Some(target) = f.target.as_deref() else {
+            continue;
+        };
+        if canonical.pointer(target).is_some() {
+            continue;
+        }
+        let known_empty = matches!(
+            (f.path.as_str(), target),
+            ("/metadata/targetProfiles", "/deviceProfiles")
+                | ("/externalSources", "/connections")
+                | ("/externalMappings", "/tags")
+                | ("/alarms", "/alarms")
+                | ("/assets", "/resources")
+                | ("/componentDefinitions", "/components")
+                | ("/enumerations", "/v2/bindings/enumerations")
+        ) && source.pointer(&f.path).is_some_and(|v| {
+            v.as_object().is_some_and(|o| o.is_empty())
+                || v.as_array().is_some_and(|a| a.is_empty())
+        });
+        if draft.pointer(target).is_none() && !known_empty {
+            continue;
+        }
+        let mut parent = target;
+        while let Some((prefix, _)) = parent.rsplit_once('/') {
+            if canonical.pointer(prefix).is_some() {
+                f.elided_target = Some(target.to_owned());
+                f.target = Some(prefix.to_owned());
+                break;
+            }
+            parent = prefix;
+        }
+    }
 }

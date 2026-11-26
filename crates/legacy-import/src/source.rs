@@ -42,11 +42,13 @@ fn component(c: &Value, p: &str, version: u64, v: &Value, m: &mut Mapping) -> Op
         if let Some(events) = c["actions"].as_object() {
             for (event, action) in events {
                 let kind = action["action"].as_str();
-                if event != "press" || !matches!(
+                let supported = matches!(
                     kind,
                     Some("navigate.screen" | "navigate.back" | "navigate.startup")
-                        | Some("open.faceplate") if version >= 6 || kind != Some("open.faceplate")
-                ) || action.get("parameters").is_some_and(present)
+                ) || (version >= 6 && kind == Some("open.faceplate"));
+                if event != "press"
+                    || !supported
+                    || action.get("parameters").is_some_and(present)
                     || action.get("modal").is_some_and(|x| x != true)
                 {
                     m.fail(&path(&path(p, "actions"), event), "source-feature-version-mismatch");

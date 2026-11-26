@@ -617,7 +617,37 @@ fn security(v: &Value, m: &mut Mapping, ver: u64) -> Option<(Value, Vec<Value>, 
         if let Some(c) = s.get("components") {
             for (key, x) in c.as_object()? {
                 let p = path(&path(&p, "components"), key);
-                if let Some(x) = x.get("requiredPermission").filter(|x| !x.is_null()) {
+                let mut required = x.get("requiredPermission").filter(|x| !x.is_null());
+                let default_operate = json!("operate");
+                if required.is_none() && v.get("security").is_some_and(|s| !s.is_null()) {
+                    let mut writes = x["type"] == "dropDown";
+                    let mut other_actions = false;
+                    if let Some(actions) = x["actions"].as_object() {
+                        for value in actions.values() {
+                            let list = match value {
+                                Value::Array(a) => a.iter().collect::<Vec<_>>(),
+                                _ => vec![value],
+                            };
+                            for action in list {
+                                if matches!(
+                                    action["action"].as_str(),
+                                    Some("value.set" | "value.toggle" | "value.pulse" | "value.step")
+                                ) {
+                                    writes = true;
+                                } else {
+                                    other_actions = true;
+                                }
+                            }
+                        }
+                    }
+                    if writes && other_actions {
+                        return fail(m, &p, "mixed-implicit-command-permission");
+                    }
+                    if writes {
+                        required = Some(&default_operate);
+                    }
+                }
+                if let Some(x) = required {
                     let perm = ps.get(x.as_str()?).or_else(|| {
                         m.fail(&path(&p, "requiredPermission"), "unknown-permission");
                         None

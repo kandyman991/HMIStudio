@@ -502,8 +502,12 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
         }
         result.push(json!({"id":id,"name":title,"title":title,"root":{"id":root,"element":{"type":"absolute"},"layout":{"width":fixed(w),"height":fixed(h)},"children":children}}));
     }
-    // Explicit startup is required in this slice; no guessed startup behavior.
-    let start = meta.get("defaultScreenId")?.as_str()?;
+    // Legacy ScreenOrder.startup uses the first screen when no explicit
+    // startup is set. The admitted order is complete and deterministic.
+    let start = match meta.get("defaultScreenId") {
+        None | Some(Value::Null) => *order.first()?,
+        Some(value) => value.as_str()?,
+    };
     let start = screen_ids.get(start)?;
     m.mark("/metadata/defaultScreenId", "/navigation/startScreen");
     let mut tags = Vec::new();

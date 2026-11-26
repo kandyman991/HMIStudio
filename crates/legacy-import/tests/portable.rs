@@ -1014,3 +1014,43 @@ fn writable_shared_endpoint_and_debug_redaction() {
         assert!(!debug.contains(private));
     }
 }
+
+#[test]
+fn legacy_default_operate_and_mixed_permission_refusal() {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":0,"max":100});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("button");
+    c["requiredPermission"] = Value::Null;
+    c["actions"] = json!({"press":{"action":"value.set","variableId":"label-a","value":{"valueType":"long","value":2}}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        d["v2"]["industrial"]["nodes"][0]["requiredPermission"],
+        "operate"
+    );
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"]["release"] =
+        json!({"action":"navigate.back"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.code == "mixed-implicit-command-permission"));
+}
+
+#[test]
+fn absent_startup_uses_admitted_screen_order() {
+    let mut f = fixture(1);
+    f["metadata"]["defaultScreenId"] = Value::Null;
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    assert_eq!(p.navigation.start_screen, p.screens[0].id);
+    f["metadata"]["defaultScreenId"] = json!("missing");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

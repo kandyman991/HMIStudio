@@ -17,6 +17,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
 enum ProjectAction {
     Open,
     ImportLegacy,
+    ImportLegacyRevision,
     OpenReview,
     NewProject,
     Save,
@@ -146,6 +147,20 @@ fn pick(app: &AppHandle, title: &str, saving: bool) -> Result<Option<PathBuf>, S
         .transpose()
 }
 
+fn pick_revision_directory(app: &AppHandle) -> Result<Option<PathBuf>, String> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .set_title("Select legacy .hmistudio revision directory");
+    if let Some(window) = app.get_webview_window("main") {
+        dialog = dialog.set_parent(&window);
+    }
+    dialog
+        .blocking_pick_folder()
+        .map(|p| p.into_path().map_err(|e| e.to_string()))
+        .transpose()
+}
+
 fn pick_review(app: &AppHandle, saving: bool) -> Result<Option<PathBuf>, String> {
     let mut dialog = app
         .dialog()
@@ -259,6 +274,20 @@ fn handle_project_action(
                         host.import_review(&source, &target, discard)?;
                         replaced = true;
                         message = host.persistence_message();
+                    }
+                }
+            }
+        }
+        ProjectAction::ImportLegacyRevision => {
+            if let Some(source) = pick_revision_directory(app)? {
+                if ask(app, "Import the currently published legacy revision? The new local review bundle retains the exact descriptor, HEAD and selected revision, including private history metadata. It does not execute history or grant production authorization. Choose a private destination outside the legacy store.") == MessageDialogResult::Yes {
+                    if let Some(target) = pick_review(app, true)? {
+                        host.check_revision_import_paths(&source, &target)?;
+                        if let Some(discard) = confirm_switch(app, &mut host)? {
+                            host.import_revision_review(&source, &target, discard)?;
+                            replaced = true;
+                            message = host.persistence_message();
+                        }
                     }
                 }
             }
@@ -394,6 +423,7 @@ mod persistence_ipc_tests {
             r#"{"action":"saveAs","overwrite":true}"#,
             r#""saveForce""#,
             r#"{"action":"importLegacy","source":"/tmp/source.json"}"#,
+            r#"{"action":"importLegacyRevision","source":"/tmp/store.hmistudio"}"#,
             r#"{"action":"openReview","path":"/tmp/hidden.hmi-review"}"#,
             r#""publish""#,
             r#""connectLive""#,

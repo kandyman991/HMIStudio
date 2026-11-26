@@ -4,7 +4,7 @@ mod common;
 use common::{std_fs, TempDir};
 use hmi_engineering_core::fs::{Fault, FaultyFileSystem};
 use hmi_engineering_core::legacy_quarantine::{
-    requires_review, review_recovery_path, QuarantinedImport,
+    requires_review, review_recovery_path, QuarantinedImport, RevisionSource,
 };
 use hmi_engineering_core::persistence::{fingerprint, sidecar_dir, OpenError, ReloadError};
 use hmi_engineering_core::{
@@ -779,4 +779,134 @@ fn explicit_review_recovery_retirement_invalidates_dirty_snapshot() {
     review.autosave().unwrap();
     assert!(slot.exists());
     assert!(review.recovery_current());
+}
+
+fn revision_records() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    use sha2::{Digest, Sha256};
+    let checked =
+        |text: String| format!("{:x}\n{text}", Sha256::digest(text.as_bytes())).into_bytes();
+    let descriptor = br#"{"format":"hmistudio-project-bundle","formatVersion":1}"#.to_vec();
+    let head = checked(r#"{"formatVersion":1,"sequence":1,"currentRevisionId":"0000000001-1234abcd","nextRevisionNumber":2}"#.into());
+    let revision = checked(format!(
+        r#"{{"formatVersion":1,"id":"0000000001-1234abcd","number":1,"kind":"IMPORTED","label":"PRIVATE-HISTORY-TEST","project":{}}}"#,
+        std::str::from_utf8(&source()).unwrap()
+    ));
+    (descriptor, head, revision)
+}
+
+#[test]
+fn revision_review_persists_exact_records_through_recovery_and_save_copy() {
+    let dir = TempDir::new("revision-review");
+    let path = dir.join("revision.bundle");
+    let copy = dir.join("copy.bundle");
+    let (descriptor, head, revision) = revision_records();
+    let evidence = RevisionSource::from_records(&descriptor, &head, &revision).unwrap();
+    let mut review =
+        QuarantinedImport::import_revision(evidence, &path, SessionConfig::default(), std_fs())
+            .unwrap();
+    assert!(review.has_revision_source());
+    assert!(requires_review(&review.snapshot().project));
+    assert!(!serde_json::to_string(review.report())
+        .unwrap()
+        .contains("PRIVATE-HISTORY-TEST"));
+    let envelope: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(envelope["version"], 3);
+    let records = &envelope["payload"]["revisionSource"];
+    assert_eq!(
+        records["descriptor"].as_str().unwrap().as_bytes(),
+        descriptor
+    );
+    assert_eq!(records["head"].as_str().unwrap().as_bytes(), head);
+    assert_eq!(records["revision"].as_str().unwrap().as_bytes(), revision);
+    rename_review(&mut review, "Revision edit");
+    review.autosave().unwrap();
+    drop(review);
+    let mut restored =
+        QuarantinedImport::recover(&path, SessionConfig::default(), std_fs()).unwrap();
+    assert!(restored.has_revision_source());
+    assert!(restored.is_dirty());
+    assert_eq!(restored.snapshot().project.screens[0].name, "Revision edit");
+    restored.save_copy(&copy).unwrap();
+    let copied: serde_json::Value = serde_json::from_slice(&std::fs::read(&copy).unwrap()).unwrap();
+    assert_eq!(copied["version"], 3);
+    assert_eq!(copied["payload"]["revisionSource"], *records);
+    assert!(
+        QuarantinedImport::reopen(&copy, SessionConfig::default(), std_fs())
+            .unwrap()
+            .has_revision_source()
+    );
+    assert!(!review_recovery_path(&path).exists());
+}
+
+#[test]
+fn revision_review_rejects_recomputed_outer_checksum_and_wrong_container_version() {
+    use sha2::{Digest, Sha256};
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Records<'a> {
+        descriptor: &'a serde_json::Value,
+        head: &'a serde_json::Value,
+        revision: &'a serde_json::Value,
+    }
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Checksum<'a> {
+        source: &'a serde_json::Value,
+        original_project: &'a serde_json::Value,
+        project: &'a serde_json::Value,
+        report: &'a serde_json::Value,
+        resources: &'a serde_json::Value,
+        revision_source: Records<'a>,
+    }
+    fn seal(value: &mut serde_json::Value) {
+        let p = &value["payload"];
+        let r = &p["revisionSource"];
+        let bytes = serde_json::to_vec(&Checksum {
+            source: &p["source"],
+            original_project: &p["originalProject"],
+            project: &p["project"],
+            report: &p["report"],
+            resources: &p["resources"],
+            revision_source: Records {
+                descriptor: &r["descriptor"],
+                head: &r["head"],
+                revision: &r["revision"],
+            },
+        })
+        .unwrap();
+        value["sha256"] = json!(format!("{:x}", Sha256::digest(bytes)));
+    }
+    let dir = TempDir::new("revision-evidence");
+    let path = dir.join("revision.bundle");
+    let (descriptor, head, revision) = revision_records();
+    QuarantinedImport::import_revision(
+        RevisionSource::from_records(&descriptor, &head, &revision).unwrap(),
+        &path,
+        SessionConfig::default(),
+        std_fs(),
+    )
+    .unwrap();
+    let good: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let mut wrong = good.clone();
+    wrong["version"] = json!(2);
+    std::fs::write(&path, serde_json::to_vec(&wrong).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
+    let mut bad = good.clone();
+    bad["payload"]["revisionSource"]["head"] = json!("damaged");
+    seal(&mut bad);
+    std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
+    // Fully checksummed alternate revision with the same ID but a different project.
+    let mut foreign = good;
+    let altered = std::str::from_utf8(&revision[65..])
+        .unwrap()
+        .replace("Synthetic", "Different");
+    foreign["payload"]["revisionSource"]["revision"] = json!(format!(
+        "{:x}\n{altered}",
+        Sha256::digest(altered.as_bytes())
+    ));
+    seal(&mut foreign);
+    std::fs::write(&path, serde_json::to_vec(&foreign).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
 }

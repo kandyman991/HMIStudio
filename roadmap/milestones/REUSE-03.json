@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 has verified review recovery and a candidate bounded legacy revision transport decoder.",
+  "summary": "Draft PR #36 has verified review recovery and revision transport decoding, plus candidate native guarded revision import and persisted container evidence.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify revision decoder exact-head hosted CI and independent review; guarded native directory admission and persistent source-container provenance, runtime archive/package decoding and remaining legacy migration semantics remain open. Actual production publisher/live admission consumers remain outstanding."
+    "Verify native revision import exact-head hosted CI and independent review; runtime archive/package decoding, remaining legacy migration semantics and actual production publisher/live admission consumers remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
+      "head": "2a84648a322fc61d93eedde85b8cd6c12e0400d9",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45906230273,
+          "id": 45907420064,
           "name": "Desktop CI",
-          "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
+          "head": "2a84648a322fc61d93eedde85b8cd6c12e0400d9",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45906230251,
+          "id": 45907419972,
           "name": "Tag engine CI",
-          "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
+          "head": "2a84648a322fc61d93eedde85b8cd6c12e0400d9",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45906230262,
+          "id": 45907419983,
           "name": "Engineering handoff snapshot",
-          "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
+          "head": "2a84648a322fc61d93eedde85b8cd6c12e0400d9",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T22:51:19Z"
+      "observedAt": "2026-11-26T23:00:55Z"
     }
   ],
   "assignment": {
@@ -271,6 +271,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified recovery reconciliation bc773c2 all hosted workflows passed. Implemented bounded pure revision transport decoder against pinned storage contract with exact project bytes, checksum and identity verification; local 59 importer tests and strict Clippy/rustdoc passed. Successor CI/review, native directory and provenance integration remain pending.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified exact-head 2a84648 hosted CI and independent decoder review. Implemented guarded native revision import, private exact transport evidence in v3 review envelopes, replay/recovery and save-copy; v2 portable compatibility retained. Core 87 and isolated host 26 tests passed, TypeScript check passed; local Node frontend tests blocked. Successor CI/review pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

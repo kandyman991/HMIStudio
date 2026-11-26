@@ -2,8 +2,8 @@
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
     legacy_quarantine::{
-        requires_review, review_recovery_identity, review_recovery_path, QuarantinedImport,
-        MAX_LEGACY_SOURCE_BYTES,
+        requires_review, review_recovery_identity, review_recovery_path, revision_transport,
+        QuarantinedImport, RevisionSource, MAX_LEGACY_SOURCE_BYTES,
     },
     persistence::sidecar_dir,
     AutosaveOutcome, ProjectSession, ProjectSnapshot, SaveOptions, SessionConfig,
@@ -120,6 +120,90 @@ fn is_review_name(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".hmi-review")
 }
 
+// Never create a destination or sidecar within a legacy revision store,
+// including later save-copy after reopening without the original source path.
+fn reject_legacy_store_destination(path: &Path) -> Result<()> {
+    for ancestor in path.ancestors().skip(1) {
+        let legacy_name = ancestor
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.to_ascii_lowercase().ends_with(".hmistudio"));
+        // Also recognize a renamed legacy store by its storage layout,
+        // without blocking unrelated folders containing bundle.json alone.
+        let legacy_layout = metadata(&ancestor.join("bundle.json"))?.is_some()
+            && metadata(&ancestor.join("HEAD"))?.is_some()
+            && metadata(&ancestor.join("revisions"))?.is_some();
+        if legacy_name || legacy_layout {
+            return Err("Choose a destination outside the legacy revision store".into());
+        }
+    }
+    Ok(())
+}
+
+fn read_revision_record(path: &Path, max: usize) -> Result<Vec<u8>> {
+    if !safe_file(path)? {
+        return Err("Required legacy revision record is missing".into());
+    }
+    let bytes = StdFileSystem.read_limited(path, max).map_err(err)?;
+    if !safe_file(path)? {
+        return Err("Legacy revision record changed during import".into());
+    }
+    Ok(bytes)
+}
+
+fn revision_directory(path: &Path) -> Result<PathBuf> {
+    safe_dir(path)?;
+    if metadata(path)?.is_none() {
+        return Err("Legacy revision directory does not exist".into());
+    }
+    let root = path.canonicalize().map_err(err)?;
+    safe_dir(&root)?;
+    if !root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.to_ascii_lowercase().ends_with(".hmistudio"))
+    {
+        return Err("Select a .hmistudio revision directory".into());
+    }
+    Ok(root)
+}
+
+fn read_revision_source(root: &Path) -> Result<RevisionSource> {
+    read_revision_source_with(root, read_revision_record)
+}
+
+fn read_revision_source_with(
+    root: &Path,
+    mut read: impl FnMut(&Path, usize) -> Result<Vec<u8>>,
+) -> Result<RevisionSource> {
+    use revision_transport::{
+        decode_current_revision, select_current_revision, MAX_DESCRIPTOR_BYTES, MAX_HEAD_BYTES,
+        MAX_REVISION_BYTES,
+    };
+    let descriptor_path = root.join("bundle.json");
+    let head_path = root.join("HEAD");
+    let descriptor = read(&descriptor_path, MAX_DESCRIPTOR_BYTES)?;
+    let head = read(&head_path, MAX_HEAD_BYTES)?;
+    let selected = select_current_revision(&descriptor, &head).map_err(err)?;
+    let revision_path = root.join(selected.revision_relative_path());
+    let revision = read(&revision_path, MAX_REVISION_BYTES)?;
+    decode_current_revision(&selected, &revision).map_err(err)?;
+    // Re-read the immutable record and published pointer, refusing detectable
+    // concurrent replacement. Do not acquire or create the legacy LOCK.
+    if revision != read(&revision_path, MAX_REVISION_BYTES)?
+        || !selected.matches_source(
+            &read(&descriptor_path, MAX_DESCRIPTOR_BYTES)?,
+            &read(&head_path, MAX_HEAD_BYTES)?,
+        )
+        || revision_directory(root)? != root
+    {
+        return Err(
+            "Legacy revision store changed during import; close its writer and retry".into(),
+        );
+    }
+    RevisionSource::from_records(&descriptor, &head, &revision).map_err(err)
+}
+
 fn normalize_review(path: &Path) -> Result<PathBuf> {
     safe_regular_file(path, true)?;
     let name = path
@@ -132,6 +216,7 @@ fn normalize_review(path: &Path) -> Result<PathBuf> {
     let parent = path.parent().ok_or("Missing bundle directory")?;
     let target = parent.canonicalize().map_err(err)?.join(name);
     safe_regular_file(&target, true)?;
+    reject_legacy_store_destination(&target)?;
     Ok(target)
 }
 
@@ -148,6 +233,7 @@ fn normalize_project(path: &Path) -> Result<PathBuf> {
     let parent = parent.canonicalize().map_err(err)?;
     let target = parent.join(name);
     safe_file(&target)?;
+    reject_legacy_store_destination(&target)?;
     safe_sidecar(&sidecar_dir(&target))?;
     Ok(target)
 }
@@ -702,6 +788,71 @@ impl Host {
         Ok(())
     }
 
+    /// Preflight before prompting to save/discard the active workspace.
+    /// No filesystem writes; repeated immediately before admission.
+    pub fn check_revision_import_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        self.preflight()?;
+        let root = revision_directory(source)?;
+        // Switching away can retire the active sidecar. Never allow that
+        // operation to modify any part of the selected source directory.
+        let active_in_source = self.path().is_some_and(|path| {
+            path.starts_with(&root)
+                || sidecar_dir(path).starts_with(&root)
+                || path.canonicalize().is_ok_and(|p| p.starts_with(&root))
+        });
+        if active_in_source
+            || self.untitled.starts_with(&root)
+            || self
+                .untitled
+                .canonicalize()
+                .is_ok_and(|p| p.starts_with(&root))
+        {
+            return Err("Active workspace storage overlaps the selected legacy source".into());
+        }
+        let target = normalize_review(target)?;
+        if target.starts_with(&root)
+            || sidecar_dir(&target).starts_with(&root)
+            || root.starts_with(sidecar_dir(&target))
+        {
+            return Err("Choose a destination outside the selected source directory".into());
+        }
+        if safe_regular_file(&target, true)? {
+            return Err("Choose a new review bundle filename".into());
+        }
+        Ok((root, target))
+    }
+
+    /// Native-only revision admission. The UI obtains the directory, target,
+    /// and explicit private evidence retention consent from native dialogs.
+    pub fn import_revision_review(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+    ) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        let (root, target) = self.check_revision_import_paths(source, target)?;
+        // Validate the source before creating any destination lock directory.
+        let evidence = read_revision_source(&root)?;
+        let guard = lock_dir(&sidecar_dir(&target))?;
+        if safe_file(&review_recovery_path(&target))? {
+            return Err("Target has review recovery data; choose a different filename".into());
+        }
+        let candidate = QuarantinedImport::import_revision(
+            evidence,
+            &target,
+            config(&self.untitled),
+            Arc::new(GuardedFileSystem),
+        )
+        .map_err(err)?;
+        self.activate_review(candidate, guard);
+        Ok(())
+    }
+
     #[cfg(test)]
     pub fn open_review(&mut self, path: &Path, discard: bool) -> Result<()> {
         self.open_review_with(path, discard, |pending| {
@@ -864,6 +1015,9 @@ fn review_message(review: &QuarantinedImport) -> String {
     } else {
         "Review required — production/live blocked; review bundle saved".to_string()
     };
+    if review.has_revision_source() {
+        message.push_str(". Selected legacy revision evidence retained locally");
+    }
     if !review.warnings().is_empty() {
         message.push_str(". ");
         message.push_str(&review.warnings().join(". "));
@@ -1379,6 +1533,182 @@ mod tests {
             .is_err());
         assert!(host.is_review());
         assert_eq!(fs::read(&source).unwrap(), original);
+    }
+
+    // Original synthetic revision store; checksums generated by the core
+    // dependency's test fixture generator are not needed at runtime.
+    fn synthetic_revision_store(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+        fs::create_dir_all(root.join("revisions")).unwrap();
+        let marker = br#"{"format":"hmistudio-project-bundle","formatVersion":1}"#.to_vec();
+        // Precomputed checksums over these original synthetic JSON strings.
+        let head =
+            include_bytes!("../../crates/legacy-import/tests/fixtures/revision-head.synthetic")
+                .to_vec();
+        let revision =
+            include_bytes!("../../crates/legacy-import/tests/fixtures/revision-record.synthetic")
+                .to_vec();
+        let records = vec![
+            (root.join("bundle.json"), marker),
+            (root.join("HEAD"), head),
+            (root.join("revisions/0000000001-1234abcd.json"), revision),
+        ];
+        for (path, bytes) in &records {
+            fs::write(path, bytes).unwrap();
+        }
+        records
+    }
+
+    #[test]
+    fn native_revision_import_recovery_save_copy_and_source_immutability() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        let app = t.0.join("app");
+        let path = t.0.join("review.hmi-review");
+        let copy = t.0.join("copy.hmi-review");
+        let mut host = Host::new(&app).unwrap();
+        host.import_revision_review(&root, &path, false).unwrap();
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        assert!(host.persistence_message().contains("revision evidence"));
+        assert!(!root.join("LOCK").exists());
+        assert!(host.save_as(&root.join("bad.hmi-review")).is_err());
+        assert!(!root.join("bad.hmi-review.studio").exists());
+        let before = host.snapshot();
+        host.request(
+            crate::session_host::WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Revision crash edit".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        drop(host);
+        let mut host = Host::new(&app).unwrap();
+        host.open_review_with(&path, false, |pending| {
+            assert!(pending);
+            Ok(Some(true))
+        })
+        .unwrap();
+        assert!(host.is_dirty());
+        assert_eq!(
+            host.snapshot().project.screens[0].name,
+            "Revision crash edit"
+        );
+        assert!(host.production_candidate().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(host.persistence_message().contains("revision evidence"));
+        assert!(!review_recovery_path(&path).exists());
+        for (path, bytes) in records {
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+        assert!(!root.join("LOCK").exists());
+    }
+
+    #[test]
+    fn native_revision_import_refuses_damage_or_source_destination_without_switching() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Active edit");
+        host.autosave();
+        let before = host.snapshot();
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        let target = t.0.join("review.hmi-review");
+        assert!(host
+            .import_revision_review(&root, &root.join("bad.hmi-review"), true)
+            .is_err());
+        assert!(!root.join("bad.hmi-review.studio").exists());
+        fs::write(root.join("HEAD"), b"bad").unwrap();
+        assert!(host.import_revision_review(&root, &target, true).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(recovery).unwrap(), recovery_bytes);
+        assert!(!root.join("LOCK").exists());
+        fs::write(&records[1].0, &records[1].1).unwrap();
+        fs::remove_file(&records[2].0).unwrap();
+        assert!(host.import_revision_review(&root, &target, true).is_err());
+        assert!(!target.exists());
+        assert_eq!(host.snapshot(), before);
+    }
+
+    #[test]
+    fn native_revision_reader_refuses_detected_head_or_revision_replacement() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        for index in [1, 2] {
+            let records = synthetic_revision_store(&root);
+            let revision_path = &records[2].0;
+            let mut changed = false;
+            let result = read_revision_source_with(&root, |path, limit| {
+                let bytes = read_revision_record(path, limit)?;
+                // Replace a record immediately after the first revision read.
+                if !changed && path == revision_path {
+                    changed = true;
+                    let original = &records[index].1;
+                    let mut replacement = original.clone();
+                    replacement.push(b' ');
+                    fs::write(&records[index].0, replacement).unwrap();
+                }
+                Ok(bytes)
+            });
+            assert!(changed);
+            assert!(result.is_err());
+            assert!(!root.join("LOCK").exists());
+        }
+    }
+
+    #[test]
+    fn native_revision_destination_rejects_renamed_store_and_ordinary_save() {
+        let t = Temp::new();
+        let root = t.0.join("renamed-store");
+        let records = synthetic_revision_store(&root);
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        assert!(host.save_as(&root.join("new.hmi.json")).is_err());
+        assert!(!root.join("new.hmi.json.studio").exists());
+        assert!(normalize_review(&root.join("new.hmi-review")).is_err());
+        for (path, bytes) in records {
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_revision_import_refuses_links_in_source_records_and_directories() {
+        use std::os::unix::fs::symlink;
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        let target = t.0.join("review.hmi-review");
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.snapshot();
+        let outside = t.0.join("outside.json");
+        fs::write(&outside, &records[2].1).unwrap();
+        fs::remove_file(&records[2].0).unwrap();
+        symlink(&outside, &records[2].0).unwrap();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        fs::remove_file(&records[2].0).unwrap();
+        fs::hard_link(&outside, &records[2].0).unwrap();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        fs::remove_file(&records[2].0).unwrap();
+        fs::write(&records[2].0, &records[2].1).unwrap();
+        let alias = t.0.join("alias.hmistudio");
+        symlink(&root, &alias).unwrap();
+        assert!(host.import_revision_review(&alias, &target, false).is_err());
+        let outside_dir = t.0.join("outside-revisions");
+        fs::rename(root.join("revisions"), &outside_dir).unwrap();
+        symlink(&outside_dir, root.join("revisions")).unwrap();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
     }
 
     #[test]

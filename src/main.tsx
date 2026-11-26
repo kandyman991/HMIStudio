@@ -31,7 +31,7 @@ type Command =
   | { op: "setProperty"; node: string; name: string; value: string };
 type Request = { request: "snapshot" | "validate" } | { request: "undo" | "redo"; expectedRevision: number } | { request: "execute"; transaction: { commands: Command[]; expectedRevision: number; label: string } };
 type Reply = { generation: number; response: { response: string; error?: { message: string }; outcome?: { allocatedIds: Record<string,string> } }; snapshot: Snapshot };
-type ProjectAction = "open" | "importLegacy" | "openReview" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
+type ProjectAction = "open" | "importLegacy" | "importLegacyRevision" | "openReview" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
 type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean; message: string; persistence: PersistenceStatus };
 type PersistenceStatus = { generation: number; pendingUntitled: boolean; autosaveMessage: string; reviewRequired: boolean };
 type SimulationPoint = { id:string; name:string; value:string|null; writable:boolean; momentary:boolean };
@@ -492,6 +492,7 @@ function Studio(){
     "New project":{run:()=>void projectAction("newProject"),enabled:ready,shortcut:"Mod+N"},
     "Open project":{run:()=>void projectAction("open"),enabled:ready,shortcut:"Mod+O"},
     "Import legacy project (review)":{run:()=>void projectAction("importLegacy"),enabled:ready},
+    "Import legacy revision (review)":{run:()=>void projectAction("importLegacyRevision"),enabled:ready},
     "Open review bundle":{run:()=>void projectAction("openReview"),enabled:ready},
     "Save project":{run:()=>void projectAction("save"),enabled:ready,shortcut:"Mod+S"},
     "Save project as":{run:()=>void projectAction("saveAs"),enabled:ready,shortcut:"Mod+Shift+S"},
@@ -519,7 +520,7 @@ function Studio(){
     window.addEventListener("keydown",keys);return()=>window.removeEventListener("keydown",keys);
   });
   type MenuEntry=string|{label:string;items:string[]};
-  const menus:Record<string,MenuEntry[]>={File:["New project","Open project","Import legacy project (review)","Open review bundle","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Copy component (planned)","Paste component (planned)","Duplicate component","Delete selection",{label:"Arrange",items:["Move earlier","Move later","Align start","Align center","Align end"]}],View:[{label:"Docks",items:["Project explorer","Inspector","Diagnostics","Swap side docks","Reset workspace"]},{label:"Canvas",items:["Fit preview","Zoom in","Zoom out","Toggle grid","Select tool","Pan tool","Snap size to 10 dp"]},{label:"Workspace presets",items:["Standard layout","Design layout","Diagnostics layout"]},"Next tab","Previous tab"],Insert:[{label:"Components",items:["Button","Text","Gauge",...KINDS.map(k=>kindLabel[k])]},{label:"Containers",items:["Row","Column"]}],Engineering:["Tag monitor (planned)","Engineering search (planned)","Alarm monitor (planned)","Event log (planned)","Connections (planned)","Validate project"],Runtime:["Preview (planned)","Isolated simulation","Export (planned)","Publish (planned)"],Help:["About (planned)"]};
+  const menus:Record<string,MenuEntry[]>={File:["New project","Open project","Import legacy project (review)","Import legacy revision (review)","Open review bundle","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Copy component (planned)","Paste component (planned)","Duplicate component","Delete selection",{label:"Arrange",items:["Move earlier","Move later","Align start","Align center","Align end"]}],View:[{label:"Docks",items:["Project explorer","Inspector","Diagnostics","Swap side docks","Reset workspace"]},{label:"Canvas",items:["Fit preview","Zoom in","Zoom out","Toggle grid","Select tool","Pan tool","Snap size to 10 dp"]},{label:"Workspace presets",items:["Standard layout","Design layout","Diagnostics layout"]},"Next tab","Previous tab"],Insert:[{label:"Components",items:["Button","Text","Gauge",...KINDS.map(k=>kindLabel[k])]},{label:"Containers",items:["Row","Column"]}],Engineering:["Tag monitor (planned)","Engineering search (planned)","Alarm monitor (planned)","Event log (planned)","Connections (planned)","Validate project"],Runtime:["Preview (planned)","Isolated simulation","Export (planned)","Publish (planned)"],Help:["About (planned)"]};
   useEffect(()=>{if(menu==="Commands")commandRef.current?.focus();},[menu]);
   // Capture outside presses even when a preview component stops click propagation.
   useEffect(()=>{

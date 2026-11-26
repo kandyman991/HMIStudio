@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · Draft PR #36 has verified review recovery and a candidate bounded legacy revision transport decoder.
+**In progress** · Draft PR #36 has verified review recovery and revision transport decoding, plus candidate native guarded revision import and persisted container evidence.
 
 **Acceptance criteria**
 
@@ -748,11 +748,11 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Verify revision decoder exact-head hosted CI and independent review; guarded native directory admission and persistent source-container provenance, runtime archive/package decoding and remaining legacy migration semantics remain open. Actual production publisher/live admission consumers remain outstanding.
+- Verify native revision import exact-head hosted CI and independent review; runtime archive/package decoding, remaining legacy migration semantics and actual production publisher/live admission consumers remain open.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [bc773c2](https://github.com/kandyman991/HMIStudio/commit/bc773c27bac914765e0d9533aa76ff7a31185f85) · snapshot 2026-11-26T22:51:19Z · [Desktop CI #45906230273](https://github.com/kandyman991/HMIStudio/actions/runs/45906230273) success, [Tag engine CI #45906230251](https://github.com/kandyman991/HMIStudio/actions/runs/45906230251) success, [Engineering handoff snapshot #45906230262](https://github.com/kandyman991/HMIStudio/actions/runs/45906230262) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [2a84648](https://github.com/kandyman991/HMIStudio/commit/2a84648a322fc61d93eedde85b8cd6c12e0400d9) · snapshot 2026-11-26T23:00:55Z · [Desktop CI #45907420064](https://github.com/kandyman991/HMIStudio/actions/runs/45907420064) success, [Tag engine CI #45907419972](https://github.com/kandyman991/HMIStudio/actions/runs/45907419972) success, [Engineering handoff snapshot #45907419983](https://github.com/kandyman991/HMIStudio/actions/runs/45907419983) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -789,6 +789,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified d9c930d all workflows passed; 7af99d3 failed the same clean-undo recovery status regression on both engineering-core platforms. Corrected review response status, retirement ownership, bounded reads and native confirmation identity. Local engineering core 85 and isolated host 21 tests passed; successor hosted CI and independent review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Independent recovery review (ChatGPT) closed at 58c506b: all three exact-head workflows passed, including Windows/Linux engineering-core and native recovery regressions, real-child simulation and resynchronization. No blocking recovery finding within the documented cooperating-writer boundary. Continue remaining migration semantics and bounded archive/package decoding; PR #36 remains draft. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified recovery reconciliation bc773c2 all hosted workflows passed. Implemented bounded pure revision transport decoder against pinned storage contract with exact project bytes, checksum and identity verification; local 59 importer tests and strict Clippy/rustdoc passed. Successor CI/review, native directory and provenance integration remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Verified exact-head 2a84648 hosted CI and independent decoder review. Implemented guarded native revision import, private exact transport evidence in v3 review envelopes, replay/recovery and save-copy; v2 portable compatibility retained. Core 87 and isolated host 26 tests passed, TypeScript check passed; local Node frontend tests blocked. Successor CI/review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

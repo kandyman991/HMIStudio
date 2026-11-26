@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+pub use hmi_legacy_import::revision as revision_transport;
 use hmi_legacy_import::{import_portable, replay_portable};
 use hmi_project_model::model::Project;
 use hmi_project_model::serialization::{load_project, save_project};
@@ -82,6 +83,56 @@ struct Payload {
     project: String,
     report: Value,
     resources: BTreeMap<String, Vec<u8>>,
+    // Omit on v2 portable bundles to preserve historical checksum bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    revision_source: Option<RevisionSource>,
+}
+
+/// Exact private local evidence for the selected revision, not executable
+/// history. The native caller must explicitly obtain consent to retain it.
+/// No Debug implementation or source-data access through the workspace IPC.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RevisionSource {
+    descriptor: String,
+    head: String,
+    revision: String,
+}
+
+impl RevisionSource {
+    /// Validate the complete transport before retaining any bytes.
+    pub fn from_records(
+        descriptor: &[u8],
+        head: &[u8],
+        revision: &[u8],
+    ) -> Result<Self, ImportError> {
+        let selection = revision_transport::select_current_revision(descriptor, head)
+            .map_err(|_| ImportError::Refused)?;
+        revision_transport::decode_current_revision(&selection, revision)
+            .map_err(|_| ImportError::Refused)?;
+        let text = |bytes: &[u8]| {
+            std::str::from_utf8(bytes)
+                .map(str::to_owned)
+                .map_err(|_| ImportError::Refused)
+        };
+        Ok(Self {
+            descriptor: text(descriptor)?,
+            head: text(head)?,
+            revision: text(revision)?,
+        })
+    }
+
+    fn project_bytes(&self) -> Result<&[u8], ImportError> {
+        let selection = revision_transport::select_current_revision(
+            self.descriptor.as_bytes(),
+            self.head.as_bytes(),
+        )
+        .map_err(|_| ImportError::InvalidBundle)?;
+        let revision =
+            revision_transport::decode_current_revision(&selection, self.revision.as_bytes())
+                .map_err(|_| ImportError::InvalidBundle)?;
+        Ok(revision.project_bytes())
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -218,6 +269,11 @@ fn verify_report(report: &Value, original: &Project) -> Result<(), ImportError> 
 }
 
 fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
+    if let Some(revision) = &payload.revision_source {
+        if revision.project_bytes()? != payload.source.as_bytes() {
+            return Err(ImportError::InvalidBundle);
+        }
+    }
     let original = decode_project(&payload.original_project)?;
     verify_report(&payload.report, &original)?;
     // A checksum is not proof of report completeness. Replay the exact admitted
@@ -275,6 +331,28 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
+        Self::import_with_source(source, None, target, config, fs)
+    }
+
+    /// Admit a verified revision snapshot through the same quarantine gate.
+    /// The full source records are retained only in private review storage.
+    pub fn import_revision(
+        source: RevisionSource,
+        target: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<Self, ImportError> {
+        let project_bytes = source.project_bytes()?.to_vec();
+        Self::import_with_source(&project_bytes, Some(source), target, config, fs)
+    }
+
+    fn import_with_source(
+        source: &[u8],
+        revision_source: Option<RevisionSource>,
+        target: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<Self, ImportError> {
         let outcome = import_portable(source);
         if !outcome.report.has_complete_mapping() {
             return Err(ImportError::Refused);
@@ -289,6 +367,7 @@ impl QuarantinedImport {
             project: text,
             report: serde_json::to_value(outcome.report).map_err(|_| ImportError::InvalidBundle)?,
             resources: outcome.resource_bytes,
+            revision_source,
         };
         let project = verify_payload(&payload)?;
         let (warnings, base_sha256) = write_new(&payload, target, fs.as_ref())?;
@@ -320,7 +399,7 @@ impl QuarantinedImport {
         let serialized =
             serde_json::to_vec(&envelope.payload).map_err(|_| ImportError::InvalidBundle)?;
         if envelope.format != FORMAT
-            || envelope.version != 2
+            || envelope.version != payload_version(&envelope.payload)
             || envelope.sha256 != digest(&serialized)
         {
             return Err(ImportError::InvalidBundle);
@@ -571,6 +650,11 @@ impl QuarantinedImport {
         &self.payload.report
     }
 
+    /// Whether this review contains private revision-container evidence.
+    pub fn has_revision_source(&self) -> bool {
+        self.payload.revision_source.is_some()
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -616,6 +700,14 @@ impl QuarantinedImport {
     }
 }
 
+fn payload_version(payload: &Payload) -> u32 {
+    if payload.revision_source.is_some() {
+        3
+    } else {
+        2
+    }
+}
+
 fn write_new(
     payload: &Payload,
     target: &Path,
@@ -624,7 +716,7 @@ fn write_new(
     let body = serde_json::to_vec(payload).map_err(|_| ImportError::InvalidBundle)?;
     let envelope = Envelope {
         format: FORMAT.into(),
-        version: 2,
+        version: payload_version(payload),
         sha256: digest(&body),
         payload: payload.clone(),
     };

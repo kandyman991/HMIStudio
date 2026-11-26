@@ -1,8 +1,11 @@
 //! Native persistence boundary. The webview never supplies a filesystem path.
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
+    legacy_quarantine::{
+        requires_review, ProductionCandidate, QuarantinedImport, MAX_LEGACY_SOURCE_BYTES,
+    },
     persistence::sidecar_dir,
-    AutosaveOutcome, ProjectSession, SaveOptions, SessionConfig,
+    AutosaveOutcome, ProjectSession, ProjectSnapshot, SaveOptions, SessionConfig,
 };
 use hmi_project_model::{load_project, MigrationRegistry};
 use std::{
@@ -108,6 +111,21 @@ fn safe_sidecar(path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn normalize_review(path: &Path) -> Result<PathBuf> {
+    safe_file(path)?;
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("Invalid review bundle filename")?;
+    if name.contains(':') || !name.to_ascii_lowercase().ends_with(".hmi-review") {
+        return Err("Select an .hmi-review bundle".into());
+    }
+    let parent = path.parent().ok_or("Missing bundle directory")?;
+    let target = parent.canonicalize().map_err(err)?.join(name);
+    safe_file(&target)?;
+    Ok(target)
+}
+
 fn normalize_project(path: &Path) -> Result<PathBuf> {
     safe_file(path)?;
     let name = path
@@ -154,6 +172,10 @@ impl FileSystem for GuardedFileSystem {
         safe_file(path).map_err(io::Error::other)?;
         StdFileSystem.read(path)
     }
+    fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        safe_file(path).map_err(io::Error::other)?;
+        StdFileSystem.read_limited(path, limit)
+    }
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
         safe_file(path).map_err(io::Error::other)?;
         StdFileSystem.write_synced(path, data)
@@ -162,6 +184,24 @@ impl FileSystem for GuardedFileSystem {
         safe_file(from).map_err(io::Error::other)?;
         safe_file(to).map_err(io::Error::other)?;
         StdFileSystem.rename(from, to)
+    }
+    fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
+        safe_file(from).map_err(io::Error::other)?;
+        if safe_file(to).map_err(io::Error::other)? {
+            return Err(io::Error::new(io::ErrorKind::AlreadyExists, "bundle exists"));
+        }
+        StdFileSystem.link_new(from, to)
+    }
+    fn unlink_staged(&self, path: &Path) -> io::Result<()> {
+        // Exclusive publication temporarily gives the staged inode two links.
+        safe_ancestors(path).map_err(io::Error::other)?;
+        if !metadata(path)
+            .map_err(io::Error::other)?
+            .is_some_and(|m| m.is_file())
+        {
+            return Err(io::Error::other("invalid staged file"));
+        }
+        StdFileSystem.remove_file(path)
     }
     fn remove_file(&self, path: &Path) -> io::Result<()> {
         safe_file(path).map_err(io::Error::other)?;
@@ -195,7 +235,8 @@ fn config(dir: &Path) -> SessionConfig {
 }
 
 pub struct Host {
-    pub session: ProjectSession,
+    session: ProjectSession,
+    review: Option<QuarantinedImport>,
     pub generation: u64,
     untitled: PathBuf,
     _instance_lock: File,
@@ -225,6 +266,7 @@ impl Host {
         .project;
         Ok(Self {
             session: ProjectSession::with_fs(project, config(dir), Arc::new(GuardedFileSystem)),
+            review: None,
             generation: 0,
             untitled: dir.to_path_buf(),
             _instance_lock: instance_lock,
@@ -234,11 +276,56 @@ impl Host {
         })
     }
 
+    pub fn is_review(&self) -> bool {
+        self.review.is_some()
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.review.as_ref().map_or_else(
+            || self.session.is_dirty(),
+            QuarantinedImport::is_dirty,
+        )
+    }
+
+    pub fn path(&self) -> Option<&Path> {
+        self.review
+            .as_ref()
+            .map(QuarantinedImport::path)
+            .or_else(|| self.session.path())
+    }
+
+    pub fn snapshot(&self) -> ProjectSnapshot {
+        self.review
+            .as_ref()
+            .map_or_else(|| self.session.snapshot(), QuarantinedImport::snapshot)
+    }
+
+    pub fn request(
+        &mut self,
+        request: crate::session_host::WorkspaceRequest,
+    ) -> crate::session_host::WorkspaceReply {
+        match &mut self.review {
+            Some(review) => crate::session_host::review_request(review, request),
+            None => crate::session_host::request(&mut self.session, request),
+        }
+    }
+
+    /// Import-specific screening before a future production or live consumer
+    /// may obtain the borrowed project. No actual consumer exists yet.
+    pub fn production_candidate(&self) -> Result<ProductionCandidate<'_>> {
+        if self.review.is_some() || self.pending_untitled {
+            return Err("Production/live admission blocked: review or recovery required".into());
+        }
+        ProductionCandidate::from_session(&self.session).map_err(err)
+    }
+
     fn preflight(&self) -> Result<()> {
         safe_sidecar(&self.untitled)?;
-        if let Some(path) = self.session.path() {
+        if let Some(path) = self.path() {
             safe_file(path)?;
-            safe_sidecar(&sidecar_dir(path))?;
+            if !self.is_review() {
+                safe_sidecar(&sidecar_dir(path))?;
+            }
         }
         Ok(())
     }
@@ -254,9 +341,13 @@ impl Host {
             &MigrationRegistry::builtin(),
         )
         .map_err(err)?;
+        if requires_review(opened.session.project()) {
+            return Err("Imported projects must be opened as verified review bundles".into());
+        }
         if opened.session.project().has_v2_features() && opened.report.has_errors() {
             return Err("Invalid v2 project; original data preserved".into());
         }
+        self.review = None;
         self.session = opened.session;
         self.generation += 1;
         self.pending_untitled = false;
@@ -285,7 +376,7 @@ impl Host {
             return Err("Resolve untitled recovery first".into());
         }
         let path = normalize_project(path)?;
-        if self.session.path() == Some(path.as_path()) {
+        if self.path() == Some(path.as_path()) {
             return Err("This project is already open".into());
         }
         let dir = sidecar_dir(&path);
@@ -294,7 +385,7 @@ impl Host {
         let Some(recover) = decide(has_recovery)? else {
             return Ok(false);
         };
-        if self.session.is_dirty() && !discard_current {
+        if self.is_dirty() && !discard_current {
             return Err("Unsaved changes".into());
         }
         let opened = if recover {
@@ -313,6 +404,9 @@ impl Host {
             )
         }
         .map_err(err)?;
+        if requires_review(opened.session.project()) {
+            return Err("Imported projects must be opened as verified review bundles".into());
+        }
         if opened.session.project().has_v2_features() && opened.report.has_errors() {
             return Err("Invalid v2 project; original data preserved".into());
         }
@@ -321,7 +415,8 @@ impl Host {
         }
         // The old writer lock is still held. Remove its recovery only after
         // the new project has been fully parsed and explicitly accepted.
-        remove_recovery(&self.active_recovery()?)?;
+        self.clear_active_recovery()?;
+        self.review = None;
         self.session = opened.session;
         self.generation += 1;
         self.project_lock = Some(guard);
@@ -331,7 +426,7 @@ impl Host {
 
     pub fn new_project(&mut self, discard: bool) -> Result<()> {
         self.preflight()?;
-        if self.pending_untitled || (self.session.is_dirty() && !discard) {
+        if self.pending_untitled || (self.is_dirty() && !discard) {
             return Err("Resolve unsaved changes or recovery first".into());
         }
         let project = load_project(include_str!(
@@ -339,7 +434,8 @@ impl Host {
         ))
         .map_err(err)?
         .project;
-        remove_recovery(&self.active_recovery()?)?;
+        self.clear_active_recovery()?;
+        self.review = None;
         self.session =
             ProjectSession::with_fs(project, config(&self.untitled), Arc::new(GuardedFileSystem));
         self.generation += 1;
@@ -348,10 +444,65 @@ impl Host {
         Ok(())
     }
 
+    fn prepare_review_switch(&self, discard: bool) -> Result<()> {
+        self.preflight()?;
+        if self.pending_untitled || (self.is_dirty() && !discard) {
+            return Err("Resolve unsaved changes or recovery first".into());
+        }
+        Ok(())
+    }
+
+    fn activate_review(&mut self, candidate: QuarantinedImport) {
+        // The bundle has already been published/verified; never report it
+        // rolled back if cleaning the previous recovery slot fails.
+        let cleanup = self.clear_active_recovery();
+        self.autosave_message = review_message(&candidate);
+        if cleanup.is_err() {
+            self.autosave_message.push_str("; previous recovery retained");
+        }
+        self.review = Some(candidate);
+        self.project_lock = None;
+        self.generation += 1;
+    }
+
+    pub fn import_review(&mut self, source: &Path, target: &Path, discard: bool) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        if !safe_file(source)? {
+            return Err("Legacy source does not exist".into());
+        }
+        let target = normalize_review(target)?;
+        if safe_file(&target)? {
+            return Err("Choose a new review bundle filename".into());
+        }
+        let fs = Arc::new(GuardedFileSystem);
+        let bytes = fs.read_limited(source, MAX_LEGACY_SOURCE_BYTES).map_err(err)?;
+        let candidate =
+            QuarantinedImport::import_new(&bytes, &target, config(&self.untitled), fs)
+                .map_err(err)?;
+        self.activate_review(candidate);
+        Ok(())
+    }
+
+    pub fn open_review(&mut self, path: &Path, discard: bool) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        let path = normalize_review(path)?;
+        if self.path() == Some(path.as_path()) {
+            return Err("This review bundle is already open".into());
+        }
+        let candidate =
+            QuarantinedImport::reopen(&path, config(&self.untitled), Arc::new(GuardedFileSystem))
+                .map_err(err)?;
+        self.activate_review(candidate);
+        Ok(())
+    }
+
     pub fn save(&mut self) -> Result<()> {
         self.preflight()?;
         if self.pending_untitled {
             return Err("Resolve untitled recovery first".into());
+        }
+        if self.is_review() {
+            return Err("Review bundles are immutable; save a new review copy".into());
         }
         let outcome = self.session.save(SaveOptions::default()).map_err(err)?;
         self.autosave_message = save_message(&outcome.warnings);
@@ -362,6 +513,15 @@ impl Host {
         self.preflight()?;
         if self.pending_untitled {
             return Err("Resolve untitled recovery first".into());
+        }
+        if let Some(review) = &mut self.review {
+            let target = normalize_review(path)?;
+            if safe_file(&target)? {
+                return Err("Choose a new review bundle filename".into());
+            }
+            review.save_copy(&target).map_err(err)?;
+            self.autosave_message = review_message(review);
+            return Ok(());
         }
         let path = normalize_project(path)?;
         if self.session.path() == Some(path.as_path()) {
@@ -390,6 +550,10 @@ impl Host {
         if self.pending_untitled {
             return;
         }
+        if let Some(review) = &self.review {
+            self.autosave_message = review_message(review);
+            return;
+        }
         self.autosave_message = match self
             .preflight()
             .and_then(|_| self.session.autosave().map_err(err))
@@ -402,6 +566,13 @@ impl Host {
 
     // Discard only the active project's recovery after explicit confirmation.
     // Call only after a successful candidate open or immediately before exit.
+    pub fn clear_active_recovery(&self) -> Result<()> {
+        if self.is_review() {
+            return Ok(());
+        }
+        remove_recovery(&self.active_recovery()?)
+    }
+
     pub fn active_recovery(&self) -> Result<PathBuf> {
         self.preflight()?;
         Ok(self
@@ -411,6 +582,19 @@ impl Host {
             .unwrap_or_else(|| self.untitled.clone())
             .join(RECOVERY))
     }
+}
+
+fn review_message(review: &QuarantinedImport) -> String {
+    let mut message = if review.is_dirty() {
+        "Review required — unsaved edits; save a new review copy (no autosave)".to_string()
+    } else {
+        "Review required — production/live blocked; review bundle saved".to_string()
+    };
+    if !review.warnings().is_empty() {
+        message.push_str("; ");
+        message.push_str(&review.warnings().join("; "));
+    }
+    message
 }
 
 fn save_message(warnings: &[String]) -> String {
@@ -472,6 +656,61 @@ mod tests {
                 name: name.into(),
             }))
             .unwrap();
+    }
+
+    #[test]
+    fn native_review_lifecycle_blocks_plain_persistence_and_production() {
+        use crate::session_host::WorkspaceRequest;
+
+        let t = Temp::new();
+        let source = t.0.join("legacy.json");
+        let target = t.0.join("legacy.hmi-review");
+        let copy = t.0.join("edited.hmi-review");
+        let original = br#"{"schemaVersion":1,"metadata":{"name":"Synthetic","defaultScreenId":"screen/a","targetProfiles":[]},"screens":{"screen/a":{"id":"screen/a","title":"Main","widthDp":640,"heightDp":480,"components":{"label-a":{"id":"label-a","type":"label","properties":{"text":"Synthetic"}}}}},"variables":{},"externalSources":{},"externalMappings":{}}"#;
+        fs::write(&source, original).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        assert!(host.production_candidate().is_ok());
+        host.import_review(&source, &target, false).unwrap();
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        assert_eq!(fs::read(&source).unwrap(), original);
+        let before = host.snapshot();
+        let _ = host.request(WorkspaceRequest::Execute {
+            transaction: Transaction::single(Command::SetExtension {
+                key: "hmistudio.importQuarantine".into(),
+                value: None,
+            })
+            .at_revision(before.revision),
+        });
+        assert_eq!(host.snapshot(), before);
+        let screen = before.project.screens[0].id.clone();
+        let _ = host.request(WorkspaceRequest::Execute {
+            transaction: Transaction::single(Command::RenameScreen {
+                screen,
+                name: "Reviewed edit".into(),
+            })
+            .at_revision(before.revision),
+        });
+        assert!(host.is_dirty());
+        assert!(host.new_project(false).is_err());
+        assert!(host.save().is_err());
+        assert!(host.save_as(&source).is_err());
+        assert!(host.save_as(&t.0.join("plain.hmi.json")).is_err());
+        assert!(host.production_candidate().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(!host.is_dirty());
+        host.new_project(false).unwrap();
+        assert!(host.production_candidate().is_ok());
+        host.open_review(&copy, false).unwrap();
+        assert_eq!(host.snapshot().project.screens[0].name, "Reviewed edit");
+        assert!(host.production_candidate().is_err());
+        let stripped = t.0.join("stripped.hmi.json");
+        let mut project = host.snapshot().project;
+        project.extensions.clear();
+        fs::write(&stripped, hmi_project_model::save_project(&project).unwrap()).unwrap();
+        assert!(host.open_with(&stripped, false, |_| Ok(Some(false))).is_err());
+        assert!(host.is_review());
+        assert_eq!(fs::read(&source).unwrap(), original);
     }
 
     #[test]

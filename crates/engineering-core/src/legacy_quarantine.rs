@@ -22,6 +22,8 @@ use crate::{
 const MARKER: &str = "hmistudio.importQuarantine";
 const FORMAT: &str = "hmi-studio.legacy-review";
 const MAX_BUNDLE_BYTES: usize = 64 * 1024 * 1024;
+/// Native import readers use the same bound as the portable decoder.
+pub const MAX_LEGACY_SOURCE_BYTES: usize = hmi_legacy_import::MAX_INPUT_BYTES;
 
 fn marker() -> Value {
     json!({"version":1,"state":"reviewRequired"})
@@ -33,7 +35,8 @@ pub(crate) fn reserved_extension(key: &str) -> bool {
 
 /// Fail closed on any import marker, including malformed or older provenance.
 pub fn requires_review(project: &Project) -> bool {
-    project.extensions.keys().any(|key| reserved_extension(key))
+    project.id.as_str().starts_with("legacy-project-")
+        || project.extensions.keys().any(|key| reserved_extension(key))
 }
 
 /// Required import-specific precondition for future production publishing
@@ -44,6 +47,29 @@ pub fn check_production_admission(project: &Project) -> Result<(), ImportError> 
         Err(ImportError::ReviewRequired)
     } else {
         Ok(())
+    }
+}
+
+/// Borrowed, import-screened project for future production-only consumers.
+/// This is not a commissioning, signature, pairing or deployment approval.
+/// The private field prevents construction from an untrusted frontend payload.
+pub struct ProductionCandidate<'a> {
+    project: &'a Project,
+}
+
+impl<'a> ProductionCandidate<'a> {
+    pub fn from_session(session: &'a ProjectSession) -> Result<Self, ImportError> {
+        check_production_admission(session.project())?;
+        if session.report().has_errors() {
+            return Err(ImportError::InvalidBundle);
+        }
+        Ok(Self {
+            project: session.project(),
+        })
+    }
+
+    pub fn project(&self) -> &'a Project {
+        self.project
     }
 }
 
@@ -276,7 +302,41 @@ impl QuarantinedImport {
     }
 
     pub fn snapshot(&self) -> ProjectSnapshot {
-        self.session.snapshot()
+        let mut snapshot = self.session.snapshot();
+        snapshot.status.path = Some(self.path.display().to_string());
+        snapshot
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.session.is_dirty()
+    }
+
+    /// The review session exposes editing, validation and history only.
+    /// Persistence/reload/close requests cannot reach the inner session.
+    pub fn request(&mut self, request: crate::Request) -> crate::Response {
+        if !matches!(
+            &request,
+            crate::Request::Snapshot {}
+                | crate::Request::Status {}
+                | crate::Request::Validate {}
+                | crate::Request::Execute { .. }
+                | crate::Request::Undo { .. }
+                | crate::Request::Redo { .. }
+        ) {
+            return crate::Response::Error {
+                error: crate::protocol::ErrorBody {
+                    code: "importReviewRequired",
+                    message: "Use review bundle save-copy; ordinary persistence is disabled".into(),
+                    details: Value::Null,
+                },
+            };
+        }
+        crate::dispatch(
+            &mut self.session,
+            request,
+            &hmi_project_model::MigrationRegistry::builtin(),
+        )
+        .0
     }
 
     pub fn report(&self) -> &Value {
@@ -339,7 +399,7 @@ fn write_new(
     // Unlike rename, an exclusive same-volume hard link cannot replace an
     // existing destination even if it appears after the staging operation.
     let result = fs.link_new(&tmp, target);
-    let cleanup = fs.remove_file(&tmp);
+    let cleanup = fs.unlink_staged(&tmp);
     result.map_err(|_| ImportError::Io("publish new bundle"))?;
     let mut warnings = Vec::new();
     if cleanup.is_err() {

@@ -3,7 +3,7 @@
 mod persistence_host;
 mod session_host;
 use hmi_engineering_core::ProjectSnapshot;
-use persistence_host::{recovery_project, remove_recovery, Host};
+use persistence_host::{recovery_project, Host};
 use serde::{Deserialize, Serialize};
 use session_host::{WorkspaceReply, WorkspaceRequest};
 use std::{path::PathBuf, sync::Mutex, time::Duration};
@@ -14,6 +14,8 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
 #[serde(rename_all = "camelCase")]
 enum ProjectAction {
     Open,
+    ImportLegacy,
+    OpenReview,
     NewProject,
     Save,
     SaveAs,
@@ -37,6 +39,8 @@ struct ProjectReply {
 struct PersistenceStatus {
     pending_untitled: bool,
     autosave_message: String,
+    review_required: bool,
+    production_import_gate_passed: bool,
 }
 
 #[derive(Serialize)]
@@ -70,7 +74,7 @@ fn engineering_request(
     {
         return Err("Project session changed; refresh before editing".into());
     }
-    let reply = session_host::request(&mut host.session, request);
+    let reply = host.request(request);
     Ok(HostReply {
         reply,
         generation: host.generation,
@@ -85,6 +89,8 @@ fn persistence_status(state: tauri::State<'_, Mutex<Host>>) -> Result<Persistenc
     Ok(PersistenceStatus {
         pending_untitled: host.pending_untitled,
         autosave_message: host.autosave_message.clone(),
+        review_required: host.is_review(),
+        production_import_gate_passed: host.production_candidate().is_ok(),
     })
 }
 
@@ -126,8 +132,38 @@ fn pick(app: &AppHandle, recovery: bool, saving: bool) -> Result<Option<PathBuf>
         .transpose()
 }
 
+fn pick_review(app: &AppHandle, saving: bool) -> Result<Option<PathBuf>, String> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("HMI Studio review", &["hmi-review"]);
+    if let Some(window) = app.get_webview_window("main") {
+        dialog = dialog.set_parent(&window);
+    }
+    let selected = if saving {
+        dialog
+            .set_title("Save new review bundle")
+            .set_file_name("project.hmi-review")
+            .blocking_save_file()
+    } else {
+        dialog
+            .set_title("Open review bundle")
+            .blocking_pick_file()
+    };
+    selected
+        .map(|p| p.into_path().map_err(|e| e.to_string()))
+        .transpose()
+}
+
 fn save(app: &AppHandle, host: &mut Host, save_as: bool) -> Result<bool, String> {
-    if save_as || host.session.path().is_none() {
+    if host.is_review() {
+        let Some(path) = pick_review(app, true)? else {
+            return Ok(false);
+        };
+        host.save_as(&path)?;
+        return Ok(true);
+    }
+    if save_as || host.path().is_none() {
         let Some(path) = pick(app, false, true)? else {
             return Ok(false);
         };
@@ -141,7 +177,7 @@ fn save(app: &AppHandle, host: &mut Host, save_as: bool) -> Result<bool, String>
 // Return None when canceled, Some(true) when discard was explicitly chosen.
 // A failed/canceled save does not authorize a subsequent destructive action.
 fn confirm_switch(app: &AppHandle, host: &mut Host) -> Result<Option<bool>, String> {
-    if !host.session.is_dirty() {
+    if !host.is_dirty() {
         return Ok(Some(false));
     }
     match ask(app, "Save changes to the current project before continuing?\nYes: Save. No: Discard changes. Cancel: Keep editing.") {
@@ -175,8 +211,8 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
                 // No edits are admitted while pending; preserve the snapshot.
                 app.exit(0);
             } else if let Some(discard) = confirm_switch(app, &mut host)? {
-                if discard || !host.session.is_dirty() {
-                    remove_recovery(&host.active_recovery()?)?;
+                if discard || !host.is_dirty() {
+                    host.clear_active_recovery()?;
                 }
                 app.exit(0);
             }
@@ -192,6 +228,26 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
                 host.new_project(discard)?;
                 replaced = true;
                 message = "New untitled project".into();
+            }
+        }
+        ProjectAction::ImportLegacy => {
+            if let Some(source) = pick(app, false, false)? {
+                if let Some(target) = pick_review(app, true)? {
+                    if let Some(discard) = confirm_switch(app, &mut host)? {
+                        host.import_review(&source, &target, discard)?;
+                        replaced = true;
+                        message = host.autosave_message.clone();
+                    }
+                }
+            }
+        }
+        ProjectAction::OpenReview => {
+            if let Some(path) = pick_review(app, false)? {
+                if let Some(discard) = confirm_switch(app, &mut host)? {
+                    host.open_review(&path, discard)?;
+                    replaced = true;
+                    message = host.autosave_message.clone();
+                }
             }
         }
         ProjectAction::Open | ProjectAction::Recover => {
@@ -223,7 +279,7 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
         }
     }
     Ok(ProjectReply {
-        snapshot: host.session.snapshot(),
+        snapshot: host.snapshot(),
         generation: host.generation,
         replaced,
         message,
@@ -295,6 +351,10 @@ mod persistence_ipc_tests {
             r#"{"action":"open","path":"/tmp/secret.hmi.json"}"#,
             r#"{"action":"saveAs","overwrite":true}"#,
             r#""saveForce""#,
+            r#"{"action":"importLegacy","source":"/tmp/source.json"}"#,
+            r#"{"action":"openReview","path":"/tmp/hidden.hmi-review"}"#,
+            r#""publish""#,
+            r#""connectLive""#,
         ] {
             assert!(serde_json::from_str::<ProjectAction>(input).is_err());
         }

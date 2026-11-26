@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · REUSE-03A merged; schema v2 frozen. REUSE-03B portable decoder, conservative industrial/security and graphical/layout/binding mappings implemented.
+**In progress** · Schema v2 frozen; portable importer and review bundle integrated with a candidate desktop import lifecycle and typed production screening.
 
 **Acceptance criteria**
 
@@ -748,9 +748,9 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Complete remaining legacy component/catalog and parameter semantics, component-specific enumeration usage, actions, alarms, assets and themes; full source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding.
+- Verify corrected-head desktop import and bypass regressions; independent technical review, actual publisher/live connection consumer enforcement and isolated runtime integration remain outstanding. Archive/package admission and unresolved semantic gaps remain open.
 
-**Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T12:12:21Z)
+**Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T12:54:31Z)
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -771,6 +771,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-25 · handoff · REUSE-03B.2 maps S7/OPC UA/loopback connection declarations, single external mapping per tag, exact setpoint limits, momentary/maintained commands, deduplicated units and role/permission references into frozen v2. Explicitly refuses ambiguous mappings, credential fields and unsupported write-policy semantics. Eleven local regression groups and Clippy/rustdoc passed; schema unchanged. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-25 · handoff · REUSE-03B.3 adds selected graphical components, nested row/column layout intent with explicit approximation diagnostics and inactive geometry metadata, reusable composites and read-only bool/text tag parameters, typed direct/expression bindings with parser-checked reference remapping, exact int64 enumeration declarations. 17 local regression groups and Clippy/rustdoc passed; unsupported semantics refuse import and frozen schema unchanged. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified 17b8305: 54 importer regression groups per platform and all required hosted CI. Owner authorized REUSE-03B.7; expand existing RUST-05 reservation for engineering import transaction, persisted quarantine, exact engine parser differential test and downstream lockfile. Acceptance remains pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Verified b3b5898: all 19 hosted jobs, seven quarantine, 54 importer and two address differential tests per platform. REUSE-03B.8 reserves native desktop and frontend paths; candidate review import/open/save-copy and production screening, no real publication/live connection implementation or acceptance. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
@@ -840,7 +841,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 ## Shared reservation snapshot
 
-- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-26T12:12:21Z
+- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-26T12:54:31Z
 
 ## Engineering decisions
 

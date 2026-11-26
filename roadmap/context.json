@@ -84,9 +84,13 @@
         "crates/engineering-core/",
         "crates/hmi-engine/tests/legacy_address_conformance.rs",
         "crates/legacy-import/",
-        "src-tauri/Cargo.lock"
+        "src-tauri/Cargo.lock",
+        "src-tauri/src/main.rs",
+        "src-tauri/src/persistence_host.rs",
+        "src-tauri/src/session_host.rs",
+        "src/main.tsx"
       ],
-      "observedAt": "2026-11-26T12:12:21Z"
+      "observedAt": "2026-11-26T12:54:31Z"
     }
   ]
 }

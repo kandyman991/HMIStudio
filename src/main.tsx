@@ -31,9 +31,9 @@ type Command =
   | { op: "setProperty"; node: string; name: string; value: string };
 type Request = { request: "snapshot" | "validate" } | { request: "undo" | "redo"; expectedRevision: number } | { request: "execute"; transaction: { commands: Command[]; expectedRevision: number; label: string } };
 type Reply = { generation: number; response: { response: string; error?: { message: string }; outcome?: { allocatedIds: Record<string,string> } }; snapshot: Snapshot };
-type ProjectAction = "open" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
+type ProjectAction = "open" | "importLegacy" | "openReview" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
 type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean; message: string; pendingUntitled: boolean };
-type PersistenceStatus = { pendingUntitled: boolean; autosaveMessage: string };
+type PersistenceStatus = { pendingUntitled: boolean; autosaveMessage: string; reviewRequired: boolean; productionImportGatePassed: boolean };
 function readPanels(): Preferences {
   try { return restorePreferences(localStorage.getItem(STORAGE_KEY),localStorage.getItem("studio.workspace.v1")); }
   catch { return {...DEFAULTS}; }
@@ -160,6 +160,8 @@ function Studio(){
   const generation=useRef<number|null>(null);
   const [pendingRecovery,setPendingRecovery]=useState(true);
   const [autosaveMessage,setAutosaveMessage]=useState("Checking recovery…");
+  const [reviewRequired,setReviewRequired]=useState(false);
+  const [productionImportGatePassed,setProductionImportGatePassed]=useState(false);
   const screen=snapshot?.project.screens.find(s=>s.id===tabs.active);
   const chosen=screen?findNode(screen.root,selected):undefined;
   const send=useCallback(async(request:Request)=>{
@@ -182,7 +184,7 @@ function Studio(){
       if(inFlight.current)return;
       try{
         const p=await invoke<PersistenceStatus>("persistence_status");
-        if(mounted&&!inFlight.current){setPendingRecovery(p.pendingUntitled);setAutosaveMessage(p.autosaveMessage);}
+        if(mounted&&!inFlight.current){setPendingRecovery(p.pendingUntitled);setAutosaveMessage(p.autosaveMessage);setReviewRequired(p.reviewRequired);setProductionImportGatePassed(p.productionImportGatePassed);}
       }catch{/* native dialog or autosave in progress; retry */}
     }
     void refresh();
@@ -381,6 +383,8 @@ function Studio(){
     "Previous tab":{run:()=>cycle(-1),enabled:ready&&tabs.open.length>1,shortcut:"Mod+Shift+Tab"},
     "New project":{run:()=>void projectAction("newProject"),enabled:ready,shortcut:"Mod+N"},
     "Open project":{run:()=>void projectAction("open"),enabled:ready,shortcut:"Mod+O"},
+    "Import legacy project (review)":{run:()=>void projectAction("importLegacy"),enabled:ready},
+    "Open review bundle":{run:()=>void projectAction("openReview"),enabled:ready},
     "Save project":{run:()=>void projectAction("save"),enabled:ready,shortcut:"Mod+S"},
     "Save project as":{run:()=>void projectAction("saveAs"),enabled:ready,shortcut:"Mod+Shift+S"},
     "Recover project":{run:()=>void projectAction("recover"),enabled:ready},
@@ -407,7 +411,7 @@ function Studio(){
     window.addEventListener("keydown",keys);return()=>window.removeEventListener("keydown",keys);
   });
   type MenuEntry=string|{label:string;items:string[]};
-  const menus:Record<string,MenuEntry[]>={File:["New project","Open project","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Copy component (planned)","Paste component (planned)","Duplicate component","Delete selection",{label:"Arrange",items:["Move earlier","Move later","Align start","Align center","Align end"]}],View:[{label:"Docks",items:["Project explorer","Inspector","Diagnostics","Swap side docks","Reset workspace"]},{label:"Canvas",items:["Fit preview","Zoom in","Zoom out","Toggle grid","Select tool","Pan tool","Snap size to 10 dp"]},{label:"Workspace presets",items:["Standard layout","Design layout","Diagnostics layout"]},"Next tab","Previous tab"],Insert:[{label:"Components",items:["Button","Text","Gauge",...KINDS.map(k=>kindLabel[k])]},{label:"Containers",items:["Row","Column"]}],Engineering:["Tag monitor (planned)","Engineering search (planned)","Alarm monitor (planned)","Event log (planned)","Connections (planned)","Validate project"],Runtime:["Preview (planned)","Simulation (planned)","Export (planned)","Publish (planned)"],Help:["About (planned)"]};
+  const menus:Record<string,MenuEntry[]>={File:["New project","Open project","Import legacy project (review)","Open review bundle","Save project","Save project as","Recover project","Resolve untitled recovery","New screen","Close tab","Exit"],Edit:["Undo","Redo","Copy component (planned)","Paste component (planned)","Duplicate component","Delete selection",{label:"Arrange",items:["Move earlier","Move later","Align start","Align center","Align end"]}],View:[{label:"Docks",items:["Project explorer","Inspector","Diagnostics","Swap side docks","Reset workspace"]},{label:"Canvas",items:["Fit preview","Zoom in","Zoom out","Toggle grid","Select tool","Pan tool","Snap size to 10 dp"]},{label:"Workspace presets",items:["Standard layout","Design layout","Diagnostics layout"]},"Next tab","Previous tab"],Insert:[{label:"Components",items:["Button","Text","Gauge",...KINDS.map(k=>kindLabel[k])]},{label:"Containers",items:["Row","Column"]}],Engineering:["Tag monitor (planned)","Engineering search (planned)","Alarm monitor (planned)","Event log (planned)","Connections (planned)","Validate project"],Runtime:["Preview (planned)","Simulation (planned)","Export (planned)","Publish (planned)"],Help:["About (planned)"]};
   useEffect(()=>{if(menu==="Commands")commandRef.current?.focus();},[menu]);
   // Capture outside presses even when a preview component stops click propagation.
   useEffect(()=>{
@@ -440,7 +444,7 @@ function Studio(){
     </section>
     {panels.diagnostics&&<Splitter label="Resize diagnostics" size={panels.diagnosticsSize} vertical={false} direction={-1} change={n=>resize("diagnosticsSize",n)}/>}
     {panels.diagnostics&&<section className={"diagnostics dock-diagnostics size-"+panels.diagnosticsSize}><div className="output-tabs" aria-label="Engineering output"><button disabled title="Tag monitoring UI planned"><Icon name="tag"/> Tag monitor</button><button disabled title="Engineering search UI planned"><Icon name="search"/> Engineering search</button><button disabled title="Alarm monitoring UI planned"><Icon name="bell"/> Alarms</button><button disabled title="Event log UI planned"><Icon name="terminal"/> Event log</button><button aria-pressed={outputView==="diagnostics"} onClick={()=>setOutputView("diagnostics")}><Icon name="terminal"/> Diagnostics <span>{snapshot?.status.errorCount??0} errors · {snapshot?.status.warningCount??0} warnings</span></button><button aria-pressed={outputView==="status"} onClick={()=>setOutputView("status")}>Status</button></div>{outputView==="status"?<p>{status}</p>:<>{snapshot?.diagnostics.length?snapshot.diagnostics.map((d,i)=><p key={i}>{d.severity} · {d.code} · {d.path} · {d.message}</p>):<p>No diagnostics reported.</p>}</>}</section>}
-    <footer><span className="no-plc">● No live PLC</span><span role="status">{status}</span><span className="grow"/><span>{(snapshot?.status.dirty?"Unsaved changes":"No unsaved edits")+" · "+autosaveMessage}</span><span title="Planned runtime targets">Windows · Linux · Android</span></footer>
+    <footer><span className="no-plc">{reviewRequired?"● Import review required · production/live blocked":productionImportGatePassed?"● No live PLC":"● Production admission blocked"}</span><span role="status">{status}</span><span className="grow"/><span>{(snapshot?.status.dirty?"Unsaved changes":"No unsaved edits")+" · "+autosaveMessage}</span><span title="Planned runtime targets">Windows · Linux · Android</span></footer>
   </main>;
 }
 createRoot(document.getElementById("root")!).render(<Studio/>);

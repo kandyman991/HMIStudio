@@ -35,6 +35,10 @@ pub trait FileSystem: Send + Sync {
     }
     /// Removes a file.
     fn remove_file(&self, path: &Path) -> io::Result<()>;
+    /// Remove the exclusively created staging name after publication.
+    fn unlink_staged(&self, path: &Path) -> io::Result<()> {
+        self.remove_file(path)
+    }
     /// Creates a directory and its parents.
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
     /// Whether a file exists.

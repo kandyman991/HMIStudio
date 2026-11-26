@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 has verified review recovery and revision decoding, plus candidate native guarded revision import with a Windows fixture checkout correction.",
+  "summary": "Draft PR #36 has verified native revision import and a candidate bounded, read-only runtime ZIP package decoder.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify corrected native revision import exact-head hosted CI and independent review; runtime archive/package decoding, remaining legacy migration semantics and actual production publisher/live admission consumers remain open."
+    "Verify exact-head hosted CI, importer/core dependency advisory gate and independent ZIP decoder review. Package-specific semantic validation, native ZIP admission/persisted package provenance, remaining legacy migration semantics and actual production publisher/live admission consumers remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "9b7fac5230d758839abd74bdc707613948328c0c",
+      "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45908366285,
+          "id": 45909126289,
           "name": "Desktop CI",
-          "head": "9b7fac5230d758839abd74bdc707613948328c0c",
-          "state": "completed",
-          "result": "failure"
-        },
-        {
-          "id": 45908366398,
-          "name": "Tag engine CI",
-          "head": "9b7fac5230d758839abd74bdc707613948328c0c",
+          "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45908366317,
+          "id": 45909126398,
+          "name": "Tag engine CI",
+          "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45909126285,
           "name": "Engineering handoff snapshot",
-          "head": "9b7fac5230d758839abd74bdc707613948328c0c",
+          "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T23:08:17Z"
+      "observedAt": "2026-11-26T23:24:16Z"
     }
   ],
   "assignment": {
@@ -283,6 +283,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Exact-head 9b7fac5 Desktop CI failed two Windows native revision tests; Linux and all crate jobs passed. Reproduced Git core.autocrlf conversion of the checksummed synthetic fixture and verified scoped -text checkout preserves exact bytes. Production checksum validation unchanged. Successor CI and native import review required before ZIP decoding.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified exact-head 12ee69f, including Windows/Linux native revision regressions and real-child tests; closed REUSE-03B.13B review. Candidate bounded runtime ZIP transport decoder handles format 1/2, structural signature status only, and original synthetic Java fixtures. Local 66 importer and 87 core tests, strict importer Clippy/rustdoc and three locked dependency resolutions passed. New dependency advisory gate, exact-head CI and independent decoder review remain required before native ZIP admission.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

@@ -1,2 +1,3 @@
 # Checksummed transport fixtures are exact bytes.
 revision-*.synthetic -text
+runtime-*.synthetic -text

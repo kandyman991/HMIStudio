@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · Draft PR #36 has verified review recovery and revision decoding, plus candidate native guarded revision import with a Windows fixture checkout correction.
+**In progress** · Draft PR #36 has verified native revision import and a candidate bounded, read-only runtime ZIP package decoder.
 
 **Acceptance criteria**
 
@@ -748,11 +748,11 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Verify corrected native revision import exact-head hosted CI and independent review; runtime archive/package decoding, remaining legacy migration semantics and actual production publisher/live admission consumers remain open.
+- Verify exact-head hosted CI, importer/core dependency advisory gate and independent ZIP decoder review. Package-specific semantic validation, native ZIP admission/persisted package provenance, remaining legacy migration semantics and actual production publisher/live admission consumers remain open.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [9b7fac5](https://github.com/kandyman991/HMIStudio/commit/9b7fac5230d758839abd74bdc707613948328c0c) · snapshot 2026-11-26T23:08:17Z · [Desktop CI #45908366285](https://github.com/kandyman991/HMIStudio/actions/runs/45908366285) failure, [Tag engine CI #45908366398](https://github.com/kandyman991/HMIStudio/actions/runs/45908366398) success, [Engineering handoff snapshot #45908366317](https://github.com/kandyman991/HMIStudio/actions/runs/45908366317) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [12ee69f](https://github.com/kandyman991/HMIStudio/commit/12ee69f0a698b3c8ad6f46d390564c55d306f895) · snapshot 2026-11-26T23:24:16Z · [Desktop CI #45909126289](https://github.com/kandyman991/HMIStudio/actions/runs/45909126289) success, [Tag engine CI #45909126398](https://github.com/kandyman991/HMIStudio/actions/runs/45909126398) success, [Engineering handoff snapshot #45909126285](https://github.com/kandyman991/HMIStudio/actions/runs/45909126285) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -791,6 +791,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified recovery reconciliation bc773c2 all hosted workflows passed. Implemented bounded pure revision transport decoder against pinned storage contract with exact project bytes, checksum and identity verification; local 59 importer tests and strict Clippy/rustdoc passed. Successor CI/review, native directory and provenance integration remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified exact-head 2a84648 hosted CI and independent decoder review. Implemented guarded native revision import, private exact transport evidence in v3 review envelopes, replay/recovery and save-copy; v2 portable compatibility retained. Core 87 and isolated host 26 tests passed, TypeScript check passed; local Node frontend tests blocked. Successor CI/review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Exact-head 9b7fac5 Desktop CI failed two Windows native revision tests; Linux and all crate jobs passed. Reproduced Git core.autocrlf conversion of the checksummed synthetic fixture and verified scoped -text checkout preserves exact bytes. Production checksum validation unchanged. Successor CI and native import review required before ZIP decoding. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Verified exact-head 12ee69f, including Windows/Linux native revision regressions and real-child tests; closed REUSE-03B.13B review. Candidate bounded runtime ZIP transport decoder handles format 1/2, structural signature status only, and original synthetic Java fixtures. Local 66 importer and 87 core tests, strict importer Clippy/rustdoc and three locked dependency resolutions passed. New dependency advisory gate, exact-head CI and independent decoder review remain required before native ZIP admission. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

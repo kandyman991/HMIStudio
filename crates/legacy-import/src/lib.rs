@@ -6,6 +6,7 @@ mod catalog;
 mod graphics;
 mod industrial;
 mod navigation;
+pub mod package;
 mod primitives;
 mod resources;
 mod review;

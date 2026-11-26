@@ -116,7 +116,7 @@ impl<'de> de::Visitor<'de> for Check<'_> {
     }
 }
 
-fn unique(bytes: &[u8]) -> Result<(), RevisionError> {
+pub(crate) fn unique(bytes: &[u8]) -> Result<(), RevisionError> {
     use serde::de::DeserializeSeed;
     let mut budget = MAX_RECORD_NODES;
     let mut decoder = serde_json::Deserializer::from_slice(bytes);

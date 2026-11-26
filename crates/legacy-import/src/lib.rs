@@ -376,10 +376,9 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     // Keep the candidate audit evidence, but fail closed on incomplete
     // mappings. Resource bytes must not escape a refused admission.
     let project = if project.is_some() && !report.has_complete_mapping() {
-        report.findings.push(refused(
-            "".into(),
-            "incomplete-canonical-destination-audit",
-        ));
+        report
+            .findings
+            .push(refused("".into(), "incomplete-canonical-destination-audit"));
         None
     } else {
         project

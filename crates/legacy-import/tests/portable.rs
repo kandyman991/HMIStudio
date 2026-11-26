@@ -1286,7 +1286,8 @@ fn pre_v10_event_contract_is_rejected_before_mapping() {
 
 #[test]
 fn full_pinned_catalog_round_trip_and_mutation_refusal() {
-    let catalog: Value = serde_json::from_str(include_str!("fixtures/standard_catalog.json")).unwrap();
+    let catalog: Value =
+        serde_json::from_str(include_str!("fixtures/standard_catalog.json")).unwrap();
     let definitions = catalog.as_object().unwrap();
     assert_eq!(definitions.len(), 27);
     let mut f = fixture(10);
@@ -1305,7 +1306,11 @@ fn full_pinned_catalog_round_trip_and_mutation_refusal() {
         bad["componentDefinitions"][key]["displayName"] = json!("Changed declaration");
         let a = import_portable(&serde_json::to_vec(&bad).unwrap());
         assert!(a.project.is_none(), "{key}");
-        assert!(a.report.findings.iter().any(|f| f.code == "standard-catalog-signature-mismatch"));
+        assert!(a
+            .report
+            .findings
+            .iter()
+            .any(|f| f.code == "standard-catalog-signature-mismatch"));
     }
 }
 
@@ -1313,7 +1318,8 @@ fn full_pinned_catalog_round_trip_and_mutation_refusal() {
 fn adaptive_destination_pointers_follow_stable_node_identity() {
     let mut f = fixture(3);
     let s = &mut f["screens"]["screen/a"];
-    s["components"]["label-b"] = json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
+    s["components"]["label-b"] =
+        json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
     s["layout"] = json!({"root":{"node":"stack","id":"outer","direction":"COLUMN","children":[{"node":"stack","id":"inner","direction":"ROW","children":[{"node":"component","componentId":"label-b"},{"node":"component","componentId":"label-a"}]}]}});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
@@ -1334,7 +1340,11 @@ fn guarded_write_declarations_require_v9() {
     f["externalSources"]["src/a"]["commissioningAllowed"] = json!(false);
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|f| f.code == "source-feature-version-mismatch"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|f| f.code == "source-feature-version-mismatch"));
     f["schemaVersion"] = json!(9);
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_some(), "{:?}", a.report);
@@ -1349,20 +1359,30 @@ fn every_version_feature_boundary() {
     v3["screens"]["screen/a"]["layout"]["root"]["columns"] = json!(1);
     let mut v4 = fixture(4);
     v4["variables"]["label-a"]["type"] = json!("STRING");
-    v4["screens"]["screen/a"]["components"]["label-a"]["expressions"] = json!({"text":"`label-a` + '!' "});
+    v4["screens"]["screen/a"]["components"]["label-a"]["expressions"] =
+        json!({"text":"`label-a` + '!' "});
     let mut v5 = fixture(5);
     v5["screenOrder"] = json!(["screen/a"]);
     let mut v6 = fixture(6);
     v6["componentDefinitions"]["def"] = json!({"id":"def","displayName":"Reusable","type":"composite","composition":{"elements":{"part":{"id":"part","type":"label","properties":{"text":"Inside"}}}}});
     let mut v7 = fixture(7);
-    v7["theme"] = json!({"id":"custom-theme","name":"Custom","dark":true,"tokens":{"vessel":"#123456"}});
+    v7["theme"] =
+        json!({"id":"custom-theme","name":"Custom","dark":true,"tokens":{"vessel":"#123456"}});
     let mut v8 = fixture(8);
     v8["security"] = json!({"roles":{},"permissions":{}});
     let mut v10 = fixture(10);
-    v10["enumerations"]["mode"] = json!({"id":"mode","name":"Mode","entries":[{"value":0,"text":"Off"}]});
+    v10["enumerations"]["mode"] =
+        json!({"id":"mode","name":"Mode","entries":[{"value":0,"text":"Off"}]});
     for (version, mut project) in [
-        (2, v2), (3, v3), (4, v4), (5, v5), (6, v6),
-        (7, v7), (8, v8), (9, industrial_fixture()), (10, v10),
+        (2, v2),
+        (3, v3),
+        (4, v4),
+        (5, v5),
+        (6, v6),
+        (7, v7),
+        (8, v8),
+        (9, industrial_fixture()),
+        (10, v10),
     ] {
         project["schemaVersion"] = json!(version);
         let a = import_portable(&serde_json::to_vec(&project).unwrap());
@@ -1370,7 +1390,11 @@ fn every_version_feature_boundary() {
         assert!(a.report.has_complete_mapping());
         project["schemaVersion"] = json!(version - 1);
         let a = import_portable(&serde_json::to_vec(&project).unwrap());
-        assert!(a.project.is_none(), "v{} admitted newer feature", version - 1);
+        assert!(
+            a.project.is_none(),
+            "v{} admitted newer feature",
+            version - 1
+        );
         assert!(a.resource_bytes.is_empty());
         assert!(!a.report.has_complete_mapping());
     }

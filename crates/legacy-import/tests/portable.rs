@@ -990,3 +990,27 @@ fn unsupported_contract_review_is_separate_and_value_free_report() {
     assert_eq!(a.review_only_contracts.len(), 1);
     assert!(!format!("{a:?}").contains("SECRET-TEST"));
 }
+
+#[test]
+fn writable_shared_endpoint_and_debug_redaction() {
+    let mut f = industrial_fixture();
+    f["externalSources"]["other"] = f["externalSources"]["src/a"].clone();
+    f["externalSources"]["other"]["id"] = json!("other");
+    f["externalSources"]["other"]["configuration"]["host"] = json!("EXAMPLE.INVALID");
+    f["externalMappings"]["map-b"]["sourceId"] = json!("other");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.resource_bytes.is_empty());
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.code == "ambiguous-writable-shared-endpoint"));
+    let f = industrial_fixture();
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    let debug = format!("{a:?}");
+    for private in ["example.invalid", "DB1.DBD0", "Synthetic source", "role/a"] {
+        assert!(!debug.contains(private));
+    }
+}

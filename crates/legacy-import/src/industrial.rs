@@ -91,6 +91,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let mut connections = Vec::new();
     let mut policies = Vec::new();
     let mut source_ids = BTreeMap::new();
+    let mut physical_endpoints = BTreeMap::new();
     if let Some(sources) = map_obj(v, "externalSources", m, "/connections")? {
         for (i, (key, x)) in sources.iter().enumerate() {
             let p = path("/externalSources", key);
@@ -200,6 +201,12 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             if legacy != "loopback" {
                 c["parameters"] = params;
             }
+            if let Some(endpoint) = c["endpoint"].as_str() {
+                // DNS hostnames are case-insensitive. Distinct configured
+                // connections to one endpoint cannot establish independent
+                // write authority, even when their rack/slot/preset differs.
+                physical_endpoints.insert(key.as_str(), endpoint.to_ascii_lowercase());
+            }
             source_ids.insert(key.as_str(), id.clone());
             connections.push(c);
             policies.push(json!({"connection":id,"driver":policy,"commissioningAllowed":allowed}));
@@ -250,6 +257,7 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     }
     let mut mapped = BTreeSet::new();
     let mut addresses = BTreeMap::new();
+    let mut endpoint_usage = BTreeMap::new();
     let mut writes = Vec::new();
     if let Some(mappings) = map_obj(v, "externalMappings", m, "/tags")? {
         for (key, x) in mappings {
@@ -279,6 +287,16 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                 ("READ_WRITE" | "COMMAND" | "SETPOINT", "READ_WRITE") if confirmed => true,
                 _ => return fail(m, &path(&p, "access"), "ambiguous-or-unconfirmed-access"),
             };
+            if let Some(endpoint) = physical_endpoints.get(source) {
+                let (sources, has_write) = endpoint_usage
+                    .entry(endpoint)
+                    .or_insert_with(|| (BTreeSet::new(), false));
+                sources.insert(source);
+                *has_write |= writable;
+                if *has_write && sources.len() > 1 {
+                    return fail(m, &p, "ambiguous-writable-shared-endpoint");
+                }
+            }
             let addr = x.get("externalAddress")?.as_str()?;
             if addr.trim().is_empty() {
                 return None;

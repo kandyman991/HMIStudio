@@ -37,7 +37,6 @@ pub struct MigrationReport {
     pub findings: Vec<Finding>,
     pub id_map: BTreeMap<String, String>,
 }
-#[derive(Debug)]
 pub struct ImportOutcome {
     /// None whenever any source field or validation gate is refused.
     pub project: Option<Project>,
@@ -48,6 +47,20 @@ pub struct ImportOutcome {
     pub review_only_alarms: Vec<ReviewOnlyAlarm>,
     /// Recognized unsupported declarations, for local engineering review only.
     pub review_only_contracts: Vec<ReviewOnlyContract>,
+}
+
+// Project declarations, resource bytes and review records are local-only.
+// Even successfully imported inputs may contain sensitive engineering data.
+impl std::fmt::Debug for ImportOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ImportOutcome")
+            .field("has_project", &self.project.is_some())
+            .field("finding_count", &self.report.findings.len())
+            .field("resource_count", &self.resource_bytes.len())
+            .field("review_alarm_count", &self.review_only_alarms.len())
+            .field("review_contract_count", &self.review_only_contracts.len())
+            .finish()
+    }
 }
 
 /// Legacy alarm declaration with unresolved activation semantics.

@@ -136,7 +136,11 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
         let id = m.id(&path(&p, "id"), key, "asset");
         let file = format!("assets/{digest}.png");
         let t = format!("/resources/{}", resources.len());
-        let name = m.text(a.get("name")?, &path(&p, "name"), &format!("{t}/extensions/legacyName"))?;
+        let name = m.text(
+            a.get("name")?,
+            &path(&p, "name"),
+            &format!("{t}/extensions/legacyName"),
+        )?;
         resources.push(json!({"id":id,"kind":"image","path":file,"mediaType":"image/png","sha256":digest,"extensions":{"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h}}));
         for (src, dst) in [
             ("id", "id"),
@@ -167,8 +171,18 @@ pub(super) fn image(
         return None;
     }
     let props = c.get("properties")?.as_object()?;
-    let id = m.ids.get(&path(&path("/assets", props.get("assetId")?.as_str()?), "id"))?.clone();
-    let fit = match props.get("fit").and_then(Value::as_str).unwrap_or("CONTAIN") {
+    let id = m
+        .ids
+        .get(&path(
+            &path("/assets", props.get("assetId")?.as_str()?),
+            "id",
+        ))?
+        .clone();
+    let fit = match props
+        .get("fit")
+        .and_then(Value::as_str)
+        .unwrap_or("CONTAIN")
+    {
         "CONTAIN" => "fit",
         "COVER" => "crop",
         "STRETCH" => "fill",
@@ -177,8 +191,14 @@ pub(super) fn image(
     };
     n["properties"]["source"] = json!(id);
     n["properties"]["contentScale"] = json!(fit);
-    m.mark(&format!("{p}/properties/assetId"), &format!("{t}/properties/source"));
-    m.mark(&format!("{p}/properties/fit"), &format!("{t}/properties/contentScale"));
+    m.mark(
+        &format!("{p}/properties/assetId"),
+        &format!("{t}/properties/source"),
+    );
+    m.mark(
+        &format!("{p}/properties/fit"),
+        &format!("{t}/properties/contentScale"),
+    );
     if let Some(f) = m.findings.get_mut(&path(p, "type")) {
         f.code = "image-renderer-parity-pending";
         f.severity = "warning";
@@ -199,7 +219,10 @@ pub(super) fn theme(v: &Value, m: &mut Mapping) -> Option<Option<Value>> {
     }
     let id = m.id("/theme/id", theme.get("id")?.as_str()?, "theme");
     let name = m.text(theme.get("name")?, "/theme/name", "/themes/0/name")?;
-    let dark = theme.get("dark").map(Value::as_bool).unwrap_or(Some(false))?;
+    let dark = theme
+        .get("dark")
+        .map(Value::as_bool)
+        .unwrap_or(Some(false))?;
     m.mark("/theme/id", "/themes/0/id");
     m.mark("/theme/dark", "/themes/0/dark");
     if let Some(tokens) = theme.get("tokens") {

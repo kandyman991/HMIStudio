@@ -322,7 +322,10 @@ fn review_alarms(v: &Value, m: &mut Mapping) -> Vec<ReviewOnlyAlarm> {
         let parsed = (|| {
             let fields = alarm.as_object()?;
             if fields.keys().any(|k| {
-                !matches!(k.as_str(), "id" | "sourceVariableId" | "message" | "severity")
+                !matches!(
+                    k.as_str(),
+                    "id" | "sourceVariableId" | "message" | "severity"
+                )
             }) || id.is_empty()
                 || alarm["id"].as_str()? != id
             {

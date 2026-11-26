@@ -712,3 +712,22 @@ fn exact_numeric_constant_action_and_policy_bounds() {
         .project
         .is_none());
 }
+
+#[test]
+fn cardinal_arrow_and_distinct_fill_refusal() {
+    let mut f = fixture(7);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("arrow");
+    c["properties"] = json!({"direction":"left","strokeColor":"#123456","fillColor":"#123456","strokeWidth":"2"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let contract = &d["v2"]["components"]["components"][0]["contract"];
+    assert_eq!(contract["kind"], "arrow");
+    assert!(contract["start"]["x"].as_f64() > contract["end"]["x"].as_f64());
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["fillColor"] =
+        json!("#FFFFFF");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

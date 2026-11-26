@@ -33,6 +33,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "indicator" => "indicator",
         "composite" => "instance",
         "line" => "line",
+        "arrow" => "arrow",
         "polygon" => "polygon",
         "motor" | "conveyor" | "valve" | "pump" | "tank" | "pipe" => "instance",
         _ => return refuse(m, &path(p, "type"), "component-kind-not-mapped"),
@@ -73,6 +74,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         mark(m, p, "geometry", t, "layout");
     }
     let mut props = json!({});
+    if kind == "arrow" {
+        super::primitives::arrow(v, p, &id, geo[2], geo[3], m)?;
+    }
     if matches!(kind, "line" | "polygon") {
         super::primitives::shape(v, p, &id, geo[2] as f32, geo[3] as f32, m)?;
     }
@@ -366,7 +370,7 @@ impl Layout<'_> {
                 })?;
                 let source = self.source.get(key)?;
                 let np = path(&self.p, key);
-                if matches!(source["type"].as_str(), Some("line" | "polygon")) {
+                if matches!(source["type"].as_str(), Some("line" | "polygon" | "arrow")) {
                     return refuse(m, &np, "relative-primitive-layout-not-representable");
                 }
                 if source.get("visible").and_then(Value::as_bool) == Some(false)

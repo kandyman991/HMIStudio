@@ -144,3 +144,60 @@ pub(super) fn symbol(
     let class = json!({"definition":id,"classification":{"kind":"industrialSymbol","symbol":kind}});
     Some((serde_json::to_value(definition).ok()?, class))
 }
+
+// A legacy arrow has a filled triangular head, whereas the canonical
+ // arrow is a line with a head. Only same-color cardinal arrows are admitted.
+pub(super) fn arrow(
+    v: &Value,
+    p: &str,
+    id: &str,
+    width: f64,
+    height: f64,
+    m: &mut Mapping,
+) -> Option<()> {
+    let props = v.get("properties")?.as_object()?;
+    let stroke = props.get("strokeColor")?.as_str()?;
+    let fill = props.get("fillColor")?.as_str()?;
+    let sw = props.get("strokeWidth")?.as_str()?.parse::<f32>().ok()?;
+    if !color(stroke) || !stroke.eq_ignore_ascii_case(fill) || !(1.0..=8.0).contains(&sw) {
+        return None;
+    }
+    let direction = props.get("direction")?.as_str()?;
+    let (dx, dy) = match direction {
+        "right" => (1., 0.),
+        "left" => (-1., 0.),
+        "up" => (0., -1.),
+        "down" => (0., 1.),
+        _ => return None,
+    };
+    if let Some(r) = props.get("rotation") {
+        if r.as_str()?.parse::<f32>().ok()? != 0. {
+            return None;
+        }
+    }
+    let scale = (width / 60.).min(height / 32.);
+    let x = width / 2.;
+    let y = height / 2.;
+    let stroke_width = f64::from(sw) * scale;
+    if scale <= 0. || !stroke_width.is_finite() {
+        return None;
+    }
+    let t = format!("/v2/components/components/{}/contract", m.contracts.len());
+    let contract = json!({"kind":"arrow","start":{"x":x-26.*scale*dx,"y":y-26.*scale*dy},"end":{"x":x+26.*scale*dx,"y":y+26.*scale*dy},"headLength":16.*scale,"strokeColor":stroke,"strokeWidth":stroke_width});
+    for (key, target) in [
+        ("strokeColor", "strokeColor"),
+        ("fillColor", "strokeColor"),
+        ("strokeWidth", "strokeWidth"),
+        ("direction", "end"),
+        ("rotation", "end"),
+    ] {
+        m.mark(&path(&path(p, "properties"), key), &path(&t, target));
+    }
+    if let Some(f) = m.findings.get_mut(&path(p, "type")) {
+        f.code = "arrow-renderer-approximation";
+        f.severity = "warning";
+        f.message = "Cardinal arrow geometry mapped; filled-head and resize parity not established.";
+    }
+    m.contracts.push(json!({"id":id,"contract":contract}));
+    Some(())
+}

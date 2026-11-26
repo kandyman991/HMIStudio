@@ -67,3 +67,5 @@ Added classification for passive faceplate declarations using the existing conse
 ### REUSE-03B.4 continuation — exact numeric constant actions
 
 Baseline edb80e7 passed both importer jobs and Required CI (run 45766574801). Numeric value.set declarations now require an already-confirmed setpoint policy, exact type, in-range value and no step constraint. Integer comparisons retain full integer precision; ambiguous float32 narrowing and step alignment refuse. No runtime writes are executed. Legacy value.step remains refused pending conversion and no-change conformance. Synthetic regression added; new head unverified.
+
+Cardinal fixed-frame arrows with explicit identical stroke/fill colors map to the canonical line-head contract, with a renderer approximation warning. Distinct fill, nonzero rotation and adaptive placement refuse. This is not filled-head parity.

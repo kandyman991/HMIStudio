@@ -9,6 +9,16 @@ const QUEUE: usize = 32;
 
 #[tokio::main]
 async fn main() {
+    // Trusted launch-time choice. JSON clients cannot change mode.
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    let isolated = match args.as_slice() {
+        [] => false,
+        [mode] if mode == "--isolated" => true,
+        _ => {
+            eprintln!("usage: hmi-engine [--isolated]");
+            std::process::exit(2);
+        }
+    };
     let (request_tx, request_rx) = channel::<Request>(QUEUE);
     let (out_tx, mut out_rx) = channel::<Message>(QUEUE);
     let mut writer = tokio::spawn(async move {
@@ -76,7 +86,11 @@ async fn main() {
             frame.clear();
         }
     });
-    hmi_engine::engine::run(request_rx, out_tx).await;
+    if isolated {
+        hmi_engine::engine::run_isolated(request_rx, out_tx).await;
+    } else {
+        hmi_engine::engine::run(request_rx, out_tx).await;
+    }
     reader.abort();
     let _ = tokio::time::timeout(Duration::from_secs(2), &mut writer).await;
     std::process::exit(0);

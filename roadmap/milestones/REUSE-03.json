@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Schema v2 frozen. Portable legacy import, immutable review bundles and the native review lifecycle are in draft PR #36.",
+  "summary": "Schema v2 frozen; portable legacy import, immutable review bundles, native review lifecycle and candidate isolated communication engine in draft PR #36.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify production admission at the actual publisher and live connection entry points. Isolated runtime integration, archive/package admission and unresolved migration semantics remain open."
+    "Verify actual publisher and live project connection entry points; native project-to-isolated-engine adapter, archive/package admission, unresolved migration semantics and review-edit crash recovery remain open. Verify new isolated-engine regressions and independent review."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -25,37 +25,39 @@
   ],
   "parent": "RUST-05",
   "claimGroup": "RUST-05",
-  "requiredWorkflows": ["Tag engine CI"],
+  "requiredWorkflows": [
+    "Tag engine CI"
+  ],
   "prs": [
     {
       "number": 36,
-      "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
+      "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45835880081,
+          "id": 45836917012,
           "name": "Desktop CI",
-          "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
+          "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45835880113,
+          "id": 45836917541,
           "name": "Engineering handoff snapshot",
-          "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
+          "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45835880330,
+          "id": 45836917144,
           "name": "Tag engine CI",
-          "head": "13aeca71746a926101c410bc92bce8c477a3d69d",
+          "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T14:12:45Z"
+      "observedAt": "2026-11-26T14:13:57Z"
     }
   ],
   "assignment": {
@@ -63,6 +65,9 @@
     "branch": "feat/reuse-03b-legacy-import",
     "scope": [
       "crates/engineering-core/",
+      "crates/hmi-engine/src/engine.rs",
+      "crates/hmi-engine/src/main.rs",
+      "crates/hmi-engine/tests/isolated_runtime.rs",
       "crates/hmi-engine/tests/legacy_address_conformance.rs",
       "crates/legacy-import/",
       "src-tauri/Cargo.lock",
@@ -71,7 +76,7 @@
       "src-tauri/src/session_host.rs",
       "src/main.tsx"
     ],
-    "observedAt": "2026-11-26T12:54:31Z"
+    "observedAt": "2026-11-26T14:13:57Z"
   },
   "history": [
     {
@@ -186,6 +191,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified all 19 hosted jobs on corrected source 13aeca7, including Windows/Linux native tests and Required CI. Recorded the tested source and regenerated the dashboard. PR #36 remains a draft and the RUST-05 reservation remains active.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified review successor 2bd11e6 in all 19 hosted jobs, including native Windows 14/14 and Linux 15/15, engineering-core 72/72 and 73/73; 9 quarantine tests per platform. Extended RUST-05 before isolated communication engine changes. Native project adapter, actual production consumer, archive and remaining migration/recovery gates stay open.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

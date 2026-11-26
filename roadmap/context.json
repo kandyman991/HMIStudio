@@ -82,6 +82,9 @@
       "branch": "feat/reuse-03b-legacy-import",
       "scope": [
         "crates/engineering-core/",
+        "crates/hmi-engine/src/engine.rs",
+        "crates/hmi-engine/src/main.rs",
+        "crates/hmi-engine/tests/isolated_runtime.rs",
         "crates/hmi-engine/tests/legacy_address_conformance.rs",
         "crates/legacy-import/",
         "src-tauri/Cargo.lock",
@@ -90,7 +93,7 @@
         "src-tauri/src/session_host.rs",
         "src/main.tsx"
       ],
-      "observedAt": "2026-11-26T12:54:31Z"
+      "observedAt": "2026-11-26T14:13:57Z"
     }
   ]
 }

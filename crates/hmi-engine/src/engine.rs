@@ -194,6 +194,8 @@ pub struct Engine {
     unconfirmed: BTreeSet<String>,
     factory: driver::DriverFactory,
     limits: Limits,
+    isolated: bool,
+    simulation_paused: bool,
 }
 
 /// Runs until the request channel closes (client gone) or a `shutdown` request arrives.
@@ -201,6 +203,27 @@ pub struct Engine {
 /// must not stay connected to machinery.
 pub async fn run(requests: Receiver<Request>, out: Sender<Message>) {
     run_with_drivers(requests, out, std::sync::Arc::new(driver::create)).await
+}
+
+/// An isolated runtime accepts only in-memory loopback configurations.
+/// The mode is fixed by the trusted launcher, not a protocol request. No
+/// credential, endpoint or driver setting can reach a physical driver.
+/// Simulation writes do not require production arming; type, access, limits,
+/// connection state and pulse semantics still apply.
+pub async fn run_isolated(requests: Receiver<Request>, out: Sender<Message>) {
+    let factory: driver::DriverFactory = std::sync::Arc::new(
+        |source, points, credentials, sink| {
+            if source.driver != "loopback" || !source.settings.is_empty() || credentials.is_some() {
+                return Err(driver::DriverError("isolated runtime requires memory only".into()));
+            }
+            Ok(Box::new(driver::loopback::LoopbackDriver::new(
+                source.clone(),
+                points,
+                sink,
+            )))
+        },
+    );
+    run_mode(requests, out, factory, Limits::default(), true).await
 }
 
 /// [run] with a substitute driver factory: used by tests with simulated drivers. Never used to
@@ -222,6 +245,16 @@ pub async fn run_with_limits(
     factory: driver::DriverFactory,
     limits: Limits,
 ) {
+    run_mode(requests, out, factory, limits, false).await
+}
+
+async fn run_mode(
+    requests: Receiver<Request>,
+    out: Sender<Message>,
+    factory: driver::DriverFactory,
+    limits: Limits,
+    isolated: bool,
+) {
     const EVENT_CAPACITY: usize = 256;
     let (events_tx, mut events_rx) = channel(EVENT_CAPACITY);
     let mut engine = Engine {
@@ -241,6 +274,8 @@ pub async fn run_with_limits(
         unconfirmed: BTreeSet::new(),
         factory,
         limits,
+        isolated,
+        simulation_paused: false,
     };
     let mut inbox = Inbox {
         rx: requests,
@@ -359,7 +394,11 @@ impl Engine {
                     id,
                     protocol: PROTOCOL_VERSION,
                     engine_version: env!("CARGO_PKG_VERSION").into(),
-                    drivers: driver::DRIVERS.iter().map(|d| d.to_string()).collect(),
+                    drivers: if self.isolated {
+                        vec!["loopback".into()]
+                    } else {
+                        driver::DRIVERS.iter().map(|d| d.to_string()).collect()
+                    },
                 });
             }
             return;
@@ -379,14 +418,35 @@ impl Engine {
             Request::Shutdown { id } => inbox.shutdown = Some(id),
             Request::Configure {
                 id,
-                config,
+                mut config,
                 credentials,
             } => {
                 // A new configuration starts from a safe state: disconnected and disarmed.
                 self.stop_all().await;
-                match guard::validate_config(&config, driver::DRIVERS) {
+                let admitted = if self.isolated {
+                    if !credentials.is_empty()
+                        || config.sources.iter().any(|source| {
+                            source.driver != "loopback" || !source.settings.is_empty()
+                        })
+                    {
+                        Err("isolated runtime permits only memory sources without settings or credentials".into())
+                    } else {
+                        // Production confirmation is not needed for a purely local cell.
+                        // This configuration stays inside the isolated engine.
+                        for point in &mut config.points {
+                            if point.writable() {
+                                point.write_confirmed = true;
+                            }
+                        }
+                        guard::validate_config(&config, &["loopback"])
+                    }
+                } else {
+                    guard::validate_config(&config, driver::DRIVERS)
+                };
+                match admitted {
                     Ok(()) => {
                         self.config = Some(config);
+                        self.simulation_paused = false;
                         self.demand = None;
                         self.credentials = credentials;
                         self.send(Message::Ok { id });
@@ -503,6 +563,7 @@ impl Engine {
                 self.release_pulses(true).await;
                 // Arming authorizes communication only. It never clears an unconfirmed command
                 // (D-02C4A-2): command recovery is a separate, command-specific operation.
+                self.simulation_paused = false;
                 self.armed = Some(Armed {
                     actor: actor.clone(),
                     until: Instant::now() + Duration::from_secs(ttl_seconds as u64),
@@ -519,6 +580,9 @@ impl Engine {
                 // until its timer expires. Report any failed release to the client.
                 self.release_pulses(true).await;
                 self.disarm();
+                if self.isolated {
+                    self.simulation_paused = true;
+                }
                 self.send(Message::Ok { id });
             }
             Request::Write {
@@ -533,10 +597,9 @@ impl Engine {
                 // The actor must match the person who armed the engine, not merely be a
                 // non-empty string supplied by the client.
                 let decision = if !stale
-                    && self
-                        .armed
-                        .as_ref()
-                        .is_some_and(|armed| armed.actor == actor)
+                    && ((self.isolated && !self.simulation_paused)
+                        || (!self.isolated
+                            && self.armed.as_ref().is_some_and(|armed| armed.actor == actor)))
                 {
                     guard::check_write(
                         &GuardState {
@@ -601,10 +664,9 @@ impl Engine {
                 }
                 let value = crate::protocol::Value::Bool(true);
                 let decision = if stale
-                    || !self
-                        .armed
-                        .as_ref()
-                        .is_some_and(|armed| armed.actor == actor)
+                    || (self.isolated && self.simulation_paused)
+                    || (!self.isolated
+                        && !self.armed.as_ref().is_some_and(|armed| armed.actor == actor))
                 {
                     Err(WriteRefusal::WritesDisarmed)
                 } else if self.pulses.contains_key(&variable_id)
@@ -615,7 +677,7 @@ impl Engine {
                     guard::check_write(
                         &GuardState {
                             config: self.config.as_ref(),
-                            armed: self.armed.is_some(),
+                            armed: self.isolated || self.armed.is_some(),
                             connected_sources: &self.connected,
                         },
                         &variable_id,

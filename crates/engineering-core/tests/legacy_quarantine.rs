@@ -635,3 +635,70 @@ fn review_recovery_refuses_even_semantically_equivalent_external_base_replacemen
     assert!(!review.recovery_current());
     assert_eq!(std::fs::read(&slot).unwrap(), recovery);
 }
+
+#[test]
+fn review_recovery_preserves_replaced_valid_same_base_snapshot() {
+    let dir = TempDir::new("review-recovery-replaced");
+    let path = dir.join("review.bundle");
+    let copy = dir.join("copy.bundle");
+    let mut review =
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs())
+            .unwrap();
+    let slot = review_recovery_path(&path);
+    rename_review(&mut review, "First");
+    review.autosave().unwrap();
+    let previous = std::fs::read(&slot).unwrap();
+    rename_review(&mut review, "Second");
+    review.autosave().unwrap();
+    assert_ne!(std::fs::read(&slot).unwrap(), previous);
+    std::fs::write(&slot, &previous).unwrap();
+    assert!(review.autosave().is_err());
+    assert!(!review.recovery_current());
+    assert!(review.discard_recovery().is_err());
+    assert_eq!(std::fs::read(&slot).unwrap(), previous);
+    review.save_copy(&copy).unwrap();
+    assert!(!review.warnings().is_empty());
+    assert_eq!(std::fs::read(&slot).unwrap(), previous);
+    assert_eq!(
+        QuarantinedImport::recover(&path, SessionConfig::default(), std_fs())
+            .unwrap()
+            .snapshot()
+            .project
+            .screens[0]
+            .name,
+        "First"
+    );
+    assert_eq!(
+        QuarantinedImport::reopen(&copy, SessionConfig::default(), std_fs())
+            .unwrap()
+            .snapshot()
+            .project
+            .screens[0]
+            .name,
+        "Second"
+    );
+}
+
+#[test]
+fn review_recovery_clean_undo_does_not_retire_snapshot_of_changed_base() {
+    let dir = TempDir::new("review-recovery-changed-base-undo");
+    let path = dir.join("review.bundle");
+    let mut review =
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs())
+            .unwrap();
+    rename_review(&mut review, "Pending");
+    review.autosave().unwrap();
+    let slot = review_recovery_path(&path);
+    let recovery = std::fs::read(&slot).unwrap();
+    let mut base = std::fs::read(&path).unwrap();
+    base.push(b'\n');
+    std::fs::write(&path, &base).unwrap();
+    let _ = review.request(Request::Undo {
+        expected_revision: Some(review.snapshot().revision),
+    });
+    assert!(!review.is_dirty());
+    assert!(review.autosave().is_err());
+    assert!(!review.recovery_current());
+    assert!(review.discard_recovery().is_err());
+    assert_eq!(std::fs::read(&slot).unwrap(), recovery);
+}

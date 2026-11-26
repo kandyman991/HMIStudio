@@ -245,7 +245,7 @@ pub struct QuarantinedImport {
     payload: Payload,
     path: PathBuf,
     warnings: Vec<&'static str>,
-    recovery_owned: bool,
+    recovery_sha256: Option<String>,
     base_sha256: String,
 }
 
@@ -280,7 +280,7 @@ impl QuarantinedImport {
             payload,
             path: target.to_path_buf(),
             warnings,
-            recovery_owned: false,
+            recovery_sha256: None,
             base_sha256,
         })
     }
@@ -314,7 +314,7 @@ impl QuarantinedImport {
             payload: envelope.payload,
             path: path.to_path_buf(),
             warnings: Vec::new(),
-            recovery_owned: false,
+            recovery_sha256: None,
             base_sha256: digest(&bytes),
         })
     }
@@ -327,18 +327,36 @@ impl QuarantinedImport {
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
         let mut review = Self::reopen(path, config.clone(), fs.clone())?;
-        let project = review.read_recovery()?;
+        let (project, recovery_sha256) = review.read_recovery()?;
         review.session = ProjectSession::bare(project, config, fs);
         review.session.storage.autosaved_state = Some(review.session.current_state_id());
-        review.recovery_owned = true;
+        review.recovery_sha256 = Some(recovery_sha256);
         Ok(review)
     }
 
-    fn read_recovery(&self) -> Result<Project, ImportError> {
+    fn verify_recovery_base(&self) -> Result<(), ImportError> {
+        let saved = self.session.fs.read_limited(&self.path, MAX_BUNDLE_BYTES);
+        if !saved.is_ok_and(|bytes| digest(&bytes) == self.base_sha256) {
+            return Err(ImportError::InvalidRecovery);
+        }
+        Ok(())
+    }
+
+    fn read_recovery(&self) -> Result<(Project, String), ImportError> {
         let fs = self.session.fs.as_ref();
         let bytes = fs
             .read_limited(&review_recovery_path(&self.path), MAX_BUNDLE_BYTES)
             .map_err(|_| ImportError::InvalidRecovery)?;
+        // A valid envelope for the same base is not necessarily the snapshot
+        // this session published or recovered. Preserve external replacements.
+        let recovery_sha256 = digest(&bytes);
+        if self
+            .recovery_sha256
+            .as_ref()
+            .is_some_and(|owned| owned != &recovery_sha256)
+        {
+            return Err(ImportError::InvalidRecovery);
+        }
         let envelope: RecoveryEnvelope =
             serde_json::from_slice(&bytes).map_err(|_| ImportError::InvalidRecovery)?;
         let body = serde_json::to_vec(&envelope.body).map_err(|_| ImportError::InvalidRecovery)?;
@@ -359,7 +377,7 @@ impl QuarantinedImport {
         }
         let original = decode_project(&self.payload.original_project)?;
         verify_review_edit(&original, &project, &self.payload.resources)?;
-        Ok(project)
+        Ok((project, recovery_sha256))
     }
 
     pub fn autosave(&mut self) -> Result<AutosaveOutcome, ImportError> {
@@ -367,26 +385,25 @@ impl QuarantinedImport {
         let path = review_recovery_path(&self.path);
         let dir = sidecar_dir(&self.path);
         if !self.is_dirty() {
-            if self.recovery_owned {
-                self.discard_recovery()?;
-                self.recovery_owned = false;
+            if self.recovery_sha256.is_some() {
                 self.session.storage.autosaved_state = None;
+                self.discard_recovery()?;
+                self.recovery_sha256 = None;
             }
             return Ok(AutosaveOutcome::Clean);
         }
         // A recovery is bound to the exact saved envelope bytes, not just
         // a project ID or report revision. A changed base cannot be recovered.
-        let saved = fs.read_limited(&self.path, MAX_BUNDLE_BYTES);
-        if !saved.is_ok_and(|bytes| digest(&bytes) == self.base_sha256) {
+        self.verify_recovery_base().inspect_err(|_| {
             self.session.storage.autosaved_state = None;
-            return Err(ImportError::InvalidRecovery);
-        }
+        })?;
         // Never replace an unresolved or foreign recovery slot.
         if fs.exists(&path) {
-            if !self.recovery_owned {
+            if self.recovery_sha256.is_none() {
+                self.session.storage.autosaved_state = None;
                 return Err(ImportError::InvalidRecovery);
             }
-            let previous = self.read_recovery().inspect_err(|_| {
+            let (previous, _) = self.read_recovery().inspect_err(|_| {
                 self.session.storage.autosaved_state = None;
             })?;
             if self.session.storage.autosaved_state == Some(self.session.current_state_id())
@@ -425,7 +442,7 @@ impl QuarantinedImport {
             let _ = fs.remove_file(&tmp);
             return Err(ImportError::Io("recovery publish"));
         }
-        self.recovery_owned = true;
+        self.recovery_sha256 = Some(digest(&bytes));
         fs.sync_dir(&dir)
             .map_err(|_| ImportError::Io("recovery sync"))?;
         self.session.storage.autosaved_state = Some(self.session.current_state_id());
@@ -439,8 +456,9 @@ impl QuarantinedImport {
     pub fn discard_recovery(&self) -> Result<(), ImportError> {
         let fs = self.session.fs.as_ref();
         let path = review_recovery_path(&self.path);
-        if self.recovery_owned {
+        if self.recovery_sha256.is_some() {
             if fs.exists(&path) {
+                self.verify_recovery_base()?;
                 self.read_recovery()?;
             }
             match fs.remove_file(&path) {
@@ -527,12 +545,14 @@ impl QuarantinedImport {
         // A successful publication with a durability/cleanup warning must not
         // discard the last recovery snapshot. The user can explicitly retire
         // it after verifying the newly published copy.
-        if self.recovery_owned && (!warnings.is_empty() || self.discard_recovery().is_err()) {
+        if self.recovery_sha256.is_some()
+            && (!warnings.is_empty() || self.discard_recovery().is_err())
+        {
             warnings.push("saved review copy; previous recovery retained");
         }
         self.session.mark_saved();
         self.session.storage.autosaved_state = None;
-        self.recovery_owned = false;
+        self.recovery_sha256 = None;
         self.payload = payload;
         self.base_sha256 = base_sha256;
         self.path = target.to_path_buf();

@@ -31,6 +31,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::legacy_quarantine::{requires_review, storage_requires_review};
+
 use hmi_project_model::migration::MigrationRegistry;
 use hmi_project_model::serialization::{parse_project_with, to_json_string, LoadError};
 use hmi_project_model::{validate, ValidationReport};
@@ -170,6 +172,9 @@ fn io_err(stage: &'static str, path: &Path, e: &std::io::Error) -> SaveError {
 /// Open failure.
 #[derive(Debug, thiserror::Error)]
 pub enum OpenError {
+    /// Imported provenance requires the dedicated review bundle reader.
+    #[error("imported projects must be opened as verified review bundles")]
+    ReviewRequired,
     /// File could not be read.
     #[error("cannot read {path}: {message}")]
     Io {
@@ -287,10 +292,11 @@ pub(crate) fn stage_temp(
     fs: &dyn FileSystem,
     target: &Path,
     data: &[u8],
+    write: impl Fn(&Path, &[u8]) -> std::io::Result<()>,
 ) -> Result<PathBuf, SaveError> {
     let tmp = loop {
         let candidate = temp_path(target);
-        match fs.write_synced(&candidate, data) {
+        match write(&candidate, data) {
             Ok(()) => break candidate,
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(e) => {
@@ -327,7 +333,7 @@ fn commit_temp(fs: &dyn FileSystem, tmp: &Path, target: &Path) -> Result<(), Sav
 
 /// Writes `data` to `target` through a synced, verified temp file + rename.
 fn atomic_write(fs: &dyn FileSystem, target: &Path, data: &[u8]) -> Result<(), SaveError> {
-    let tmp = stage_temp(fs, target, data)?;
+    let tmp = stage_temp(fs, target, data, |path, data| fs.write_synced(path, data))?;
     commit_temp(fs, &tmp, target)
 }
 
@@ -456,10 +462,16 @@ impl ProjectSession {
         migrations: &MigrationRegistry,
     ) -> Result<OpenOutcome, OpenError> {
         let (bytes, text) = read_text(fs.as_ref(), path)?;
+        if storage_requires_review(&bytes) {
+            return Err(OpenError::ReviewRequired);
+        }
         let parsed = parse_project_with(&text, migrations).map_err(|error| OpenError::Load {
             path: path.display().to_string(),
             error,
         })?;
+        if requires_review(&parsed.project) {
+            return Err(OpenError::ReviewRequired);
+        }
         let migrated_from = (!parsed.migrations.is_empty()).then_some(parsed.source_version);
         let recovery = inspect_recovery(fs.as_ref(), path);
         let mut session = ProjectSession::bare(parsed.project, config, fs);
@@ -540,9 +552,26 @@ impl ProjectSession {
                 path: info.autosave_path.clone(),
                 error,
             })?;
-        let mut session = ProjectSession::bare(parsed.project, config, fs.clone());
+        // A recovery payload cannot authorize opening a quarantined base. Keep
+        // normal recovery of deleted or damaged ordinary projects available.
+        let known_disk = match base.map(|path| fs.read(path)) {
+            Some(Ok(bytes)) => Some(bytes),
+            Some(Err(error)) if error.kind() != std::io::ErrorKind::NotFound => {
+                return Err(OpenError::Io {
+                    path: base.map_or_else(String::new, |path| path.display().to_string()),
+                    message: error.to_string(),
+                });
+            }
+            _ => None,
+        };
+        if requires_review(&parsed.project)
+            || known_disk.as_deref().is_some_and(storage_requires_review)
+        {
+            return Err(OpenError::ReviewRequired);
+        }
+        let mut session = ProjectSession::bare(parsed.project, config, fs);
         session.storage.path = base.map(Path::to_path_buf);
-        session.storage.known_disk = base.and_then(|p| fs.read(p).ok());
+        session.storage.known_disk = known_disk;
         session.storage.recovery_base = base.map(|_| meta.base_fingerprint);
         // Unsaved by definition; the autosave slot holds this state.
         session.storage.autosaved_state = Some(session.current_state_id());
@@ -576,7 +605,7 @@ impl ProjectSession {
         if self.closed {
             return Err(SaveError::Closed);
         }
-        if crate::legacy_quarantine::requires_review(self.project()) {
+        if requires_review(self.project()) {
             return Err(SaveError::Serialize {
                 message: "legacy import requires quarantined bundle persistence".into(),
             });
@@ -598,6 +627,11 @@ impl ProjectSession {
         } else {
             None
         };
+        if on_disk.as_deref().is_some_and(storage_requires_review) {
+            return Err(SaveError::Serialize {
+                message: "cannot replace a quarantined file with an ordinary project".into(),
+            });
+        }
         // External modification / overwrite protection.
         if new_target {
             if on_disk.is_some() && !options.replace_existing {
@@ -650,7 +684,7 @@ impl ProjectSession {
         // 1. stage + verify; 2. back up the previous version (abort the save
         // if that fails); 3. atomic replace. A failed write never rotates
         // backups and never touches the target.
-        let tmp = stage_temp(fs, path, &data)?;
+        let tmp = stage_temp(fs, path, &data, |path, data| fs.write_synced(path, data))?;
         let backup = match &on_disk {
             Some(prev) if !prev.is_empty() => {
                 match write_backup(fs, path, prev, self.config.backup_count, &mut warnings) {
@@ -726,7 +760,7 @@ impl ProjectSession {
         if self.closed {
             return Err(SaveError::Closed);
         }
-        if crate::legacy_quarantine::requires_review(self.project()) {
+        if requires_review(self.project()) {
             return Err(SaveError::Serialize {
                 message: "legacy import requires quarantined bundle persistence".into(),
             });
@@ -827,12 +861,18 @@ impl ProjectSession {
         }
         let path = self.storage.path.clone().ok_or(ReloadError::NotSaved)?;
         let (bytes, text) = read_text(self.fs.as_ref(), &path).map_err(ReloadError::Open)?;
+        if storage_requires_review(&bytes) {
+            return Err(ReloadError::Open(OpenError::ReviewRequired));
+        }
         let parsed = parse_project_with(&text, migrations).map_err(|error| {
             ReloadError::Open(OpenError::Load {
                 path: path.display().to_string(),
                 error,
             })
         })?;
+        if requires_review(&parsed.project) {
+            return Err(ReloadError::Open(OpenError::ReviewRequired));
+        }
         let outcome = self.replace_project(parsed.project);
         self.storage.known_disk = Some(bytes);
         self.storage.recovery_base = None;

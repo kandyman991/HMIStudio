@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Schema v2 frozen; portable importer and review bundle integrated with a candidate desktop import lifecycle and typed production screening.",
+  "summary": "Schema v2 frozen. Portable legacy import, immutable review bundles and the native review lifecycle are in draft PR #36.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify corrected-head desktop import and bypass regressions; independent technical review, actual publisher/live connection consumer enforcement and isolated runtime integration remain outstanding. Archive/package admission and unresolved semantic gaps remain open."
+    "Verify the review corrections in hosted Windows and Linux CI at the exact PR head. Actual publisher and live connection admission, isolated runtime integration, archive/package admission and unresolved migration semantics remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -25,6 +25,39 @@
   ],
   "parent": "RUST-05",
   "claimGroup": "RUST-05",
+  "requiredWorkflows": ["Tag engine CI"],
+  "prs": [
+    {
+      "number": 36,
+      "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+      "branch": "feat/reuse-03b-legacy-import",
+      "state": "draft",
+      "runs": [
+        {
+          "id": 45829699850,
+          "name": "Desktop CI",
+          "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45829699807,
+          "name": "Engineering handoff snapshot",
+          "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45829699781,
+          "name": "Tag engine CI",
+          "head": "fc2a531fea09fb4ae21723062e7bb240a6dc00e6",
+          "state": "completed",
+          "result": "success"
+        }
+      ],
+      "observedAt": "2026-11-26T13:59:23Z"
+    }
+  ],
   "assignment": {
     "owner": "ChatGPT",
     "branch": "feat/reuse-03b-legacy-import",
@@ -135,6 +168,18 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified b3b5898: all 19 hosted jobs, seven quarantine, 54 importer and two address differential tests per platform. REUSE-03B.8 reserves native desktop and frontend paths; candidate review import/open/save-copy and production screening, no real publication/live connection implementation or acceptance.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Independent REUSE-03B.8 review started from PR #36 at fc2a531 and main at b9ae1d5. Verified hosted Windows/Linux CI and retained the existing RUST-05 reservation. Review corrections cover recovery, save-copy history, native admission and interrupted bundle publication.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Corrected ordinary persistence admission, review save-copy history, stale native requests and restart after interrupted review publication. Production screening is native-only. Actual live/publish enforcement and isolated runtime integration remain acceptance gaps. Verify the new exact head.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

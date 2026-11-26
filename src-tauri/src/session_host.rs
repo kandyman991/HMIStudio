@@ -23,6 +23,30 @@ pub enum WorkspaceRequest {
     },
 }
 
+impl WorkspaceRequest {
+    pub fn check_context(
+        &self,
+        generation: Option<u64>,
+        current_generation: u64,
+        pending_recovery: bool,
+    ) -> Result<(), String> {
+        if matches!(self, Self::Snapshot {} | Self::Validate {}) {
+            return Ok(());
+        }
+        if pending_recovery {
+            return Err("Resolve the untitled recovery before editing".into());
+        }
+        if generation != Some(current_generation) {
+            return Err("Project session changed. Refresh before editing".into());
+        }
+        if matches!(self, Self::Execute { transaction } if transaction.expected_revision.is_none())
+        {
+            return Err("Project revision required for editing".into());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Serialize)]
 pub struct WorkspaceReply {
     response: Response,

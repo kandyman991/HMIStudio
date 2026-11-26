@@ -32,8 +32,8 @@ type Command =
 type Request = { request: "snapshot" | "validate" } | { request: "undo" | "redo"; expectedRevision: number } | { request: "execute"; transaction: { commands: Command[]; expectedRevision: number; label: string } };
 type Reply = { generation: number; response: { response: string; error?: { message: string }; outcome?: { allocatedIds: Record<string,string> } }; snapshot: Snapshot };
 type ProjectAction = "open" | "importLegacy" | "openReview" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
-type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean; message: string; pendingUntitled: boolean };
-type PersistenceStatus = { pendingUntitled: boolean; autosaveMessage: string; reviewRequired: boolean; productionImportGatePassed: boolean };
+type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean; message: string; persistence: PersistenceStatus };
+type PersistenceStatus = { generation: number; pendingUntitled: boolean; autosaveMessage: string; reviewRequired: boolean };
 function readPanels(): Preferences {
   try { return restorePreferences(localStorage.getItem(STORAGE_KEY),localStorage.getItem("studio.workspace.v1")); }
   catch { return {...DEFAULTS}; }
@@ -161,7 +161,11 @@ function Studio(){
   const [pendingRecovery,setPendingRecovery]=useState(true);
   const [autosaveMessage,setAutosaveMessage]=useState("Checking recovery…");
   const [reviewRequired,setReviewRequired]=useState(false);
-  const [productionImportGatePassed,setProductionImportGatePassed]=useState(false);
+  const updatePersistence=useCallback((p:PersistenceStatus)=>{
+    setPendingRecovery(p.pendingUntitled);
+    setAutosaveMessage(p.autosaveMessage);
+    setReviewRequired(p.reviewRequired);
+  },[]);
   const screen=snapshot?.project.screens.find(s=>s.id===tabs.active);
   const chosen=screen?findNode(screen.root,selected):undefined;
   const send=useCallback(async(request:Request)=>{
@@ -169,9 +173,11 @@ function Studio(){
     inFlight.current=true;setBusy(true);
     try{
       const reply=await invoke<Reply>("engineering_request",{request,generation:generation.current});
+      const replaced=generation.current!==reply.generation;
       generation.current=reply.generation;
       setSnapshot(reply.snapshot);
-      setTabs(t=>{const ids=reply.snapshot.project.screens.map(s=>s.id);const next=reconcileTabs(t,ids);return request.request==="snapshot"&&ids.length&&!next.open.length?openTab(next,ids[0]):next;});
+      setTabs(t=>{const ids=reply.snapshot.project.screens.map(s=>s.id);const next=reconcileTabs(replaced?{open:[],active:null}:t,ids);return (replaced||request.request==="snapshot")&&ids.length&&!next.open.length?openTab(next,ids[0]):next;});
+      if(replaced)setSelected(null);
       if(reply.response.response==="error")setStatus(reply.response.error?.message??"Command rejected");
       else {setStatus("Engineering core ready · revision "+reply.snapshot.revision);const ids=reply.response.outcome?.allocatedIds;if(ids?.["0:screen"]){setTabs(t=>openTab(t,ids["0:screen"]));setSelected(null);}if(ids?.["0:node:pending"])setSelected(ids["0:node:pending"]);if(ids?.["0:node"])setSelected(ids["0:node"]);if(request.request==="execute"&&request.transaction.commands[0]?.op==="duplicateNode"){const id=ids?.["0:node:"+request.transaction.commands[0].node];if(id)setSelected(id);}}
     }catch(e){setStatus("Command failed: "+String(e));}
@@ -184,21 +190,21 @@ function Studio(){
       if(inFlight.current)return;
       try{
         const p=await invoke<PersistenceStatus>("persistence_status");
-        if(mounted&&!inFlight.current){setPendingRecovery(p.pendingUntitled);setAutosaveMessage(p.autosaveMessage);setReviewRequired(p.reviewRequired);setProductionImportGatePassed(p.productionImportGatePassed);}
+        if(mounted&&!inFlight.current&&p.generation===generation.current)updatePersistence(p);
       }catch{/* native dialog or autosave in progress; retry */}
     }
     void refresh();
     const timer=window.setInterval(()=>void refresh(),2000);
     return()=>{mounted=false;window.clearInterval(timer);};
-  },[snapshot]);
+  },[snapshot,updatePersistence]);
   async function projectAction(action:ProjectAction){
-    if(inFlight.current)return;
+    if(inFlight.current||generation.current===null)return;
     inFlight.current=true;setBusy(true);
     try{
-      const reply=await invoke<ProjectReply>("project_action",{action});
+      const reply=await invoke<ProjectReply>("project_action",{action,generation:generation.current});
       generation.current=reply.generation;
       setSnapshot(reply.snapshot);
-      setPendingRecovery(reply.pendingUntitled);
+      updatePersistence(reply.persistence);
       if(reply.replaced){
         const first=reply.snapshot.project.screens[0]?.id;
         setTabs(first?{open:[first],active:first}:{open:[],active:null});
@@ -207,10 +213,14 @@ function Studio(){
       setStatus(reply.message);
     }catch(e){
       setStatus("Project operation failed: "+String(e));
-      // A save may have succeeded before the subsequent open failed. Re-read
-      // authoritative status without resetting existing screen tabs.
+      // Saving before a failed switch may have changed persistence status.
       try{
         const reply=await invoke<Reply>("engineering_request",{request:{request:"snapshot"},generation:generation.current});
+        if(generation.current!==reply.generation){
+          const first=reply.snapshot.project.screens[0]?.id;
+          setTabs(first?{open:[first],active:first}:{open:[],active:null});
+          setSelected(null);
+        }
         generation.current=reply.generation;setSnapshot(reply.snapshot);
       }catch{/* preserve the existing view until the host becomes available */}
     }finally{inFlight.current=false;setBusy(false);}
@@ -444,7 +454,7 @@ function Studio(){
     </section>
     {panels.diagnostics&&<Splitter label="Resize diagnostics" size={panels.diagnosticsSize} vertical={false} direction={-1} change={n=>resize("diagnosticsSize",n)}/>}
     {panels.diagnostics&&<section className={"diagnostics dock-diagnostics size-"+panels.diagnosticsSize}><div className="output-tabs" aria-label="Engineering output"><button disabled title="Tag monitoring UI planned"><Icon name="tag"/> Tag monitor</button><button disabled title="Engineering search UI planned"><Icon name="search"/> Engineering search</button><button disabled title="Alarm monitoring UI planned"><Icon name="bell"/> Alarms</button><button disabled title="Event log UI planned"><Icon name="terminal"/> Event log</button><button aria-pressed={outputView==="diagnostics"} onClick={()=>setOutputView("diagnostics")}><Icon name="terminal"/> Diagnostics <span>{snapshot?.status.errorCount??0} errors · {snapshot?.status.warningCount??0} warnings</span></button><button aria-pressed={outputView==="status"} onClick={()=>setOutputView("status")}>Status</button></div>{outputView==="status"?<p>{status}</p>:<>{snapshot?.diagnostics.length?snapshot.diagnostics.map((d,i)=><p key={i}>{d.severity} · {d.code} · {d.path} · {d.message}</p>):<p>No diagnostics reported.</p>}</>}</section>}
-    <footer><span className="no-plc">{reviewRequired?"● Import review required · production/live blocked":productionImportGatePassed?"● No live PLC":"● Production admission blocked"}</span><span role="status">{status}</span><span className="grow"/><span>{(snapshot?.status.dirty?"Unsaved changes":"No unsaved edits")+" · "+autosaveMessage}</span><span title="Planned runtime targets">Windows · Linux · Android</span></footer>
+    <footer><span className="no-plc">{reviewRequired?"● Import review required · production/live blocked":"● No live PLC"}</span><span role="status">{status}</span><span className="grow"/><span>{(snapshot?.status.dirty?"Unsaved changes":"No unsaved edits")+" · "+autosaveMessage}</span><span title="Planned runtime targets">Windows · Linux · Android</span></footer>
   </main>;
 }
 createRoot(document.getElementById("root")!).render(<Studio/>);

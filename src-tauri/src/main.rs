@@ -31,16 +31,27 @@ struct ProjectReply {
     generation: u64,
     replaced: bool,
     message: String,
-    pending_untitled: bool,
+    persistence: PersistenceStatus,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PersistenceStatus {
+    generation: u64,
     pending_untitled: bool,
     autosave_message: String,
     review_required: bool,
-    production_import_gate_passed: bool,
+}
+
+impl From<&Host> for PersistenceStatus {
+    fn from(host: &Host) -> Self {
+        Self {
+            generation: host.generation,
+            pending_untitled: host.pending_untitled,
+            autosave_message: host.persistence_message(),
+            review_required: host.is_review(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -59,22 +70,7 @@ fn engineering_request(
     let mut host = state
         .try_lock()
         .map_err(|_| "Project operation pending".to_string())?;
-    if host.pending_untitled
-        && !matches!(
-            &request,
-            WorkspaceRequest::Snapshot {} | WorkspaceRequest::Validate {}
-        )
-    {
-        return Err("Resolve the untitled recovery before editing".into());
-    }
-    if !matches!(
-        &request,
-        WorkspaceRequest::Snapshot {} | WorkspaceRequest::Validate {}
-    ) && generation != Some(host.generation)
-    {
-        return Err("Project session changed; refresh before editing".into());
-    }
-    let reply = host.request(request);
+    let reply = host.request(request, generation)?;
     Ok(HostReply {
         reply,
         generation: host.generation,
@@ -86,12 +82,7 @@ fn persistence_status(state: tauri::State<'_, Mutex<Host>>) -> Result<Persistenc
     let host = state
         .try_lock()
         .map_err(|_| "Project operation pending".to_string())?;
-    Ok(PersistenceStatus {
-        pending_untitled: host.pending_untitled,
-        autosave_message: host.autosave_message.clone(),
-        review_required: host.is_review(),
-        production_import_gate_passed: host.production_candidate().is_ok(),
-    })
+    Ok(PersistenceStatus::from(&*host))
 }
 
 // All blocking native dialogs run off the UI thread, with one exclusive host
@@ -108,24 +99,21 @@ fn ask(app: &AppHandle, message: &str) -> MessageDialogResult {
     dialog.blocking_show_with_result()
 }
 
-fn pick(app: &AppHandle, recovery: bool, saving: bool) -> Result<Option<PathBuf>, String> {
-    let mut dialog = app.dialog().file().add_filter("HMI Studio JSON", &["json"]);
+fn pick(app: &AppHandle, title: &str, saving: bool) -> Result<Option<PathBuf>, String> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("JSON files", &["json"])
+        .set_title(title);
     if let Some(window) = app.get_webview_window("main") {
         dialog = dialog.set_parent(&window);
     }
     let selected = if saving {
         dialog
-            .set_title("Save HMI project")
             .set_file_name("project.hmi.json")
             .blocking_save_file()
     } else {
-        dialog
-            .set_title(if recovery {
-                "Select autosave.meta.json"
-            } else {
-                "Open HMI project"
-            })
-            .blocking_pick_file()
+        dialog.blocking_pick_file()
     };
     selected
         .map(|p| p.into_path().map_err(|e| e.to_string()))
@@ -162,7 +150,7 @@ fn save(app: &AppHandle, host: &mut Host, save_as: bool) -> Result<bool, String>
         return Ok(true);
     }
     if save_as || host.path().is_none() {
-        let Some(path) = pick(app, false, true)? else {
+        let Some(path) = pick(app, "Save HMI project", true)? else {
             return Ok(false);
         };
         host.save_as(&path)?;
@@ -185,11 +173,18 @@ fn confirm_switch(app: &AppHandle, host: &mut Host) -> Result<Option<bool>, Stri
     }
 }
 
-fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<ProjectReply, String> {
+fn handle_project_action(
+    app: &AppHandle,
+    action: ProjectAction,
+    generation: Option<u64>,
+) -> Result<ProjectReply, String> {
     let state = app.state::<Mutex<Host>>();
     let mut host = state
         .try_lock()
         .map_err(|_| "Another project operation is pending".to_string())?;
+    if let Some(generation) = generation {
+        host.check_generation(generation)?;
+    }
     let mut replaced = false;
     let mut message = "Canceled".to_string();
     match action {
@@ -218,7 +213,7 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
         _ if host.pending_untitled => return Err("Resolve untitled recovery first".into()),
         ProjectAction::Save | ProjectAction::SaveAs => {
             if save(app, &mut host, matches!(action, ProjectAction::SaveAs))? {
-                message = host.autosave_message.clone();
+                message = host.persistence_message();
             }
         }
         ProjectAction::NewProject => {
@@ -229,12 +224,13 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
             }
         }
         ProjectAction::ImportLegacy => {
-            if let Some(source) = pick(app, false, false)? {
+            if let Some(source) = pick(app, "Select portable legacy JSON", false)? {
+                host.check_import_source(&source)?;
                 if let Some(target) = pick_review(app, true)? {
                     if let Some(discard) = confirm_switch(app, &mut host)? {
                         host.import_review(&source, &target, discard)?;
                         replaced = true;
-                        message = host.autosave_message.clone();
+                        message = host.persistence_message();
                     }
                 }
             }
@@ -244,13 +240,18 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
                 if let Some(discard) = confirm_switch(app, &mut host)? {
                     host.open_review(&path, discard)?;
                     replaced = true;
-                    message = host.autosave_message.clone();
+                    message = host.persistence_message();
                 }
             }
         }
         ProjectAction::Open | ProjectAction::Recover => {
             let recover = matches!(action, ProjectAction::Recover);
-            if let Some(selected) = pick(app, recover, false)? {
+            let title = if recover {
+                "Select autosave.meta.json"
+            } else {
+                "Open HMI project"
+            };
+            if let Some(selected) = pick(app, title, false)? {
                 let path = if recover {
                     recovery_project(&selected)?
                 } else {
@@ -281,15 +282,21 @@ fn handle_project_action(app: &AppHandle, action: ProjectAction) -> Result<Proje
         generation: host.generation,
         replaced,
         message,
-        pending_untitled: host.pending_untitled,
+        persistence: PersistenceStatus::from(&*host),
     })
 }
 
 #[tauri::command]
-async fn project_action(app: AppHandle, action: ProjectAction) -> Result<ProjectReply, String> {
-    tauri::async_runtime::spawn_blocking(move || handle_project_action(&app, action))
-        .await
-        .map_err(|e| e.to_string())?
+async fn project_action(
+    app: AppHandle,
+    action: ProjectAction,
+    generation: u64,
+) -> Result<ProjectReply, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        handle_project_action(&app, action, Some(generation))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn main() {
@@ -318,7 +325,7 @@ fn main() {
                 api.prevent_close();
                 let handle = window.app_handle().clone();
                 tauri::async_runtime::spawn_blocking(move || {
-                    if let Err(error) = handle_project_action(&handle, ProjectAction::Exit) {
+                    if let Err(error) = handle_project_action(&handle, ProjectAction::Exit, None) {
                         handle
                             .dialog()
                             .message(error)

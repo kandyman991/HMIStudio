@@ -35,50 +35,30 @@ pub(crate) fn reserved_extension(key: &str) -> bool {
 
 /// Fail closed on any import marker, including malformed or older provenance.
 pub fn requires_review(project: &Project) -> bool {
-    project.id.as_str().starts_with("legacy-project-")
+    is_legacy_id(project.id.as_str())
         || project.extensions.keys().any(|key| reserved_extension(key))
 }
 
-/// Required import-specific precondition for future production publishing
-/// and live configuration. Passing is not general runtime authorization.
-/// No acceptance/clearance command is provided in this milestone.
-pub fn check_production_admission(project: &Project) -> Result<(), ImportError> {
-    if requires_review(project) {
-        Err(ImportError::ReviewRequired)
-    } else {
-        Ok(())
-    }
+fn is_legacy_id(id: &str) -> bool {
+    id.starts_with("legacy-project-")
 }
 
-/// Borrowed, import-screened project for future production-only consumers.
-/// This is not a commissioning, signature, pairing or deployment approval.
-/// The private field prevents construction from an untrusted frontend payload.
-pub struct ProductionCandidate<'a> {
-    project: &'a Project,
-}
-
-impl<'a> ProductionCandidate<'a> {
-    pub fn from_session(session: &'a ProjectSession) -> Result<Self, ImportError> {
-        check_production_admission(session.project())?;
-        if session.report().has_errors() {
-            return Err(ImportError::InvalidBundle);
-        }
-        Ok(Self {
-            project: session.project(),
-        })
-    }
-
-    pub fn project(&self) -> &'a Project {
-        self.project
-    }
+// Recognize reserved provenance even if the rest of the document cannot be
+// loaded as a valid project (for example a review envelope renamed as JSON).
+pub(crate) fn storage_requires_review(bytes: &[u8]) -> bool {
+    serde_json::from_slice::<Value>(bytes).is_ok_and(|value| {
+        value["format"].as_str() == Some(FORMAT)
+            || value["id"].as_str().is_some_and(is_legacy_id)
+            || value["extensions"]
+                .as_object()
+                .is_some_and(|extensions| extensions.keys().any(|key| reserved_extension(key)))
+    })
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
     #[error("legacy input was refused; no project was admitted")]
     Refused,
-    #[error("import requires engineering review")]
-    ReviewRequired,
     #[error("invalid or incomplete review bundle")]
     InvalidBundle,
     #[error("review bundle exceeds size limit")]
@@ -366,16 +346,11 @@ impl QuarantinedImport {
         payload.project = canonical(self.session.project())?;
         verify_payload(&payload)?;
         let warnings = write_new(&payload, target, self.session.fs.as_ref())?;
-        self.session.storage.saved_state = Some(self.session.current_state_id());
+        self.session.mark_saved();
         self.payload = payload;
         self.path = target.to_path_buf();
         self.warnings = warnings;
         Ok(())
-    }
-
-    /// All imports remain refused until a future explicit acceptance flow.
-    pub fn check_production_admission(&self) -> Result<(), ImportError> {
-        Err(ImportError::ReviewRequired)
     }
 }
 
@@ -395,7 +370,10 @@ fn write_new(
     if bytes.len() > MAX_BUNDLE_BYTES {
         return Err(ImportError::SizeLimit);
     }
-    let tmp = stage_temp(fs, target, &bytes).map_err(|_| ImportError::Io("stage"))?;
+    let tmp = stage_temp(fs, target, &bytes, |path, data| {
+        fs.write_review_synced(path, data)
+    })
+    .map_err(|_| ImportError::Io("stage"))?;
     // Unlike rename, an exclusive same-volume hard link cannot replace an
     // existing destination even if it appears after the staging operation.
     let result = fs.link_new(&tmp, target);

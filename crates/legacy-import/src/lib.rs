@@ -5,6 +5,7 @@ mod graphics;
 mod industrial;
 mod navigation;
 mod primitives;
+mod resources;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -39,6 +40,8 @@ pub struct ImportOutcome {
     /// None whenever any source field or validation gate is refused.
     pub project: Option<Project>,
     pub report: MigrationReport,
+    /// Verified bytes keyed by generated package-relative path; empty on refusal.
+    pub resource_bytes: BTreeMap<String, Vec<u8>>,
 }
 
 // A fresh generic visitor rejects repeated keys at every level before mapping.
@@ -148,6 +151,7 @@ struct Mapping {
     ids: BTreeMap<String, String>,
     used: BTreeSet<String>,
     contracts: Vec<Value>,
+    resource_bytes: BTreeMap<String, Vec<u8>>,
 }
 impl Mapping {
     fn mark(&mut self, p: &str, t: &str) {
@@ -228,6 +232,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         ImportOutcome {
             project: None,
             report: r,
+            resource_bytes: BTreeMap::new(),
         }
     };
     if input.len() > MAX_INPUT_BYTES {
@@ -242,6 +247,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         ids: BTreeMap::new(),
         used: BTreeSet::from([project_id.clone()]),
         contracts: Vec::new(),
+        resource_bytes: BTreeMap::new(),
     };
     if !leaves(&v, "", &mut m.findings) {
         return stop(report, "leaf-or-path-limit");
@@ -265,7 +271,16 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     } else {
         project
     };
-    ImportOutcome { project, report }
+    let resource_bytes = if project.is_some() {
+        m.resource_bytes
+    } else {
+        BTreeMap::new()
+    };
+    ImportOutcome {
+        project,
+        report,
+        resource_bytes,
+    }
 }
 fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> {
     let meta = v.get("metadata")?.as_object()?;
@@ -463,6 +478,7 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
     }
     let mut doc = json!({"format":"hmi-studio.project","schemaVersion":2,"id":project_id,"metadata":metadata,"navigation":{"startScreen":start},"localization":{"defaultLocale":"en","locales":["en"]},"screens":result,"tags":tags,"extensions":{"hmiforge.idMap":m.ids}});
     industrial::map(v, &mut doc, m)?;
+    resources::map(v, &mut doc, m)?;
     graphics::finish(v, &mut doc, m)?;
     navigation::map(v, &mut doc, m)?;
     if !m.contracts.is_empty() {

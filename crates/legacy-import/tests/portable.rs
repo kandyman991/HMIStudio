@@ -819,7 +819,10 @@ fn baseline_jpeg_resource_and_trailing_bytes_refusal() {
     assert_eq!(p.resources.len(), 1);
     assert_eq!(p.resources[0].media_type.as_deref(), Some("image/jpeg"));
     assert_eq!(a.resource_bytes[&p.resources[0].path].len(), 631);
-    f["assets"]["jpeg"]["data"] = json!(format!("{}AAAA", data.trim_end_matches('=')));
+    let asset = &mut f["assets"]["jpeg"];
+    asset["data"] = json!(format!("{}AA", data.trim_end_matches('=')));
+    asset["sizeBytes"] = json!(633);
+    asset["sha256"] = json!("e9f7d2d559ba28fb1777335ba534bf9707e293040bb14284d5823e4e013c1e27");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
     assert!(a.resource_bytes.is_empty());

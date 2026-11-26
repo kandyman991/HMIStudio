@@ -731,3 +731,29 @@ fn cardinal_arrow_and_distinct_fill_refusal() {
         .project
         .is_none());
 }
+
+#[test]
+fn typed_dropdown_and_policy_bounds() {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":0,"max":3});
+    f["enumerations"]["modes"] = json!({"id":"modes","name":"Modes","entries":[{"value":0,"text":"Off"},{"value":1,"text":"On"}]});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("dropDown");
+    c["properties"] = json!({"label":"Mode","enumeration":"modes"});
+    c["bindings"] = json!({"value":"label-a"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    let contract = &d["v2"]["components"]["components"][0]["contract"];
+    assert_eq!(contract["kind"], "dropDown");
+    assert_eq!(contract["tag"], d["tags"][0]["id"]);
+    assert_eq!(
+        contract["enumeration"],
+        d["v2"]["bindings"]["enumerations"][0]["id"]
+    );
+    f["enumerations"]["modes"]["entries"][1]["value"] = json!(4);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

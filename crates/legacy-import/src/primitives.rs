@@ -201,3 +201,78 @@ pub(super) fn arrow(
     m.contracts.push(json!({"id":id,"contract":contract}));
     Some(())
 }
+
+// Input contracts refer to already validated canonical tag and enumeration
+// declarations. No direct write path is introduced by the importer.
+pub(super) fn dropdowns(v: &Value, doc: &Value, m: &mut Mapping) -> Option<()> {
+    for (screen, s) in v["screens"].as_object()? {
+        let Some(cs) = s.get("components") else {
+            continue;
+        };
+        for (key, c) in cs.as_object()? {
+            if c["type"] != "dropDown" {
+                continue;
+            }
+            let p = path(&path(&path("/screens", screen), "components"), key);
+            let id = m.ids.get(&path(&p, "id"))?.clone();
+            let bindings = c.get("bindings")?.as_object()?;
+            if bindings.len() != 1 {
+                return None;
+            }
+            let old = bindings.get("value")?.as_str()?;
+            let tag_id = m.ids.get(&path(&path("/variables", old), "id"))?.clone();
+            let props = c.get("properties")?.as_object()?;
+            let old_enum = props.get("enumeration")?.as_str()?;
+            let enum_id = m
+                .ids
+                .get(&path(&path("/enumerations", old_enum), "id"))?
+                .clone();
+            let tag = doc["tags"].as_array()?.iter().find(|x| x["id"] == tag_id)?;
+            let en = doc["v2"]["bindings"]["enumerations"]
+                .as_array()?
+                .iter()
+                .find(|x| x["id"] == enum_id)?;
+            let policy = doc["v2"]["industrial"]["tags"]
+                .as_array()?
+                .iter()
+                .find(|x| x["tag"] == tag_id)?;
+            if tag["dataType"] != "int64"
+                || tag["access"] != "readWrite"
+                || en["dataType"] != "int64"
+                || policy["command"] != "setpoint"
+                || policy["writeConfirmed"] != true
+                || !policy["limits"]["step"].is_null()
+            {
+                return None;
+            }
+            let min = policy["limits"]["min"].as_i64()?;
+            let max = policy["limits"]["max"].as_i64()?;
+            for e in en["entries"].as_array()? {
+                let n = e["value"].as_i64()?;
+                if n < min || n > max || !(-9007199254740992..=9007199254740992).contains(&n) {
+                    return None;
+                }
+            }
+            let label = props.get("label")?.as_str()?;
+            if label.contains("{{") {
+                return None;
+            }
+            let t = format!("/v2/components/components/{}/contract", m.contracts.len());
+            m.mark(&format!("{p}/bindings/value"), &path(&t, "tag"));
+            m.mark(
+                &format!("{p}/properties/enumeration"),
+                &path(&t, "enumeration"),
+            );
+            m.mark(&format!("{p}/properties/label"), &path(&t, "label"));
+            if let Some(f) = m.findings.get_mut(&path(&p, "type")) {
+                f.code = "dropdown-runtime-parity-pending";
+                f.severity = "warning";
+                f.message = "Typed choices mapped; runtime input and write policy parity pending.";
+            }
+            m.contracts.push(
+                json!({"id":id,"contract":{"kind":"dropDown","tag":tag_id,"enumeration":enum_id,"label":label}}),
+            );
+        }
+    }
+    Some(())
+}

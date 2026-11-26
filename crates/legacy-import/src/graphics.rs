@@ -34,6 +34,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "composite" => "instance",
         "line" => "line",
         "arrow" => "arrow",
+        "dropDown" => "dropDown",
         "polygon" => "polygon",
         "motor" | "conveyor" | "valve" | "pump" | "tank" | "pipe" => "instance",
         _ => return refuse(m, &path(p, "type"), "component-kind-not-mapped"),
@@ -821,6 +822,9 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
+                    if e["type"] == "dropDown" {
+                        return refuse(m, &ep, "nested-dropdown-not-mapped");
+                    }
                     if super::primitives::symbol_kind(e["type"].as_str()?).is_some() {
                         return refuse(m, &ep, "nested-industrial-symbol-not-mapped");
                     }
@@ -888,6 +892,10 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let (def, class) = super::primitives::symbol(c, n, &cp, &nt, kind, &ids, m)?;
                     symbol_defs.push(def);
                     classifications.push(class);
+                } else if c["type"] == "dropDown" {
+                    if ver < 10 {
+                        return refuse(m, &cp, "dropdown-version-mismatch");
+                    }
                 } else {
                     bindings(
                         c,
@@ -954,6 +962,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         doc["v2"]["components"]["definitions"] = json!(classifications);
     }
     doc["v2"]["bindings"] = json!({"expressions":expr,"enumerations":enums});
+    super::primitives::dropdowns(v, doc, m)?;
     Some(())
 }
 fn resolve_instance(

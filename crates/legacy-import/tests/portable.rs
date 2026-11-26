@@ -1062,7 +1062,16 @@ fn absent_startup_uses_admitted_screen_order() {
 #[test]
 fn typed_s7_address_bounds_and_overlap() {
     let f = industrial_fixture();
-    for address in ["DB1.DBD0", "DB1.REAL0", "DB0.DINT0", "DB1.DINT65535", "DB1.DINT4294967295", "é", "DB1.DINT2", "db01.dint0"] {
+    for address in [
+        "DB1.DBD0",
+        "DB1.REAL0",
+        "DB0.DINT0",
+        "DB1.DINT65535",
+        "DB1.DINT4294967295",
+        "é",
+        "DB1.DINT2",
+        "db01.dint0",
+    ] {
         let mut bad = f.clone();
         bad["externalMappings"]["map-b"]["externalAddress"] = json!(address);
         let a = import_portable(&serde_json::to_vec(&bad).unwrap());
@@ -1084,11 +1093,20 @@ fn opcua_node_identity_and_invalid_address_refusal() {
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_some());
-    for address in ["ns=02;i=0100", "ns=65536;i=100", "ns=2;i=4294967296", "ns=2;s=", "invalid"] {
+    for address in [
+        "ns=02;i=0100",
+        "ns=65536;i=100",
+        "ns=2;i=4294967296",
+        "ns=2;s=",
+        "invalid",
+    ] {
         f["externalMappings"]["map-b"]["externalAddress"] = json!(address);
-        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
-            .project
-            .is_none(), "{address}");
+        assert!(
+            import_portable(&serde_json::to_vec(&f).unwrap())
+                .project
+                .is_none(),
+            "{address}"
+        );
     }
 }
 
@@ -1098,12 +1116,20 @@ fn source_version_permission_and_input_gates() {
     f["screens"]["screen/a"]["components"]["label-a"]["requiredPermission"] = json!("operate");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|x| x.code == "source-feature-version-mismatch"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.code == "source-feature-version-mismatch"));
     let mut f = fixture(9);
     f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!("textInput");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|x| x.code == "source-feature-version-mismatch"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.code == "source-feature-version-mismatch"));
 }
 
 #[test]
@@ -1113,11 +1139,18 @@ fn exact_standard_label_catalog_signature() {
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
     let d = serde_json::to_value(&p).unwrap();
-    assert_eq!(d["extensions"]["hmiforge.standardLabel"]["id"], "standard.label");
+    assert_eq!(
+        d["extensions"]["hmiforge.standardLabel"]["id"],
+        "standard.label"
+    );
     f["componentDefinitions"]["standard.label"]["defaultProperties"]["text"] = json!("Modified");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|x| x.code == "standard-catalog-signature-mismatch"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|x| x.code == "standard-catalog-signature-mismatch"));
 }
 
 #[test]
@@ -1127,8 +1160,17 @@ fn destination_audit_reports_only_source_paths() {
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
     let d = serde_json::to_value(&p).unwrap();
     for finding in &a.report.findings {
-        let unresolved = finding.target.as_deref().is_none_or(|t| d.pointer(t).is_none());
-        assert_eq!(a.report.unresolved_targets.contains(&finding.path), unresolved);
+        let unresolved = finding
+            .target
+            .as_deref()
+            .is_none_or(|t| d.pointer(t).is_none());
+        assert_eq!(
+            a.report.unresolved_targets.contains(&finding.path),
+            unresolved
+        );
     }
-    assert!(!a.report.unresolved_targets.contains(&"/screens/screen~1a/components/label-a/properties/text".to_owned()));
+    assert!(!a
+        .report
+        .unresolved_targets
+        .contains(&"/screens/screen~1a/components/label-a/properties/text".to_owned()));
 }

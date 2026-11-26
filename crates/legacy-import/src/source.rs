@@ -3,12 +3,17 @@ use super::{path, Mapping};
 use serde_json::Value;
 
 fn present(v: &Value) -> bool {
-    !v.is_null() && v.as_object().is_none_or(|x| !x.is_empty())
+    !v.is_null()
+        && v.as_object().is_none_or(|x| !x.is_empty())
         && v.as_array().is_none_or(|x| !x.is_empty())
 }
 
 fn component(c: &Value, p: &str, version: u64, m: &mut Mapping) -> Option<()> {
-    for (key, min) in [("expressions", 4), ("actions", 5), ("requiredPermission", 8)] {
+    for (key, min) in [
+        ("expressions", 4),
+        ("actions", 5),
+        ("requiredPermission", 8),
+    ] {
         if version < min && c.get(key).is_some_and(present) {
             m.fail(&path(p, key), "source-feature-version-mismatch");
             return None;
@@ -76,7 +81,12 @@ pub(super) fn validate(v: &Value, version: u64, m: &mut Mapping) -> Option<()> {
             }
             if let Some(es) = d["composition"].get("elements") {
                 for (key, c) in es.as_object()? {
-                    component(c, &path(&path(&path(&p, "composition"), "elements"), key), version, m)?;
+                    component(
+                        c,
+                        &path(&path(&path(&p, "composition"), "elements"), key),
+                        version,
+                        m,
+                    )?;
                 }
             }
         }

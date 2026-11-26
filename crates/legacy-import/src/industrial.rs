@@ -309,7 +309,10 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                 "s7" => {
                     let span = super::address::s7(addr, tags[i]["dataType"].as_str()?, writable)
                         .or_else(|| {
-                            m.fail(&path(&p, "externalAddress"), "invalid-or-ambiguous-s7-address");
+                            m.fail(
+                                &path(&p, "externalAddress"),
+                                "invalid-or-ambiguous-s7-address",
+                            );
                             None
                         })?;
                     if spans.iter().any(|(s, other, write)| {
@@ -329,7 +332,10 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
                     addr.to_owned()
                 }
                 "opcua" => super::address::opcua(addr).or_else(|| {
-                    m.fail(&path(&p, "externalAddress"), "invalid-or-unsupported-opcua-node");
+                    m.fail(
+                        &path(&p, "externalAddress"),
+                        "invalid-or-unsupported-opcua-node",
+                    );
                     None
                 })?,
                 "loopback" => addr.to_owned(),

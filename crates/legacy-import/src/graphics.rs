@@ -414,13 +414,17 @@ impl Layout<'_> {
                 }
                 // Relocate destinations belonging to this source node only;
                 // sibling paths can have the same former array index.
-                let old = m.findings.get(&path(&np, "id"))
+                let old = m
+                    .findings
+                    .get(&path(&np, "id"))
                     .and_then(|f| f.target.as_deref())
                     .and_then(|s| s.strip_suffix("/id"))
                     .map(str::to_owned)?;
                 for (source, finding) in &mut m.findings {
                     if source.starts_with(&format!("{np}/")) {
-                        if let Some(suffix) = finding.target.as_deref()
+                        if let Some(suffix) = finding
+                            .target
+                            .as_deref()
                             .and_then(|s| s.strip_prefix(&old))
                             .filter(|s| s.is_empty() || s.starts_with('/'))
                         {
@@ -823,7 +827,10 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                 for field in ["id", "displayName", "type", "bindingSlots"] {
                     m.mark(&path(&p, field), &path(target, field));
                 }
-                m.mark(&format!("{p}/defaultProperties/text"), &format!("{target}/defaultProperties/text"));
+                m.mark(
+                    &format!("{p}/defaultProperties/text"),
+                    &format!("{target}/defaultProperties/text"),
+                );
                 continue;
             }
             if x["id"].as_str() != Some(k) || x["type"].as_str() != Some("composite") || ver < 6 {

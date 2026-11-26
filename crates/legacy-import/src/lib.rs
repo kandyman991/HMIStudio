@@ -335,7 +335,11 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
                 .findings
                 .iter()
                 .filter(|f| f.disposition != "refused")
-                .filter(|f| f.target.as_deref().is_none_or(|p| serialized.pointer(p).is_none()))
+                .filter(|f| {
+                    f.target
+                        .as_deref()
+                        .is_none_or(|p| serialized.pointer(p).is_none())
+                })
                 .map(|f| f.path.clone())
                 .collect();
         }

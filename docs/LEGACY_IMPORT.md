@@ -63,3 +63,7 @@ Root ADAPTIVE stacks choose a row or column using declared design width/height a
 Corrected the exact rustfmt findings from hosted run 45712387404 in the preceding commit. Added ordered v10 BOOL set/toggle/pulse declarations only where the mapped tag write policy agrees (maintained or exact-duration momentary, confirmed read/write). No write execution or runtime approval; unsupported numeric/string actions remain refused. Added a synthetic policy agreement regression. Latest-head compilation, lint, tests and independent review remain pending. No schema changes.
 
 Added classification for passive faceplate declarations using the existing conservative reusable composition mapping. Direct placement of a faceplate as an ordinary component (including inside another definition) refuses. Faceplate opening and parameter forwarding remain unsupported. Synthetic regression added; exact-head validation pending.
+
+### REUSE-03B.4 continuation — exact numeric constant actions
+
+Baseline edb80e7 passed both importer jobs and Required CI (run 45766574801). Numeric value.set declarations now require an already-confirmed setpoint policy, exact type, in-range value and no step constraint. Integer comparisons retain full integer precision; ambiguous float32 narrowing and step alignment refuse. No runtime writes are executed. Legacy value.step remains refused pending conversion and no-change conformance. Synthetic regression added; new head unverified.

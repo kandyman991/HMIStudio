@@ -690,3 +690,25 @@ fn passive_faceplate_declaration_and_direct_placement_refusal() {
         .project
         .is_none());
 }
+
+#[test]
+fn exact_numeric_constant_action_and_policy_bounds() {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":-9007199254740992i64,"max":9007199254740992i64});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("button");
+    c["actions"] = json!({"press":{"action":"value.set","variableId":"label-a","value":{"valueType":"long","value":9007199254740991i64}}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        d["v2"]["components"]["handlers"][0]["actions"][0]["value"],
+        json!(9007199254740991i64)
+    );
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"]["press"]["value"]["value"] =
+        json!(9007199254740993i64);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

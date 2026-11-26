@@ -90,13 +90,12 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
         .as_array()?
         .iter()
         .find(|x| x["tag"] == id)?;
-    if tag["dataType"] != "bool" || tag["access"] != "readWrite" || policy["writeConfirmed"] != true
-    {
+    if tag["access"] != "readWrite" || policy["writeConfirmed"] != true {
         return None;
     }
     let target = json!({"tag":id});
     let action = match a["action"].as_str()? {
-        "value.set" if policy["command"] == "maintained" => {
+        "value.set" if tag["dataType"] == "bool" && policy["command"] == "maintained" => {
             let val = a.get("value")?;
             if val["valueType"] != "bool" {
                 return None;
@@ -106,10 +105,16 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
             m.mark(&format!("{p}/value/value"), &path(t, "value"));
             json!({"type":"writeTag","target":target,"value":value})
         }
-        "value.toggle" if policy["command"] == "maintained" => {
+        "value.set" if policy["command"] == "setpoint" => {
+            let value = numeric_constant(a.get("value")?, tag["dataType"].as_str()?, policy)?;
+            m.mark(&format!("{p}/value/valueType"), &path(t, "value"));
+            m.mark(&format!("{p}/value/value"), &path(t, "value"));
+            json!({"type":"writeTag","target":target,"value":value})
+        }
+        "value.toggle" if tag["dataType"] == "bool" && policy["command"] == "maintained" => {
             json!({"type":"toggleTag","target":target})
         }
-        "value.pulse" if policy["command"] == "momentary" => {
+        "value.pulse" if tag["dataType"] == "bool" && policy["command"] == "momentary" => {
             let ms = a.get("ms").map(Value::as_u64).unwrap_or(Some(500))?;
             if !(100..=5000).contains(&ms) || policy["pulseMs"].as_u64() != Some(ms) {
                 m.fail(&path(p, "ms"), "pulse-action-policy-mismatch");
@@ -122,6 +127,38 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
     };
     m.mark(&path(p, "variableId"), &format!("{t}/target/tag"));
     Some(action)
+}
+
+// Admit only exact values in the policy range. Do not guess the alignment
+// of a step-constrained setpoint or round a legacy value into range.
+fn numeric_constant(value: &Value, ty: &str, policy: &Value) -> Option<Value> {
+    let kind = value.get("valueType")?.as_str()?;
+    let raw = value.get("value")?;
+    let converted = match (ty, kind) {
+        ("int32", "int") => json!(i32::try_from(raw.as_i64()?).ok()?),
+        ("int64", "long") => json!(raw.as_i64()?),
+        ("float32", "float") => {
+            let n = raw.as_f64()?;
+            if !n.is_finite() || f64::from(n as f32) != n {
+                return None;
+            }
+            json!(n)
+        }
+        ("float64", "double") => json!(raw.as_f64()?),
+        _ => return None,
+    };
+    let limits = &policy["limits"];
+    if !limits["step"].is_null() {
+        return None;
+    }
+    let valid = if matches!(ty, "int32" | "int64") {
+        let n = converted.as_i64()?;
+        n >= limits["min"].as_i64()? && n <= limits["max"].as_i64()?
+    } else {
+        let n = converted.as_f64()?;
+        n.is_finite() && n >= limits["min"].as_f64()? && n <= limits["max"].as_f64()?
+    };
+    valid.then_some(converted)
 }
 
 pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {

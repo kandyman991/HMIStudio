@@ -36,6 +36,19 @@ impl Supervisor {
         timeout: Duration,
         cancel: &CancelToken,
     ) -> io::Result<Self> {
+        Self::launch(executable, timeout, cancel, false)
+    }
+
+    pub(crate) fn start_isolated(executable: &Path, timeout: Duration) -> io::Result<Self> {
+        Self::launch(executable, timeout, &CancelToken::new(), true)
+    }
+
+    fn launch(
+        executable: &Path,
+        timeout: Duration,
+        cancel: &CancelToken,
+        isolated: bool,
+    ) -> io::Result<Self> {
         check_cancel(cancel)?;
         if !executable.is_absolute() || timeout.is_zero() {
             return Err(io::Error::new(
@@ -43,7 +56,11 @@ impl Supervisor {
                 "absolute executable and positive timeout required",
             ));
         }
-        let mut child = Command::new(executable)
+        let mut command = Command::new(executable);
+        if isolated {
+            command.arg("--isolated");
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -54,7 +71,7 @@ impl Supervisor {
             return Err(io::Error::other("missing child pipes"));
         };
         let (tx, writes) = mpsc::sync_channel::<Vec<u8>>(1);
-        let (replies, rx) = mpsc::sync_channel(8);
+        let (replies, rx) = mpsc::sync_channel(if isolated { 32 } else { 8 });
         let errors = replies.clone();
         let transport_failed = Arc::new(AtomicBool::new(false));
         let writer_failed = transport_failed.clone();
@@ -107,7 +124,9 @@ impl Supervisor {
             timeout,
             cancel,
         )?;
-        if !matches!(response, Message::HelloOk { protocol: 3, .. }) {
+        if !matches!(response, Message::HelloOk { protocol: 3, drivers, .. }
+            if !isolated || drivers == ["loopback"])
+        {
             session.invalidate()?;
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -115,6 +134,47 @@ impl Supervisor {
             ));
         }
         Ok(session)
+    }
+
+    pub(crate) fn configure_and_start(
+        &mut self,
+        config: Value,
+        deadline: Instant,
+        cancel: &CancelToken,
+    ) -> io::Result<()> {
+        let remaining = || {
+            deadline
+                .checked_duration_since(Instant::now())
+                .filter(|d| !d.is_zero())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "baseline timeout"))
+        };
+        // The engine acknowledges start before emitting loopback events.
+        if self.poll_event()?.is_some()
+            || !matches!(
+                self.exchange(config, ReplyKind::Ok, remaining()?, cancel)?,
+                Message::Ok { .. }
+            )
+            || self.dispatch.pop_event().is_some()
+            || !matches!(
+                self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?, cancel)?,
+                Message::Ok { .. }
+            )
+            || self.dispatch.pop_event().is_some()
+        {
+            self.invalidate()?;
+            return Err(io::Error::other(
+                "loopback configuration/start rejected or premature event",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn simulation_command(
+        &mut self,
+        request: Value,
+        timeout: Duration,
+    ) -> io::Result<Message> {
+        self.exchange(request, ReplyKind::Write, timeout, &CancelToken::new())
     }
 
     // No generic request API or write-capable connection is exposed.
@@ -212,12 +272,6 @@ impl Supervisor {
         deadline: Instant,
         cancel: &CancelToken,
     ) -> io::Result<()> {
-        let remaining = || {
-            deadline
-                .checked_duration_since(Instant::now())
-                .filter(|d| !d.is_zero())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "baseline timeout"))
-        };
         let config_points: Vec<_> = points
             .iter()
             .map(|p| {
@@ -230,25 +284,7 @@ impl Supervisor {
         let config = json!({"type":"configure","config":{"version":1,
             "sources":[{"id":"isolated-loopback","driver":"loopback","settings":{}}],
             "points":config_points}});
-        // The imported engine acknowledges start before emitting any loopback data.
-        // Exchange queues events received before each acknowledgement; none can
-        // belong to the new baseline yet, so reject rather than reuse them.
-        if !matches!(
-            self.exchange(config, ReplyKind::Ok, remaining()?, cancel)?,
-            Message::Ok { .. }
-        ) || self.dispatch.pop_event().is_some()
-            || !matches!(
-                self.exchange(json!({"type":"start"}), ReplyKind::Ok, remaining()?, cancel)?,
-                Message::Ok { .. }
-            )
-            || self.dispatch.pop_event().is_some()
-        {
-            self.invalidate()?;
-            return Err(io::Error::other(
-                "isolated loopback configuration/start rejected or premature event",
-            ));
-        }
-        Ok(())
+        self.configure_and_start(config, deadline, cancel)
     }
 
     /// Read-only protocol operation, for isolated fixture testing. The supervisor does

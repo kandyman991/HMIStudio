@@ -278,6 +278,7 @@ impl ProductionCandidate<'_> {
 
 pub struct Host {
     active: ActiveProject,
+    runtime: crate::runtime_host::RuntimeHost,
     pub generation: u64,
     untitled: PathBuf,
     _instance_lock: File,
@@ -311,6 +312,9 @@ impl Host {
                 config(dir),
                 Arc::new(GuardedFileSystem),
             )),
+            runtime: crate::runtime_host::RuntimeHost::new(
+                std::env::var_os("HMI_STUDIO_SIM_ENGINE").map(PathBuf::from),
+            ),
             generation: 0,
             untitled: dir.to_path_buf(),
             _instance_lock: instance_lock,
@@ -367,12 +371,39 @@ impl Host {
         generation: Option<u64>,
     ) -> Result<crate::session_host::WorkspaceReply> {
         request.check_context(generation, self.generation, self.pending_untitled)?;
-        Ok(match &mut self.active {
+        let reply = match &mut self.active {
             ActiveProject::Ordinary(session) => crate::session_host::request(session, request),
             ActiveProject::Review { bundle, .. } => {
                 crate::session_host::review_request(bundle, request)
             }
-        })
+        };
+        self.runtime.invalidate_on_edit(reply.revision());
+        Ok(reply)
+    }
+
+    pub fn simulate(
+        &mut self,
+        generation: u64,
+        request: crate::runtime_host::RuntimeRequest,
+        confirm: impl FnOnce() -> bool,
+    ) -> Result<Option<crate::runtime_host::RuntimeReply>> {
+        use crate::runtime_host::RuntimeRequest;
+        self.check_generation(generation)?;
+        if self.pending_untitled {
+            return Err("Resolve untitled recovery before starting simulation".into());
+        }
+        if let RuntimeRequest::Start { revision } = request {
+            let snapshot = self.snapshot();
+            if revision != snapshot.revision {
+                return Err("Project changed. Refresh before starting simulation".into());
+            }
+            return self.runtime.start(&snapshot).map(Some);
+        }
+        self.runtime.run(request, confirm)
+    }
+
+    pub fn stop_simulation(&mut self) {
+        self.runtime.stop();
     }
 
     pub fn check_generation(&self, generation: u64) -> Result<()> {
@@ -426,7 +457,7 @@ impl Host {
             return Err("Invalid v2 project; original data preserved".into());
         }
         self.active = ActiveProject::Ordinary(opened.session);
-        self.generation += 1;
+        self.project_replaced();
         self.pending_untitled = false;
         Ok(())
     }
@@ -491,7 +522,7 @@ impl Host {
         // the new project has been fully parsed and explicitly accepted.
         let recovery_retained = self.clear_active_recovery().is_err();
         self.active = ActiveProject::Ordinary(opened.session);
-        self.generation += 1;
+        self.project_replaced();
         self.project_lock = Some(guard);
         self.autosave_message = if recovery_retained {
             "Autosave ready. Previous recovery retained".into()
@@ -520,7 +551,7 @@ impl Host {
             Arc::new(GuardedFileSystem),
         ));
         self.pending_untitled = pending_untitled;
-        self.generation += 1;
+        self.project_replaced();
         self.project_lock = None;
         self.autosave_message = "Autosave ready".into();
         Ok(())
@@ -550,6 +581,11 @@ impl Host {
             recovery_retained,
         };
         self.project_lock = None;
+        self.project_replaced();
+    }
+
+    fn project_replaced(&mut self) {
+        self.stop_simulation();
         self.generation += 1;
     }
 
@@ -778,6 +814,187 @@ mod tests {
                 name: name.into(),
             }))
             .unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires freshly built hmi-engine selected by hosted CI"]
+    fn native_project_simulation_respects_quarantine_and_session_lifecycle() {
+        use crate::runtime_host::{RuntimeHost, RuntimeReply, RuntimeRequest as Request};
+        use crate::session_host::WorkspaceRequest;
+        use serde_json::json;
+        use std::time::{Duration, Instant};
+
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        let mut legacy: serde_json::Value = serde_json::from_slice(LEGACY_SOURCE).unwrap();
+        legacy["schemaVersion"] = json!(9);
+        legacy["variables"] = json!({
+            "count":{"id":"count","path":"Count","type":"LONG","access":"SETPOINT"},
+            "pulse":{"id":"pulse","path":"Pulse","type":"BOOL","access":"COMMAND"},
+            "input":{"id":"input","path":"Input","type":"BOOL","access":"READ_ONLY"}
+        });
+        legacy["externalSources"] = json!({
+            "physical":{"id":"physical","driver":"s7","configuration":{
+                "host":"example.invalid","port":"102","rack":"0","slot":"1","pollIntervalMs":"200","timeoutMs":"2000"
+            },"commissioningAllowed":true}
+        });
+        legacy["externalMappings"] = json!({
+            "write":{"id":"write","internalVariableId":"count","sourceId":"physical","externalAddress":"DB1.DINT0",
+                "access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":0,"max":100,"step":2,"confirm":true}},
+            "pulse":{"id":"pulse","internalVariableId":"pulse","sourceId":"physical","externalAddress":"DB1.X4.0",
+                "access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"MOMENTARY","pulseMs":1000}},
+            "input":{"id":"input","internalVariableId":"input","sourceId":"physical","externalAddress":"DB1.X4.1","access":"READ"}
+        });
+        let original = serde_json::to_vec(&legacy).unwrap();
+        fs::write(&source, &original).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.runtime = RuntimeHost::new(Some(PathBuf::from(
+            std::env::var_os("HMI_ENGINE_TEST_BIN").expect("CI must provide a fresh engine"),
+        )));
+        host.import_review(&source, &review, false).unwrap();
+        let before = host.snapshot();
+        let generation = host.generation;
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        let start = || Request::Start {
+            revision: before.revision,
+        };
+        let first = host
+            .simulate(generation, start(), || false)
+            .unwrap()
+            .unwrap();
+        let id = |name: &str| {
+            first
+                .points
+                .iter()
+                .find(|p| p.name == name)
+                .unwrap()
+                .id
+                .clone()
+        };
+        let count = id("Count");
+        let pulse = id("Pulse");
+        let input = id("Input");
+        let session = first.session;
+        let read = || Request::Read { session };
+        let write = |tag: &str, value: &str| Request::Write {
+            session,
+            tag: tag.into(),
+            value: value.into(),
+        };
+        let value = |reply: &RuntimeReply, id: &str| {
+            reply
+                .points
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .value
+                .clone()
+        };
+        let wait_for = |host: &mut Host, id: &str, expected: &str| {
+            let deadline = Instant::now() + Duration::from_secs(4);
+            loop {
+                let reply = host
+                    .simulate(generation, read(), || false)
+                    .unwrap()
+                    .unwrap();
+                if value(&reply, id).as_deref() == Some(expected) {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "expected {expected} for {id}");
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        };
+        assert_eq!(value(&first, &count).as_deref(), Some("0"));
+        assert!(host
+            .simulate(generation, write(&input, "true"), || true)
+            .is_err());
+        assert!(host
+            .simulate(generation, write(&count, "101"), || true)
+            .is_err());
+        assert!(host
+            .simulate(generation, write(&count, "25"), || true)
+            .is_err());
+        assert!(host
+            .simulate(generation, write(&count, "24"), || false)
+            .is_err());
+        host.simulate(generation, write(&count, "24"), || true)
+            .unwrap();
+        wait_for(&mut host, &count, "24");
+        assert!(host
+            .simulate(generation, write(&pulse, "true"), || true)
+            .is_err());
+        host.simulate(
+            generation,
+            Request::Pulse {
+                session,
+                tag: pulse.clone(),
+            },
+            || true,
+        )
+        .unwrap();
+        wait_for(&mut host, &pulse, "true");
+        wait_for(&mut host, &pulse, "false");
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&source).unwrap(), original);
+        assert!(host.production_candidate().is_err());
+        assert!(host.simulate(generation, start(), || true).is_err());
+
+        // Failed switching leaves the original runtime available. Committed
+        // edits and successful switches retire it, including same-project reopen.
+        assert!(host
+            .open_review(&t.0.join("absent.hmi-review"), false)
+            .is_err());
+        wait_for(&mut host, &count, "24");
+        host.request(
+            WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Edited".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(generation),
+        )
+        .unwrap();
+        assert!(host.simulate(generation, read(), || true).is_err());
+        assert!(host.simulate(generation, start(), || true).is_err());
+        let second = host
+            .simulate(
+                generation,
+                Request::Start {
+                    revision: host.snapshot().revision,
+                },
+                || false,
+            )
+            .unwrap()
+            .unwrap();
+        assert_ne!(second.session, session);
+        assert_eq!(value(&second, &count).as_deref(), Some("0"));
+        assert!(host
+            .simulate(generation, write(&count, "24"), || true)
+            .is_err());
+        host.open_review(&review, true).unwrap();
+        assert!(host
+            .simulate(
+                generation,
+                Request::Read {
+                    session: second.session
+                },
+                || true
+            )
+            .is_err());
+        assert!(host
+            .simulate(
+                host.generation,
+                Request::Read {
+                    session: second.session
+                },
+                || true
+            )
+            .is_err());
+        assert!(host.production_candidate().is_err());
     }
 
     #[test]

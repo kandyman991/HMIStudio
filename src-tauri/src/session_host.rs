@@ -53,6 +53,12 @@ pub struct WorkspaceReply {
     snapshot: ProjectSnapshot,
 }
 
+impl WorkspaceReply {
+    pub fn revision(&self) -> u64 {
+        self.snapshot.revision
+    }
+}
+
 pub fn initial_session() -> ProjectSession {
     let project = load_project(include_str!(
         "../../crates/project-model/fixtures/valid/minimal.hmi.json"

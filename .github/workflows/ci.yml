@@ -4,6 +4,7 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
@@ -140,7 +141,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: src-tauri
+          workspaces: |
+            src-tauri
+            crates/hmi-engine
           key: native-${{ needs.changes.outputs.package }}
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           cache-bin: 'false'
@@ -149,12 +152,22 @@ jobs:
       - run: npm run tauri -- icon assets/icon.svg
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Native project simulation with real isolated child
+        shell: pwsh
+        run: |
+          cargo build --locked --manifest-path crates/hmi-engine/Cargo.toml --bin hmi-engine
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $name = if ($IsWindows) { 'hmi-engine.exe' } else { 'hmi-engine' }
+          $env:HMI_ENGINE_TEST_BIN = (Resolve-Path "crates/hmi-engine/target/debug/$name").Path
+          cargo test --locked --manifest-path src-tauri/Cargo.toml native_project_simulation -- --ignored
+      # Owner-directed deferral for the REUSE-03B review draft. Ready-for-review
+      # and every other PR, release and manual build retain normal packaging.
       - name: Build installer when required
-        if: needs.changes.outputs.package == 'true'
+        if: needs.changes.outputs.package == 'true' && !(github.event_name == 'pull_request' && github.event.pull_request.number == 36 && github.event.pull_request.draft)
         run: npm run tauri -- build --bundles ${{ matrix.bundle }} -- --locked
       - run: git diff --exit-code -- package-lock.json src-tauri/Cargo.lock
       - uses: actions/upload-artifact@v4
-        if: needs.changes.outputs.package == 'true'
+        if: needs.changes.outputs.package == 'true' && !(github.event_name == 'pull_request' && github.event.pull_request.number == 36 && github.event.pull_request.draft)
         with:
           name: hmi-studio-${{ matrix.os }}
           path: src-tauri/target/release/bundle/**/*.${{ matrix.bundle }}

@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod persistence_host;
+mod runtime_host;
 mod session_host;
 use hmi_engineering_core::ProjectSnapshot;
 use persistence_host::{recovery_project, Host};
+use runtime_host::{RuntimeReply, RuntimeRequest};
 use serde::{Deserialize, Serialize};
 use session_host::{WorkspaceReply, WorkspaceRequest};
 use std::{path::PathBuf, sync::Mutex, time::Duration};
@@ -83,6 +85,24 @@ fn persistence_status(state: tauri::State<'_, Mutex<Host>>) -> Result<Persistenc
         .try_lock()
         .map_err(|_| "Project operation pending".to_string())?;
     Ok(PersistenceStatus::from(&*host))
+}
+
+#[tauri::command]
+async fn simulation_request(
+    app: AppHandle,
+    request: RuntimeRequest,
+    generation: u64,
+) -> Result<Option<RuntimeReply>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<Mutex<Host>>();
+        let mut host = state.try_lock().map_err(|_| "Project operation pending")?;
+        host.simulate(generation, request, || {
+            ask(&app, "Confirm the selected action in isolated simulation?")
+                == MessageDialogResult::Yes
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 // All blocking native dialogs run off the UI thread, with one exclusive host
@@ -202,11 +222,13 @@ fn handle_project_action(
         ProjectAction::Exit => {
             if host.pending_untitled {
                 // No edits are admitted while pending; preserve the snapshot.
+                host.stop_simulation();
                 app.exit(0);
             } else if let Some(discard) = confirm_switch(app, &mut host)? {
                 if discard || !host.is_dirty() {
                     host.clear_active_recovery()?;
                 }
+                host.stop_simulation();
                 app.exit(0);
             }
         }
@@ -318,7 +340,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             engineering_request,
             project_action,
-            persistence_status
+            persistence_status,
+            simulation_request
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

@@ -1294,11 +1294,22 @@ version = "0.1.0"
 dependencies = [
  "hmi-engineering-core",
  "hmi-project-model",
+ "hmi-tag-engine",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+]
+
+[[package]]
+name = "hmi-tag-engine"
+version = "0.1.0"
+dependencies = [
+ "hmi-project-model",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

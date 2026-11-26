@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Schema v2 frozen; portable legacy import, immutable review bundles, native review lifecycle and candidate isolated communication engine in draft PR #36.",
+  "summary": "Schema v2 frozen; draft PR #36 integrates portable import review and host-selected native project simulation.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify actual publisher and live project connection entry points; native project-to-isolated-engine adapter, archive/package admission, unresolved migration semantics and review-edit crash recovery remain open. Verify new isolated-engine regressions and independent review."
+    "Independent technical review and exact-head CI for the native integration. Actual publisher and live project connection enforcement, archive/package admission, unresolved migration semantics and review-edit crash recovery remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,52 +31,60 @@
   "prs": [
     {
       "number": 36,
-      "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
+      "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45836917012,
-          "name": "Desktop CI",
-          "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
-          "state": "completed",
-          "result": "success"
-        },
-        {
-          "id": 45836917541,
+          "id": 45848388892,
           "name": "Engineering handoff snapshot",
-          "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
+          "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45836917144,
+          "id": 45848389015,
+          "name": "Desktop CI",
+          "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45848388871,
           "name": "Tag engine CI",
-          "head": "2bd11e64875a1cf5cc03b6ceb68d61be5ec3aaf7",
+          "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T14:13:57Z"
+      "observedAt": "2026-11-26T15:55:17Z"
     }
   ],
   "assignment": {
     "owner": "ChatGPT",
     "branch": "feat/reuse-03b-legacy-import",
     "scope": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/tag-engine.yml",
       "crates/engineering-core/",
       "crates/hmi-engine/src/engine.rs",
       "crates/hmi-engine/src/main.rs",
       "crates/hmi-engine/tests/isolated_runtime.rs",
       "crates/hmi-engine/tests/legacy_address_conformance.rs",
       "crates/legacy-import/",
+      "crates/tag-engine/src/bridge_project_simulation.rs",
+      "crates/tag-engine/src/bridge_supervisor.rs",
+      "crates/tag-engine/src/lib.rs",
+      "crates/tag-engine/tests/bridge_project_simulation.rs",
       "src-tauri/Cargo.lock",
+      "src-tauri/Cargo.toml",
       "src-tauri/src/main.rs",
       "src-tauri/src/persistence_host.rs",
+      "src-tauri/src/runtime_host.rs",
       "src-tauri/src/session_host.rs",
       "src/main.tsx"
     ],
-    "observedAt": "2026-11-26T14:13:57Z"
+    "observedAt": "2026-11-26T15:55:17Z"
   },
   "history": [
     {
@@ -197,6 +205,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified review successor 2bd11e6 in all 19 hosted jobs, including native Windows 14/14 and Linux 15/15, engineering-core 72/72 and 73/73; 9 quarantine tests per platform. Extended RUST-05 before isolated communication engine changes. Native project adapter, actual production consumer, archive and remaining migration/recovery gates stay open.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified PR #36 at 8f7d063 and RUST-05 reservation e7b6ea0. Extended the retained claim to e36947b for owner-approved draft-only packaging deferral. Added canonical native isolated simulation with Windows/Linux real-child regressions. Production quarantine and schema v2 are preserved. Exact-head hosted CI and technical review remain pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

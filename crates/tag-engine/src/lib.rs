@@ -65,5 +65,8 @@ pub use subscription::EventReceiver;
 /// Isolated simulation bridge and generation-scoped recovery.
 pub mod bridge_simulation;
 
+/// Canonical project adapter for host-selected, in-memory simulation.
+pub mod bridge_project_simulation;
+
 /// Explicit supervised loopback driver and exact protocol-3 scalar translation.
 pub mod engine_driver;

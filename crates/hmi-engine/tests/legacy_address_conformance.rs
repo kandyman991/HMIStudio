@@ -35,8 +35,8 @@ fn admitted_s7_addresses_match_production_parser() {
     ] {
         let span = admission::s7(address, canonical_type, writable)
             .unwrap_or_else(|| panic!("importer rejected {address}"));
-        let actual = S7Address::parse(address)
-            .unwrap_or_else(|e| panic!("engine rejected {address}: {e}"));
+        let actual =
+            S7Address::parse(address).unwrap_or_else(|e| panic!("engine rejected {address}: {e}"));
         assert_eq!((span.start, span.end), actual.bytes(), "{address}");
         assert!(actual.kind.readable_as(engine_type), "{address}");
         assert!(!span.area.is_empty());
@@ -64,7 +64,12 @@ fn admitted_s7_addresses_match_production_parser() {
 #[test]
 fn admitted_fixed_opcua_nodes_match_production_node_parser() {
     // The engine's fixed-target branch calls this same NodeId parser.
-    for address in ["ns=2;i=100", "ns=02;i=0100", "ns=2;s=Demo.Counter", "ns=0;i=2255"] {
+    for address in [
+        "ns=2;i=100",
+        "ns=02;i=0100",
+        "ns=2;s=Demo.Counter",
+        "ns=0;i=2255",
+    ] {
         let normalized = admission::opcua(address).expect("admitted address");
         let original = address.parse::<NodeId>().expect("engine node parser");
         let canonical = normalized.parse::<NodeId>().expect("normalized node");

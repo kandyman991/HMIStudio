@@ -14,7 +14,10 @@ use sha2::{Digest, Sha256};
 
 use crate::fs::FileSystem;
 use crate::persistence::stage_temp;
-use crate::{ProjectSession, ProjectSnapshot, SessionConfig, Transaction, TransactionError, TransactionOutcome};
+use crate::{
+    ProjectSession, ProjectSnapshot, SessionConfig, Transaction, TransactionError,
+    TransactionOutcome,
+};
 
 const MARKER: &str = "hmistudio.importQuarantine";
 const FORMAT: &str = "hmi-studio.legacy-review";
@@ -85,19 +88,33 @@ fn canonical(project: &Project) -> Result<String, ImportError> {
 }
 
 fn decode_project(text: &str) -> Result<Project, ImportError> {
-    let project = load_project(text).map_err(|_| ImportError::InvalidBundle)?.project;
+    let project = load_project(text)
+        .map_err(|_| ImportError::InvalidBundle)?
+        .project;
     if project.extensions.get(MARKER) != Some(&marker()) || canonical(&project)? != text {
         return Err(ImportError::InvalidBundle);
     }
     Ok(project)
 }
 
-fn verify_resources(project: &Project, resources: &BTreeMap<String, Vec<u8>>) -> Result<(), ImportError> {
+fn verify_resources(
+    project: &Project,
+    resources: &BTreeMap<String, Vec<u8>>,
+) -> Result<(), ImportError> {
     let data = serde_json::to_value(project).map_err(|_| ImportError::InvalidBundle)?;
     let mut used = std::collections::BTreeSet::new();
-    for resource in data.get("resources").and_then(Value::as_array).into_iter().flatten() {
-        let path = resource["path"].as_str().ok_or(ImportError::InvalidBundle)?;
-        let expected = resource["sha256"].as_str().ok_or(ImportError::InvalidBundle)?;
+    for resource in data
+        .get("resources")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let path = resource["path"]
+            .as_str()
+            .ok_or(ImportError::InvalidBundle)?;
+        let expected = resource["sha256"]
+            .as_str()
+            .ok_or(ImportError::InvalidBundle)?;
         let extension = match resource["mediaType"].as_str() {
             Some("image/png") => "png",
             Some("image/jpeg") => "jpg",
@@ -118,9 +135,13 @@ fn verify_resources(project: &Project, resources: &BTreeMap<String, Vec<u8>>) ->
 
 fn verify_report(report: &Value, original: &Project) -> Result<(), ImportError> {
     let value = serde_json::to_value(original).map_err(|_| ImportError::InvalidBundle)?;
-    let findings = report["findings"].as_array().ok_or(ImportError::InvalidBundle)?;
+    let findings = report["findings"]
+        .as_array()
+        .ok_or(ImportError::InvalidBundle)?;
     let mut paths = std::collections::BTreeSet::new();
-    let source_hash = report["sourceSha256"].as_str().ok_or(ImportError::InvalidBundle)?;
+    let source_hash = report["sourceSha256"]
+        .as_str()
+        .ok_or(ImportError::InvalidBundle)?;
     if source_hash.len() != 64
         || !source_hash.bytes().all(|b| b.is_ascii_hexdigit())
         || report["destinationAuditCompleted"] != true
@@ -132,9 +153,14 @@ fn verify_report(report: &Value, original: &Project) -> Result<(), ImportError> 
     }
     for finding in findings {
         let path = finding["path"].as_str().ok_or(ImportError::InvalidBundle)?;
-        let target = finding["target"].as_str().ok_or(ImportError::InvalidBundle)?;
+        let target = finding["target"]
+            .as_str()
+            .ok_or(ImportError::InvalidBundle)?;
         if !paths.insert(path)
-            || !matches!(finding["disposition"].as_str(), Some("mapped" | "preserved"))
+            || !matches!(
+                finding["disposition"].as_str(),
+                Some("mapped" | "preserved")
+            )
             || finding["severity"] == "blocking"
             || value.pointer(target).is_none()
         {
@@ -150,7 +176,9 @@ fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
     verify_report(&payload.report, &original)?;
     verify_resources(&original, &payload.resources)?;
     verify_resources(&current, &payload.resources)?;
-    if original.id != current.id || original.extensions.get("hmiforge.idMap") != current.extensions.get("hmiforge.idMap") {
+    if original.id != current.id
+        || original.extensions.get("hmiforge.idMap") != current.extensions.get("hmiforge.idMap")
+    {
         return Err(ImportError::InvalidBundle);
     }
     Ok(current)
@@ -195,14 +223,23 @@ impl QuarantinedImport {
     }
 
     /// Open only the review envelope, verifying checksums and evidence.
-    pub fn reopen(path: &Path, config: SessionConfig, fs: Arc<dyn FileSystem>) -> Result<Self, ImportError> {
+    pub fn reopen(
+        path: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<Self, ImportError> {
         let bytes = fs.read(path).map_err(|_| ImportError::Io("read"))?;
         if bytes.len() > MAX_BUNDLE_BYTES {
             return Err(ImportError::SizeLimit);
         }
-        let envelope: Envelope = serde_json::from_slice(&bytes).map_err(|_| ImportError::InvalidBundle)?;
-        let serialized = serde_json::to_vec(&envelope.payload).map_err(|_| ImportError::InvalidBundle)?;
-        if envelope.format != FORMAT || envelope.version != 1 || envelope.sha256 != digest(&serialized) {
+        let envelope: Envelope =
+            serde_json::from_slice(&bytes).map_err(|_| ImportError::InvalidBundle)?;
+        let serialized =
+            serde_json::to_vec(&envelope.payload).map_err(|_| ImportError::InvalidBundle)?;
+        if envelope.format != FORMAT
+            || envelope.version != 1
+            || envelope.sha256 != digest(&serialized)
+        {
             return Err(ImportError::InvalidBundle);
         }
         let project = verify_payload(&envelope.payload)?;
@@ -225,7 +262,10 @@ impl QuarantinedImport {
         &self.path
     }
 
-    pub fn execute(&mut self, transaction: Transaction) -> Result<TransactionOutcome, TransactionError> {
+    pub fn execute(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<TransactionOutcome, TransactionError> {
         self.session.execute(transaction)
     }
 
@@ -266,7 +306,10 @@ fn write_new(payload: &Payload, target: &Path, fs: &dyn FileSystem) -> Result<()
     let result = fs.link_new(&tmp, target);
     let _ = fs.remove_file(&tmp);
     result.map_err(|_| ImportError::Io("publish new bundle"))?;
-    let parent = target.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
+    let parent = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
     // Publication already committed; do not report rollback after this point.
     let _ = fs.sync_dir(parent);
     Ok(())

@@ -21,7 +21,10 @@ pub trait FileSystem: Send + Sync {
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
     /// Atomically publish a staged file only if the destination is absent.
     fn link_new(&self, _from: &Path, _to: &Path) -> io::Result<()> {
-        Err(io::Error::new(io::ErrorKind::Unsupported, "no exclusive publication support"))
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "no exclusive publication support",
+        ))
     }
     /// Removes a file.
     fn remove_file(&self, path: &Path) -> io::Result<()>;

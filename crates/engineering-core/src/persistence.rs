@@ -283,7 +283,11 @@ fn autosave_path(dir: &Path) -> PathBuf {
 }
 
 /// Writes and verifies `data` in the temporary file next to `target`.
-pub(crate) fn stage_temp(fs: &dyn FileSystem, target: &Path, data: &[u8]) -> Result<PathBuf, SaveError> {
+pub(crate) fn stage_temp(
+    fs: &dyn FileSystem,
+    target: &Path,
+    data: &[u8],
+) -> Result<PathBuf, SaveError> {
     let tmp = loop {
         let candidate = temp_path(target);
         match fs.write_synced(&candidate, data) {

@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 has CI-verified and independently reviewed review-edit crash recovery, versioned replay, isolated simulation and image migration.",
+  "summary": "Draft PR #36 has verified review recovery and a candidate bounded legacy revision transport decoder.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Archive/package decoding and remaining legacy migration semantics remain open. Actual production publisher and live connection admission consumers remain outstanding; no production acceptance."
+    "Verify revision decoder exact-head hosted CI and independent review; guarded native directory admission and persistent source-container provenance, runtime archive/package decoding and remaining legacy migration semantics remain open. Actual production publisher/live admission consumers remain outstanding."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "58c506bce79681711ae4ce37cb6df5886da8dcb1",
+      "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45902678915,
+          "id": 45906230273,
           "name": "Desktop CI",
-          "head": "58c506bce79681711ae4ce37cb6df5886da8dcb1",
+          "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45902678968,
+          "id": 45906230251,
           "name": "Tag engine CI",
-          "head": "58c506bce79681711ae4ce37cb6df5886da8dcb1",
+          "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45902678895,
+          "id": 45906230262,
           "name": "Engineering handoff snapshot",
-          "head": "58c506bce79681711ae4ce37cb6df5886da8dcb1",
+          "head": "bc773c27bac914765e0d9533aa76ff7a31185f85",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T22:38:48Z"
+      "observedAt": "2026-11-26T22:51:19Z"
     }
   ],
   "assignment": {
@@ -265,6 +265,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Independent recovery review (ChatGPT) closed at 58c506b: all three exact-head workflows passed, including Windows/Linux engineering-core and native recovery regressions, real-child simulation and resynchronization. No blocking recovery finding within the documented cooperating-writer boundary. Continue remaining migration semantics and bounded archive/package decoding; PR #36 remains draft.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified recovery reconciliation bc773c2 all hosted workflows passed. Implemented bounded pure revision transport decoder against pinned storage contract with exact project bytes, checksum and identity verification; local 59 importer tests and strict Clippy/rustdoc passed. Successor CI/review, native directory and provenance integration remain pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

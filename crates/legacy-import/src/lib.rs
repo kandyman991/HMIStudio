@@ -9,6 +9,7 @@ mod navigation;
 mod primitives;
 mod resources;
 mod review;
+pub mod revision;
 mod source;
 pub use review::ReviewOnlyContract;
 use serde::{de, Deserialize, Deserializer, Serialize};

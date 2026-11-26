@@ -2,6 +2,7 @@
 //! No filesystem writes, archive extraction, I/O, or runtime authorization.
 use hmi_project_model::{model::Project, serialization::load_project};
 mod address;
+mod catalog;
 mod graphics;
 mod industrial;
 mod navigation;

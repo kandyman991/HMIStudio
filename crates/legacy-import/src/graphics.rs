@@ -808,29 +808,21 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         // Allocate all reusable IDs before placing instances.
         for (k, x) in ds {
             let p = path("/componentDefinitions", k);
-            if k == "standard.label" {
-                let valid = x.as_object()?.keys().all(|key| {
-                    matches!(
-                        key.as_str(),
-                        "id" | "displayName" | "type" | "bindingSlots" | "defaultProperties"
-                    )
-                }) && x["id"].as_str() == Some(k.as_str())
-                    && x["displayName"] == "Label"
-                    && x["type"] == "label"
-                    && x["defaultProperties"] == json!({"text":"Label"})
-                    && x.get("bindingSlots").is_none_or(|v| v == &json!({}));
-                if !valid {
+            if k.starts_with("standard.") {
+                if super::catalog::recognize(k, x).is_none() {
                     return refuse(m, &p, "standard-catalog-signature-mismatch");
                 }
-                let target = "/extensions/hmiforge.standardLabel";
-                doc["extensions"]["hmiforge.standardLabel"] = x.clone();
-                for field in ["id", "displayName", "type", "bindingSlots"] {
-                    m.mark(&path(&p, field), &path(target, field));
+                let target = path("/extensions/hmiforge.standardCatalog", k);
+                doc["extensions"]["hmiforge.standardCatalog"][k] = x.clone();
+                for (source, finding) in &mut m.findings {
+                    if let Some(suffix) = source.strip_prefix(&p).filter(|s| s.starts_with('/')) {
+                        finding.disposition = "preserved";
+                        finding.code = "standard-catalog-preserved";
+                        finding.severity = "info";
+                        finding.target = Some(format!("{target}{suffix}"));
+                        finding.message = "Recognized standard declaration retained as inactive evidence.";
+                    }
                 }
-                m.mark(
-                    &format!("{p}/defaultProperties/text"),
-                    &format!("{target}/defaultProperties/text"),
-                );
                 continue;
             }
             if x["id"].as_str() != Some(k) || x["type"].as_str() != Some("composite") || ver < 6 {
@@ -841,7 +833,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         }
         for (k, x) in ds {
             let p = path("/componentDefinitions", k);
-            if k == "standard.label" {
+            if k.starts_with("standard.") {
                 continue;
             }
             let t = format!("/components/{}", definitions.len());

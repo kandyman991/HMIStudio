@@ -1140,7 +1140,7 @@ fn exact_standard_label_catalog_signature() {
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
     let d = serde_json::to_value(&p).unwrap();
     assert_eq!(
-        d["extensions"]["hmiforge.standardLabel"]["id"],
+        d["extensions"]["hmiforge.standardCatalog"]["standard.label"]["id"],
         "standard.label"
     );
     f["componentDefinitions"]["standard.label"]["defaultProperties"]["text"] = json!("Modified");
@@ -1173,4 +1173,14 @@ fn destination_audit_reports_only_source_paths() {
         .report
         .unresolved_targets
         .contains(&"/screens/screen~1a/components/label-a/properties/text".to_owned()));
+}
+
+#[test]
+fn catalog_signature_rejects_changed_slot_semantics() {
+    let mut f = fixture(1);
+    f["componentDefinitions"]["standard.button"] = json!({"id":"standard.button","displayName":"Button","type":"button","bindingSlots":{"command":{"role":"command","acceptedTypes":["BOOL"],"required":false,"writable":true}},"defaultProperties":{"text":"Button"}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
+    f["componentDefinitions"]["standard.button"]["bindingSlots"]["command"]["writable"] = json!(false);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
 }

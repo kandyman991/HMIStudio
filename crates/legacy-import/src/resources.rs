@@ -412,11 +412,7 @@ pub(super) fn theme(v: &Value, m: &mut Mapping) -> Option<Option<Value>> {
             m.mark(&path("/theme/tokens", key), &path("/themes/0/colors", key));
         }
     }
-    for key in ["styles", "componentDefaults"] {
-        if let Some(x) = theme.get(key) {
-            m.empty(x, &path("/theme", key), "/themes/0");
-        }
-    }
+    styles(theme, m)?;
     if let Some(f) = m.findings.get_mut("/theme/id") {
         f.severity = "warning";
         f.code = "explicit-theme-colors-only";
@@ -426,4 +422,146 @@ pub(super) fn theme(v: &Value, m: &mut Mapping) -> Option<Option<Value>> {
     Some(Some(
         json!({"id":id,"name":name,"dark":dark,"colors":m.theme_colors}),
     ))
+}
+
+// Common opacity is the only property shared by all supported component
+// kinds. Shape-specific defaults and overrides are flattened at placement.
+fn style_value(key: &str, value: &Value, m: &Mapping) -> Option<(&'static str, Value)> {
+    match key {
+        "fillColor" | "strokeColor" => {
+            let s = value.as_str()?;
+            let color = if let Some(token) = s.strip_prefix('@') {
+                m.theme_colors.get(token)?;
+                json!({"token":token})
+            } else if s.len() == 7
+                && s.starts_with('#')
+                && s[1..].bytes().all(|b| b.is_ascii_hexdigit())
+            {
+                json!(s)
+            } else {
+                return None;
+            };
+            Some((if key == "fillColor" { "fill" } else { "strokeColor" }, color))
+        }
+        "strokeWidthDp" | "cornerRadiusDp" | "opacity" => {
+            let n = f64::from(value.as_f64()? as f32);
+            let (target, min, max) = match key {
+                "strokeWidthDp" => ("strokeWidth", 0., 32.),
+                "cornerRadiusDp" => ("cornerRadius", 0., 64.),
+                _ => ("opacity", 0.05, 1.),
+            };
+            (min..=max).contains(&n).then(|| (target, json!(n)))
+        }
+        _ => None,
+    }
+}
+
+fn styles(theme: &Value, m: &mut Mapping) -> Option<()> {
+    for group in ["styles", "componentDefaults"] {
+        let Some(source) = theme.get(group) else {
+            continue;
+        };
+        let source = source.as_object()?;
+        let base = path("/theme", group);
+        if source.is_empty() {
+            m.mark(&base, "/styles");
+        }
+        for (key, style) in source {
+            let p = path(&base, key);
+            let old = style.get("id")?.as_str()?;
+            if old.is_empty() || (group == "styles" && old != key) {
+                return None;
+            }
+            let target = if group == "componentDefaults" {
+                if !matches!(key.as_str(), "rectangle" | "ellipse") {
+                    return None;
+                }
+                Some(key.as_str())
+            } else {
+                // A named style has no source component type; preserve its
+                // reusable properties for a rectangle only when shape-specific.
+                None
+            };
+            let mut properties = json!({});
+            for (k, value) in style.as_object()? {
+                if matches!(k.as_str(), "id" | "displayName") {
+                    continue;
+                }
+                if value.is_null() {
+                    return None;
+                }
+                let (dest, val) = style_value(k, value, m)?;
+                properties[dest] = val;
+            }
+            let shape_specific = ["fill", "strokeColor", "strokeWidth", "cornerRadius"]
+                .iter()
+                .any(|k| properties.get(k).is_some());
+            let target = target.or(shape_specific.then_some("rectangle"));
+            if target == Some("ellipse") && properties.get("cornerRadius").is_some() {
+                return None;
+            }
+            let t = format!("/styles/{}", m.styles.len());
+            let id = m.id(&path(&p, "id"), old, "style");
+            let name = match style.get("displayName") {
+                Some(x) => m.text(x, &path(&p, "displayName"), &path(&t, "name"))?,
+                None => old.to_owned(),
+            };
+            m.mark(&path(&p, "id"), &path(&t, "id"));
+            for (k, value) in style.as_object()? {
+                if let Some((dest, _)) = style_value(k, value, m) {
+                    m.mark(&path(&p, k), &format!("{t}/properties/{dest}"));
+                }
+            }
+            let mut mapped = json!({"id":id,"name":name,"properties":properties});
+            if let Some(target) = target {
+                mapped["target"] = json!(target);
+            }
+            m.styles.push(mapped.clone());
+            if group == "styles" {
+                m.named_styles.insert(key.clone(), mapped);
+            } else {
+                m.default_styles.insert(key.clone(), mapped);
+            }
+        }
+    }
+    Some(())
+}
+
+pub(super) fn inherited(
+    source: &Value,
+    kind: &str,
+    p: &str,
+    t: &str,
+    m: &mut Mapping,
+) -> Option<Value> {
+    let mut props = json!({});
+    let named = source.get("properties").and_then(|v| v.get("styleId"));
+    let defaults = m.default_styles.get(kind);
+    if named.is_none() && defaults.is_none() {
+        return Some(props);
+    }
+    if !matches!(kind, "rectangle" | "ellipse") {
+        return None;
+    }
+    if let Some(defaults) = defaults {
+        props = defaults["properties"].clone();
+    }
+    if let Some(named) = named {
+        let style = m.named_styles.get(named.as_str()?)?;
+        if style.get("target").is_some_and(|target| target != kind) {
+            return None;
+        }
+        for (k, v) in style["properties"].as_object()? {
+            props[k] = v.clone();
+        }
+        let sp = format!("{p}/properties/styleId");
+        m.mark(&sp, &format!("{t}/properties"));
+        if let Some(f) = m.findings.get_mut(&sp) {
+            f.code = "legacy-style-cascade-flattened";
+            f.severity = "warning";
+            f.message =
+                "Named style and defaults resolved at import; reusable declarations retained.";
+        }
+    }
+    Some(props)
 }

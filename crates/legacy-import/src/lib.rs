@@ -173,6 +173,9 @@ struct Mapping {
     contracts: Vec<Value>,
     resource_bytes: BTreeMap<String, Vec<u8>>,
     theme_colors: BTreeMap<String, String>,
+    named_styles: BTreeMap<String, Value>,
+    default_styles: BTreeMap<String, Value>,
+    styles: Vec<Value>,
 }
 impl Mapping {
     fn mark(&mut self, p: &str, t: &str) {
@@ -271,6 +274,9 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         contracts: Vec::new(),
         resource_bytes: BTreeMap::new(),
         theme_colors: BTreeMap::new(),
+        named_styles: BTreeMap::new(),
+        default_styles: BTreeMap::new(),
+        styles: Vec::new(),
     };
     if !leaves(&v, "", &mut m.findings) {
         return stop(report, "leaf-or-path-limit");
@@ -563,6 +569,9 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
     if let Some(theme) = theme {
         doc["settings"]["defaultTheme"] = theme["id"].clone();
         doc["themes"] = json!([theme]);
+    }
+    if !m.styles.is_empty() {
+        doc["styles"] = json!(m.styles);
     }
     industrial::map(v, &mut doc, m)?;
     resources::map(v, &mut doc, m)?;

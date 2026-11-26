@@ -802,7 +802,7 @@ fn explicit_theme_token_and_unsupported_cascade() {
         d["screens"][0]["root"]["children"][0]["properties"]["fill"],
         json!({"token":"vessel"})
     );
-    f["theme"]["componentDefaults"]["rectangle"] = json!({"id":"default","fillColor":"#000000"});
+    f["theme"]["componentDefaults"]["rectangle"] = json!({"id":"default","strokeStyle":"DASHED"});
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_none());
@@ -874,4 +874,26 @@ fn alarm_declaration_is_review_only_and_blocks_project() {
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
     assert!(a.review_only_alarms.is_empty());
+}
+
+#[test]
+fn named_style_default_and_component_override_precedence() {
+    let mut f = fixture(7);
+    f["theme"] = json!({"id":"custom-theme","name":"Custom","styles":{"vessel":{"id":"vessel","fillColor":"#222222","strokeWidthDp":3}},"componentDefaults":{"rectangle":{"id":"default","fillColor":"#111111","strokeColor":"#333333","strokeWidthDp":2,"cornerRadiusDp":4}}});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("rectangle");
+    c["properties"] = json!({"styleId":"vessel","fillColor":"#444444"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    assert_eq!(p.styles.len(), 2);
+    let props = &p.screens[0].root.children[0].properties;
+    assert_eq!(props["fill"], "#444444");
+    assert_eq!(props["strokeColor"], "#333333");
+    assert_eq!(props["strokeWidth"].as_f64(), Some(3.));
+    assert_eq!(props["cornerRadius"].as_f64(), Some(4.));
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["styleId"] =
+        json!("unknown");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
 }

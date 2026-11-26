@@ -75,7 +75,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     if g.is_some_and(|x| x.as_object().is_some_and(|o| o.is_empty())) {
         mark(m, p, "geometry", t, "layout");
     }
-    let mut props = json!({});
+    let mut props = super::resources::inherited(v, kind, p, t, m)?;
     if kind == "arrow" {
         super::primitives::arrow(v, p, &id, geo[2], geo[3], m)?;
     }
@@ -95,6 +95,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
                 ("rectangle" | "ellipse", "strokeColor") => "strokeColor",
                 ("rectangle" | "ellipse", "strokeWidth") => "strokeWidth",
                 ("rectangle", "cornerRadius") => "cornerRadius",
+                ("rectangle" | "ellipse", "opacity") => "opacity",
                 ("indicator", "label") => "label",
                 ("indicator", "onColor") => "activeColor",
                 ("indicator", "offColor") => "inactiveColor",
@@ -133,6 +134,13 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
                     }
                 }
                 "decimals" => json!(raw.parse::<u32>().ok()?),
+                "opacity" => {
+                    let n = f64::from(raw.parse::<f32>().ok()?);
+                    if !(0.05..=1.).contains(&n) {
+                        return None;
+                    }
+                    json!(n)
+                }
                 _ => number(raw)?,
             };
             props[target] = value;

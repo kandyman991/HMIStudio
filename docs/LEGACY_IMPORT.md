@@ -279,3 +279,5 @@ The importer now resolves image and svgImage asset references inside reusable de
 ### REUSE-03B.11 image migration report corrections
 
 The source asset size now points to the verified numeric byte count in the canonical resource extensions. Previously its destination pointed to the SHA-256 string. Screen and reusable images identify invalid references, absent assets, asset type mismatches and invalid fit modes at the corresponding property path. An omitted fit uses CONTAIN. A refused import returns no project or resource bytes.
+
+New imports record importer revision 0.1.1. Reopening older review bundles reproduces the original size mapping for 0.1.0, including the corrected target emitted by intermediate commit 1ea025c. Replay still compares every finding, the complete original project and resource bytes. Unsupported report revisions are refused. The two original synthetic review bundle fixtures were produced with the actual importers at 4d1da3b and 1ea025c using the same one-pixel SVG source.

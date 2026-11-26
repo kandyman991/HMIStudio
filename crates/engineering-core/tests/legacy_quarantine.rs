@@ -351,3 +351,24 @@ fn recomputed_checksum_cannot_hide_incomplete_report() {
     std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
     assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
 }
+
+#[test]
+fn historical_asset_bundles_reopen_and_keep_their_original_evidence() {
+    for bytes in [
+        include_bytes!("fixtures/asset-size-4d1da3b.json").as_slice(),
+        include_bytes!("fixtures/asset-size-1ea025c.json").as_slice(),
+    ] {
+        let dir = TempDir::new("asset-size-replay");
+        let old = dir.join("prior.bundle");
+        let copy = dir.join("saved.bundle");
+        std::fs::write(&old, bytes).unwrap();
+        let mut review =
+            QuarantinedImport::reopen(&old, SessionConfig::default(), std_fs()).unwrap();
+        assert_eq!(review.report()["importerVersion"], "0.1.0");
+        review.save_copy(&copy).unwrap();
+        let saved = QuarantinedImport::reopen(&copy, SessionConfig::default(), std_fs()).unwrap();
+        assert!(requires_review(&saved.snapshot().project));
+        assert_eq!(review.report(), saved.report());
+        assert_eq!(std::fs::read(&old).unwrap(), bytes);
+    }
+}

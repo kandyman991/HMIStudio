@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use hmi_legacy_import::import_portable;
+use hmi_legacy_import::{import_portable, replay_portable};
 use hmi_project_model::model::Project;
 use hmi_project_model::serialization::{load_project, save_project};
 use serde::{Deserialize, Serialize};
@@ -184,7 +184,8 @@ fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
     verify_report(&payload.report, &original)?;
     // A checksum is not proof of report completeness. Replay the exact admitted
     // bytes and compare all immutable import evidence, including resources.
-    let replay = import_portable(payload.source.as_bytes());
+    let replay = replay_portable(payload.source.as_bytes(), &payload.report)
+        .ok_or(ImportError::InvalidBundle)?;
     if !replay.report.has_complete_mapping()
         || serde_json::to_value(replay.report).map_err(|_| ImportError::InvalidBundle)?
             != payload.report

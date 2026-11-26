@@ -1,5 +1,5 @@
 //! Integrity-checked in-memory resource transfer; no package or filesystem I/O.
-use super::{path, Mapping};
+use super::{path, Mapping, MappingRevision};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -254,7 +254,12 @@ fn svg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     (count > 0).then_some((w, h))
 }
 
-pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
+pub(super) fn map(
+    v: &Value,
+    doc: &mut Value,
+    m: &mut Mapping,
+    revision: MappingRevision,
+) -> Option<()> {
     let Some(assets) = v.get("assets") else {
         return Some(());
     };
@@ -310,12 +315,20 @@ pub(super) fn map(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
             &path(&p, "name"),
             &format!("{t}/extensions/legacyName"),
         )?;
-        resources.push(json!({"id":id,"kind":kind,"path":file,"mediaType":media,"sha256":digest,"extensions":{"legacyName":name,"legacySizeBytes":bytes.len(),"legacyWidthPx":w,"legacyHeightPx":h}}));
+        let mut metadata = json!({"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h});
+        let size_target = match revision {
+            MappingRevision::Original => "sha256",
+            MappingRevision::VerifiedSize => {
+                metadata["legacySizeBytes"] = json!(bytes.len());
+                "extensions/legacySizeBytes"
+            }
+        };
+        resources.push(json!({"id":id,"kind":kind,"path":file,"mediaType":media,"sha256":digest,"extensions":metadata}));
         for (src, dst) in [
             ("id", "id"),
             ("kind", "mediaType"),
             ("sha256", "sha256"),
-            ("sizeBytes", "extensions/legacySizeBytes"),
+            ("sizeBytes", size_target),
             ("widthPx", "extensions/legacyWidthPx"),
             ("heightPx", "extensions/legacyHeightPx"),
             ("data", "path"),

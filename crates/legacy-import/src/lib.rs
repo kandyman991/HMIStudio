@@ -286,11 +286,51 @@ fn fixed(v: f64) -> Value {
 /// initial supported subset is identical across versions. Unsupported features
 /// refuse the entire result, and report only paths/codes, not source values. The report may contain source key names; keep it local.
 pub fn import_portable(input: &[u8]) -> ImportOutcome {
+    import_with_revision(input, MappingRevision::VerifiedSize)
+}
+
+#[derive(Clone, Copy)]
+enum MappingRevision {
+    Original,
+    VerifiedSize,
+}
+
+/// Replay a saved review report using its recorded mapping revision.
+pub fn replay_portable(input: &[u8], report: &Value) -> Option<ImportOutcome> {
+    let revision = match report.get("importerVersion")?.as_str()? {
+        "0.1.0" => {
+            // Draft 1ea025c emitted corrected sizes before the report version changed.
+            // The caller compares the entire reconstructed report and project.
+            let has_size_target = report.get("findings")?.as_array()?.iter().any(|f| {
+                f["path"]
+                    .as_str()
+                    .is_some_and(|p| p.starts_with("/assets/") && p.ends_with("/sizeBytes"))
+                    && f["target"].as_str().is_some_and(|t| {
+                        t.starts_with("/resources/") && t.ends_with("/extensions/legacySizeBytes")
+                    })
+            });
+            if has_size_target {
+                let mut outcome = import_with_revision(input, MappingRevision::VerifiedSize);
+                outcome.report.importer_version = "0.1.0";
+                return Some(outcome);
+            }
+            MappingRevision::Original
+        }
+        "0.1.1" => MappingRevision::VerifiedSize,
+        _ => return None,
+    };
+    Some(import_with_revision(input, revision))
+}
+
+fn import_with_revision(input: &[u8], revision: MappingRevision) -> ImportOutcome {
     let mut report = MigrationReport {
         source_format: "hmiforge",
         source_schema_version: None,
         source_sha256: format!("{:x}", Sha256::digest(input)),
-        importer_version: "0.1.0",
+        importer_version: match revision {
+            MappingRevision::Original => "0.1.0",
+            MappingRevision::VerifiedSize => "0.1.1",
+        },
         findings: vec![],
         id_map: BTreeMap::new(),
         unresolved_targets: Vec::new(),
@@ -339,7 +379,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         review_only_contracts = review::collect(&v, &mut m);
         m.mark("/schemaVersion", "/schemaVersion");
         source::validate(&v, ver.unwrap_or_default(), &mut m)
-            .and_then(|()| map_project(&v, &mut m, &project_id))
+            .and_then(|()| map_project(&v, &mut m, &project_id, revision))
     } else {
         m.fail("/schemaVersion", "unsupported-or-missing-version");
         None
@@ -452,7 +492,12 @@ fn review_alarms(v: &Value, m: &mut Mapping) -> Vec<ReviewOnlyAlarm> {
     out
 }
 
-fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> {
+fn map_project(
+    v: &Value,
+    m: &mut Mapping,
+    project_id: &str,
+    revision: MappingRevision,
+) -> Option<Project> {
     let theme = resources::theme(v, m)?;
     let meta = v.get("metadata")?.as_object()?;
     let name = m.text(meta.get("name")?, "/metadata/name", "/metadata/name")?;
@@ -660,7 +705,7 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
         doc["styles"] = json!(m.styles);
     }
     industrial::map(v, &mut doc, m)?;
-    resources::map(v, &mut doc, m)?;
+    resources::map(v, &mut doc, m, revision)?;
     graphics::finish(v, &mut doc, m)?;
     navigation::map(v, &mut doc, m)?;
     if !m.contracts.is_empty() {

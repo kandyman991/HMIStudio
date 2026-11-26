@@ -365,3 +365,5 @@ Reviewed draft PR #36 at `0636ff3`. Both real-child regressions passed on Window
 ## REUSE-03B.11 image migration reports (2026-11-26)
 
 Verified draft #36 at `4d1da3b` against [Desktop CI](https://github.com/kandyman991/HMIStudio/actions/runs/45887275546), [Tag engine CI](https://github.com/kandyman991/HMIStudio/actions/runs/45887275497) and [handoff](https://github.com/kandyman991/HMIStudio/actions/runs/45887275547). All three passed. The successor corrects the asset size destination and adds field-specific image diagnostics on screens and reusable elements. Verify successor CI and independent review. Review-edit crash recovery remains a next implementation target within the retained reservation.
+
+Image-size compatibility follow-up to `1ea025c`: source replay now selects the recorded importer mapping on reopen and save-copy. Two historical synthetic SVG bundles exercise both 0.1.0 representations. Fresh imports use 0.1.1. Verify both crate suites and CI on this follow-up before integration.

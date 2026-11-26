@@ -794,6 +794,7 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
         .unwrap_or_else(|| panic!("{:?}", imported.report));
     let doc = serde_json::to_value(&project).unwrap();
     let props = &doc["components"][0]["root"]["children"][0]["properties"];
+    assert_eq!(imported.report.importer_version, "0.1.1");
     let size = imported
         .report
         .findings

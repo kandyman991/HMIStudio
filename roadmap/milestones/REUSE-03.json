@@ -242,6 +242,12 @@
       "type": "handoff",
       "summary": "Verified all three workflows on 4d1da3b. Corrected the sizeBytes report destination and field-specific image diagnostics for screen and reusable components. Review the successor and its CI before integration.",
       "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Image-size mapping now uses importer report revision 0.1.1. Reopen and save-copy replay older 0.1.0 evidence, including both historical asset-size representations, before comparing the full original report and project.",
+      "record": "docs/LEGACY_IMPORT.md"
     }
   ]
 }

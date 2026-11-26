@@ -784,6 +784,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Exact head e643e61 passed frontend, all standalone crate jobs, Tag engine CI and handoff; both native desktop jobs stopped at the same rustfmt difference in the Unix test command. Applied the exact formatting correction; native compilation and both real-child regressions remain pending on the corrected head. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Reviewed native session loss, command refusal, transport recovery and isolation at 0636ff3. Both native child regressions passed on Windows and Linux. Corrected pending-IPC sample expiry and lost Start reply recovery; advanced portable migration to nested image declarations with transactional refusal of absent assets. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified all three workflows on 4d1da3b. Corrected the sizeBytes report destination and field-specific image diagnostics for screen and reusable components. Review the successor and its CI before integration. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Image-size mapping now uses importer report revision 0.1.1. Reopen and save-copy replay older 0.1.0 evidence, including both historical asset-size representations, before comparing the full original report and project. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

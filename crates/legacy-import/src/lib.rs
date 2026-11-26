@@ -373,6 +373,17 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
                 .collect();
         }
     }
+    // Keep the candidate audit evidence, but fail closed on incomplete
+    // mappings. Resource bytes must not escape a refused admission.
+    let project = if project.is_some() && !report.has_complete_mapping() {
+        report.findings.push(refused(
+            "".into(),
+            "incomplete-canonical-destination-audit",
+        ));
+        None
+    } else {
+        project
+    };
     let resource_bytes = if project.is_some() {
         m.resource_bytes
     } else {
@@ -690,7 +701,44 @@ fn audit_elided_targets(source: &Value, draft: &Value, canonical: &Value, m: &mu
             v.as_object().is_some_and(|o| o.is_empty())
                 || v.as_array().is_some_and(|a| a.is_empty())
         });
-        if draft.pointer(target).is_none() && !known_empty {
+        // Explicitly mapped nulls and empty collections may target a
+        // field absent even in the draft. The mapper already validated
+        // each source leaf; do not turn arbitrary nonempty values into
+        // default-elision findings.
+        let leaf = f.path.rsplit('/').next().unwrap_or("");
+        let destination = target.rsplit('/').next().unwrap_or("");
+        let absent_optional = source.pointer(&f.path).is_some_and(|value| {
+            if value.is_null() {
+                matches!(
+                    (leaf, destination),
+                    ("description", "description")
+                        | ("defaultValue", "initialValue")
+                        | ("engineeringUnit", "unit")
+                        | ("theme", "themes")
+                        | ("security", "security")
+                        | ("anonymousRoleId", "anonymousRole")
+                        | ("autoLogoutMinutes", "autoLogoutSeconds")
+                        | ("category", "category")
+                        | ("color", "color")
+                        | ("maxWidthDp", "maxWidth")
+                        | ("maxHeightDp", "maxHeight")
+                )
+            } else if value.as_object().is_some_and(|o| o.is_empty())
+                || value.as_array().is_some_and(|a| a.is_empty())
+            {
+                matches!(
+                    (leaf, destination),
+                    ("variables", "tags")
+                        | ("configuration", "parameters")
+                        | ("actions", "handlers")
+                        | ("bindings" | "expressions", "bindings")
+                        | ("styles" | "componentDefaults", "styles")
+                )
+            } else {
+                false
+            }
+        });
+        if draft.pointer(target).is_none() && !known_empty && !absent_optional {
             continue;
         }
         let mut parent = target;

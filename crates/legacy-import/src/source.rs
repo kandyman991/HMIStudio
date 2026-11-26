@@ -102,6 +102,30 @@ pub(super) fn validate(v: &Value, version: u64, m: &mut Mapping) -> Option<()> {
             }
         }
     }
+    if version < 9 {
+        if let Some(sources) = v.get("externalSources") {
+            for (key, source) in sources.as_object()? {
+                if source.get("commissioningAllowed").and_then(Value::as_bool) == Some(true) {
+                    m.fail(
+                        &path(&path("/externalSources", key), "commissioningAllowed"),
+                        "source-feature-version-mismatch",
+                    );
+                    return None;
+                }
+            }
+        }
+        if let Some(mappings) = v.get("externalMappings") {
+            for (key, mapping) in mappings.as_object()? {
+                if mapping.get("command").is_some_and(|v| !v.is_null()) {
+                    m.fail(
+                        &path(&path("/externalMappings", key), "command"),
+                        "source-feature-version-mismatch",
+                    );
+                    return None;
+                }
+            }
+        }
+    }
     if let Some(ds) = v.get("componentDefinitions") {
         for (key, d) in ds.as_object()? {
             let p = path("/componentDefinitions", key);

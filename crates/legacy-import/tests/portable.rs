@@ -52,6 +52,7 @@ fn all_versions_and_determinism() {
             a.report.findings.iter().map(|x| x.path.clone()).collect()
         );
         assert!(a.report.findings.iter().all(|f| f.disposition == "mapped"));
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
     }
 }
 #[test]
@@ -1248,6 +1249,7 @@ fn strict_report_gate_and_default_elision() {
     paths(&f, "", &mut expected);
     assert_eq!(a.report.source_leaf_count, Some(expected.len()));
     assert!(a.report.destination_audit_completed);
+    assert!(a.report.has_complete_mapping(), "{:?}", a.report);
     for finding in &a.report.findings {
         if let Some(original) = &finding.elided_target {
             assert!(d.pointer(original).is_none());
@@ -1280,4 +1282,60 @@ fn pre_v10_event_contract_is_rejected_before_mapping() {
         .findings
         .iter()
         .any(|f| f.code == "source-feature-version-mismatch"));
+}
+
+#[test]
+fn full_pinned_catalog_round_trip_and_mutation_refusal() {
+    let catalog: Value = serde_json::from_str(include_str!("fixtures/standard_catalog.json")).unwrap();
+    let definitions = catalog.as_object().unwrap();
+    assert_eq!(definitions.len(), 27);
+    let mut f = fixture(10);
+    f["componentDefinitions"] = catalog.clone();
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    assert!(a.report.has_complete_mapping());
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(d["extensions"]["hmiforge.standardCatalog"], catalog);
+    let bytes = save_project(&p).unwrap();
+    let loaded = hmi_project_model::serialization::load_project(&bytes).unwrap();
+    assert_eq!(serde_json::to_value(loaded.project).unwrap(), d);
+    for key in definitions.keys() {
+        let mut bad = fixture(10);
+        bad["componentDefinitions"][key] = catalog[key].clone();
+        bad["componentDefinitions"][key]["displayName"] = json!("Changed declaration");
+        let a = import_portable(&serde_json::to_vec(&bad).unwrap());
+        assert!(a.project.is_none(), "{key}");
+        assert!(a.report.findings.iter().any(|f| f.code == "standard-catalog-signature-mismatch"));
+    }
+}
+
+#[test]
+fn adaptive_destination_pointers_follow_stable_node_identity() {
+    let mut f = fixture(3);
+    let s = &mut f["screens"]["screen/a"];
+    s["components"]["label-b"] = json!({"id":"label-b","type":"label","properties":{"text":"Second"}});
+    s["layout"] = json!({"root":{"node":"stack","id":"outer","direction":"COLUMN","children":[{"node":"stack","id":"inner","direction":"ROW","children":[{"node":"component","componentId":"label-b"},{"node":"component","componentId":"label-a"}]}]}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    for (id, value) in [("label-a", "Synthetic"), ("label-b", "Second")] {
+        let path = format!("/screens/screen~1a/components/{id}/properties/text");
+        let finding = a.report.findings.iter().find(|f| f.path == path).unwrap();
+        let target = finding.target.as_deref().unwrap();
+        assert_eq!(d.pointer(target), Some(&json!(value)));
+    }
+    assert!(a.report.has_complete_mapping());
+}
+
+#[test]
+fn guarded_write_declarations_require_v9() {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(8);
+    f["externalSources"]["src/a"]["commissioningAllowed"] = json!(false);
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.report.findings.iter().any(|f| f.code == "source-feature-version-mismatch"));
+    f["schemaVersion"] = json!(9);
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_some(), "{:?}", a.report);
 }

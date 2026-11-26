@@ -446,6 +446,9 @@ impl Layout<'_> {
                     }
                 }
                 preserve_geometry(m, &np, t, &mut n);
+                // Hidden slots are rejected above. The admitted slot is
+                // visible by default; the original layout is retained.
+                m.mark(&path(&np, "visible"), &format!("{t}/layout"));
                 if let Some(z) = source.get("zIndex") {
                     n["extensions"]["hmiforge.legacyZIndex"] = z.clone();
                     if let Some(f) = m.findings.get_mut(&path(&np, "zIndex")) {
@@ -494,25 +497,11 @@ impl Layout<'_> {
                 for (k, dest) in [
                     ("node", "element"),
                     ("componentId", "id"),
-                    ("weight", "layout/weight"),
+                    ("weight", "layout"),
                     ("minWidthDp", "layout/minWidth"),
                     ("minHeightDp", "layout/minHeight"),
                 ] {
                     approximate(m, &path(p, k), &format!("{t}/{dest}"));
-                }
-                // Update previous component findings to the final nested target.
-                for (k, f) in &mut m.findings {
-                    if k.starts_with(&format!("{np}/")) && f.disposition == "mapped" {
-                        if let Some(old) = &f.target {
-                            if let Some((_, suffix)) = old.split_once("/root/children/") {
-                                if let Some((_, tail)) = suffix.split_once('/') {
-                                    f.target = Some(format!("{t}/{tail}"));
-                                } else {
-                                    f.target = Some(t.into());
-                                }
-                            }
-                        }
-                    }
                 }
                 Some(n)
             }

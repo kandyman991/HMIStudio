@@ -4,7 +4,7 @@ use crate::bridge_supervisor::Supervisor;
 use crate::engine_driver::{decode, encode, wire_type};
 use crate::{CancelToken, TagValue, TypeContext};
 use hmi_project_model::{
-    model::{v2::CommandKind, DataType, TagAccess},
+    model::{v2::CommandKind, DataType, TagAccess, ValueRange},
     validate, Project,
 };
 use serde::Serialize;
@@ -29,8 +29,29 @@ struct Point {
     access: TagAccess,
     pulse_ms: Option<u32>,
     confirm: bool,
+    range: Option<ValueRange>,
     limits: Limits,
     value: Option<String>,
+}
+
+impl Point {
+    fn check_write_value(&self, value: &TagValue) -> Result<(), String> {
+        if let Some(range) = &self.range {
+            // Keep the integer on its exact side of the comparison. The
+            // engineering range is declared with float bounds.
+            let outside = if let Some(integer) = value.as_i128() {
+                integer < range.min.ceil() as i128 || integer > range.max.floor() as i128
+            } else {
+                value
+                    .as_f64()
+                    .is_some_and(|number| number < range.min || number > range.max)
+            };
+            if outside {
+                return Err("Value is outside the tag's engineering range".into());
+            }
+        }
+        self.limits.check(value)
+    }
 }
 
 enum Limits {
@@ -177,6 +198,7 @@ impl Configuration {
                     access: tag.access,
                     pulse_ms,
                     confirm: policy.is_some_and(|p| p.confirmation_required || p.critical),
+                    range: tag.range.clone(),
                     limits,
                     value: None,
                 },
@@ -258,7 +280,7 @@ impl ProjectSimulation {
         let value = TypeContext::default()
             .value_from_json(&input, &point.kind)
             .map_err(|e| e.to_string())?;
-        point.limits.check(&value)?;
+        point.check_write_value(&value)?;
         let wire = encode(&value, &point.kind).map_err(|e| e.to_string())?;
         self.submit(json!({"type":"write","variableId":id,"actor":ACTOR,"value":wire}))
     }
@@ -367,7 +389,8 @@ mod tests {
         canonical["connections"] = json!([{"id":"conn-production","name":"Physical",
             "driver":"siemensS7","endpoint":"192.0.2.1","credentialRef":"credential-production"}]);
         canonical["tags"] = json!([{"id":"tag-wide","name":"Wide","dataType":"int64",
-            "connection":"conn-production","address":"DB1.DINT0","access":"readWrite"}]);
+            "connection":"conn-production","address":"DB1.DINT0","access":"readWrite",
+            "range":{"min":9007199254740992_f64,"max":9007199254740994_f64}}]);
         canonical["v2"] = json!({"industrial":{"tags":[{
             "tag":"tag-wide","command":"setpoint","confirmationRequired":true,
             "limits":{"min":9007199254740992_i64,"max":9007199254740994_i64,"step":2}
@@ -384,6 +407,13 @@ mod tests {
         );
         let point = &configuration.points["tag-wide"];
         assert!(point.confirm);
+        assert!(point
+            .check_write_value(&TagValue::Int64(9007199254740994))
+            .is_ok());
+        assert_eq!(
+            point.check_write_value(&TagValue::Int64(9007199254740995)),
+            Err("Value is outside the tag's engineering range".into())
+        );
         assert!(point
             .limits
             .check(&TagValue::Int64(9007199254740993))

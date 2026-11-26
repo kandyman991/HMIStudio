@@ -752,7 +752,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [8f7d063](https://github.com/kandyman991/HMIStudio/commit/8f7d06377e7ac988b7f483d0e3a39654b2d50e33) · snapshot 2026-11-26T15:55:17Z · [Engineering handoff snapshot #45848388892](https://github.com/kandyman991/HMIStudio/actions/runs/45848388892) success, [Desktop CI #45848389015](https://github.com/kandyman991/HMIStudio/actions/runs/45848389015) success, [Tag engine CI #45848388871](https://github.com/kandyman991/HMIStudio/actions/runs/45848388871) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [2d5ccd1](https://github.com/kandyman991/HMIStudio/commit/2d5ccd111c93e54533f993a752216ce5ce442e1d) · snapshot 2026-11-26T16:12:18Z · [Desktop CI #45855018223](https://github.com/kandyman991/HMIStudio/actions/runs/45855018223) failure, [Tag engine CI #45855018079](https://github.com/kandyman991/HMIStudio/actions/runs/45855018079) success, [Engineering handoff snapshot #45855018070](https://github.com/kandyman991/HMIStudio/actions/runs/45855018070) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -779,6 +779,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified all 19 hosted jobs on corrected source 13aeca7, including Windows/Linux native tests and Required CI. Recorded the tested source and regenerated the dashboard. PR #36 remains a draft and the RUST-05 reservation remains active. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified review successor 2bd11e6 in all 19 hosted jobs, including native Windows 14/14 and Linux 15/15, engineering-core 72/72 and 73/73; 9 quarantine tests per platform. Extended RUST-05 before isolated communication engine changes. Native project adapter, actual production consumer, archive and remaining migration/recovery gates stay open. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified PR #36 at 8f7d063 and RUST-05 reservation e7b6ea0. Extended the retained claim to e36947b for owner-approved draft-only packaging deferral. Added canonical native isolated simulation with Windows/Linux real-child regressions. Production quarantine and schema v2 are preserved. Exact-head hosted CI and technical review remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-26 · handoff · Hosted Windows and Linux detected S7 writable-byte aliasing in the synthetic fixture at 2d5ccd1. Corrected fixture addressing, added native admission preflight and enforce canonical engineering ranges for simulated writes. Independent review and corrected-head CI remain pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

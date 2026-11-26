@@ -816,17 +816,9 @@ mod tests {
             .unwrap();
     }
 
-    #[test]
-    #[ignore = "requires freshly built hmi-engine selected by hosted CI"]
-    fn native_project_simulation_respects_quarantine_and_session_lifecycle() {
-        use crate::runtime_host::{RuntimeHost, RuntimeReply, RuntimeRequest as Request};
-        use crate::session_host::WorkspaceRequest;
+    fn simulation_legacy_source() -> Vec<u8> {
         use serde_json::json;
-        use std::time::{Duration, Instant};
 
-        let t = Temp::new();
-        let source = t.0.join("simulation.json");
-        let review = t.0.join("simulation.hmi-review");
         let mut legacy: serde_json::Value = serde_json::from_slice(LEGACY_SOURCE).unwrap();
         legacy["schemaVersion"] = json!(9);
         legacy["variables"] = json!({
@@ -844,9 +836,37 @@ mod tests {
                 "access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":0,"max":100,"step":2,"confirm":true}},
             "pulse":{"id":"pulse","internalVariableId":"pulse","sourceId":"physical","externalAddress":"DB1.X4.0",
                 "access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"MOMENTARY","pulseMs":1000}},
-            "input":{"id":"input","internalVariableId":"input","sourceId":"physical","externalAddress":"DB1.X4.1","access":"READ"}
+            "input":{"id":"input","internalVariableId":"input","sourceId":"physical","externalAddress":"DB1.X5.0","access":"READ"}
         });
-        let original = serde_json::to_vec(&legacy).unwrap();
+        serde_json::to_vec(&legacy).unwrap()
+    }
+
+    #[test]
+    fn simulation_fixture_imports_as_quarantined_canonical_project() {
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        fs::write(&source, simulation_legacy_source()).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.import_review(&source, &review, false).unwrap();
+        let project = host.snapshot().project;
+        assert_eq!(project.tags.len(), 3);
+        assert_eq!(project.connections.len(), 1);
+        assert_eq!(project.v2.industrial.tags.len(), 2);
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    #[ignore = "requires freshly built hmi-engine selected by hosted CI"]
+    fn native_project_simulation_respects_quarantine_and_session_lifecycle() {
+        use crate::runtime_host::{RuntimeHost, RuntimeReply, RuntimeRequest as Request};
+        use crate::session_host::WorkspaceRequest;
+        use std::time::{Duration, Instant};
+
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        let original = simulation_legacy_source();
         fs::write(&source, &original).unwrap();
         let mut host = Host::new(&t.0.join("app")).unwrap();
         host.runtime = RuntimeHost::new(Some(PathBuf::from(
@@ -975,7 +995,7 @@ mod tests {
         assert!(host
             .simulate(generation, write(&count, "24"), || true)
             .is_err());
-        host.open_review(&review, true).unwrap();
+        host.new_project(true).unwrap();
         assert!(host
             .simulate(
                 generation,
@@ -994,6 +1014,13 @@ mod tests {
                 || true
             )
             .is_err());
+        host.open_review(&review, false).unwrap();
+        let reopened = host
+            .simulate(host.generation, start(), || false)
+            .unwrap()
+            .unwrap();
+        assert_ne!(reopened.session, second.session);
+        assert_eq!(value(&reopened, &count).as_deref(), Some("0"));
         assert!(host.production_candidate().is_err());
     }
 

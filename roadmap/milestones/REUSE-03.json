@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
+      "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45848388892,
-          "name": "Engineering handoff snapshot",
-          "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
-          "state": "completed",
-          "result": "success"
-        },
-        {
-          "id": 45848389015,
+          "id": 45855018223,
           "name": "Desktop CI",
-          "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
+          "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
+          "state": "completed",
+          "result": "failure"
+        },
+        {
+          "id": 45855018079,
+          "name": "Tag engine CI",
+          "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45848388871,
-          "name": "Tag engine CI",
-          "head": "8f7d06377e7ac988b7f483d0e3a39654b2d50e33",
+          "id": 45855018070,
+          "name": "Engineering handoff snapshot",
+          "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T15:55:17Z"
+      "observedAt": "2026-11-26T16:12:18Z"
     }
   ],
   "assignment": {
@@ -211,6 +211,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified PR #36 at 8f7d063 and RUST-05 reservation e7b6ea0. Extended the retained claim to e36947b for owner-approved draft-only packaging deferral. Added canonical native isolated simulation with Windows/Linux real-child regressions. Production quarantine and schema v2 are preserved. Exact-head hosted CI and technical review remain pending.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Hosted Windows and Linux detected S7 writable-byte aliasing in the synthetic fixture at 2d5ccd1. Corrected fixture addressing, added native admission preflight and enforce canonical engineering ranges for simulated writes. Independent review and corrected-head CI remain pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

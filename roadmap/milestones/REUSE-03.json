@@ -13,7 +13,7 @@
   ],
   "criteria": [
     "Resolve O-3 model additions, O-4 expressions and O-1 fixture rights. Freeze model v2 before decoder/mapping integration.",
-    "Verify read-only V1\u2013V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
+    "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
     "Complete remaining legacy component/catalog and parameter semantics, component-specific enumeration usage, actions, alarms, assets and themes; full source validation, safe preservation/publish refusal, archive/bundle admission, engineering-session import and report persistence. Independent review and exact-head hosted CI outstanding."
@@ -29,9 +29,12 @@
     "owner": "ChatGPT",
     "branch": "feat/reuse-03b-legacy-import",
     "scope": [
-      "crates/legacy-import/"
+      "crates/engineering-core/",
+      "crates/hmi-engine/tests/legacy_address_conformance.rs",
+      "crates/legacy-import/",
+      "src-tauri/Cargo.lock"
     ],
-    "observedAt": "2026-11-25T20:55:06Z"
+    "observedAt": "2026-11-26T12:12:21Z"
   },
   "history": [
     {
@@ -103,7 +106,7 @@
     {
       "date": "2026-11-25",
       "type": "handoff",
-      "summary": "Added standalone read-only portable importer foundation with strict bounded JSON, version 1\u201310 admission, deterministic ID mapping, SHA-256 and leaf report, static label/screens and internal read-only tags, exact typed defaults. Six local regression groups, Clippy and rustdoc passed; frozen schema unchanged. Unsupported content refuses project. Full mapping and engineering integration outstanding.",
+      "summary": "Added standalone read-only portable importer foundation with strict bounded JSON, version 1–10 admission, deterministic ID mapping, SHA-256 and leaf report, static label/screens and internal read-only tags, exact typed defaults. Six local regression groups, Clippy and rustdoc passed; frozen schema unchanged. Unsupported content refuses project. Full mapping and engineering integration outstanding.",
       "record": "docs/LEGACY_IMPORT.md"
     },
     {
@@ -116,6 +119,12 @@
       "date": "2026-11-25",
       "type": "handoff",
       "summary": "REUSE-03B.3 adds selected graphical components, nested row/column layout intent with explicit approximation diagnostics and inactive geometry metadata, reusable composites and read-only bool/text tag parameters, typed direct/expression bindings with parser-checked reference remapping, exact int64 enumeration declarations. 17 local regression groups and Clippy/rustdoc passed; unsupported semantics refuse import and frozen schema unchanged.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified 17b8305: 54 importer regression groups per platform and all required hosted CI. Owner authorized REUSE-03B.7; expand existing RUST-05 reservation for engineering import transaction, persisted quarantine, exact engine parser differential test and downstream lockfile. Acceptance remains pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

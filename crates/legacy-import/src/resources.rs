@@ -186,3 +186,53 @@ pub(super) fn image(
     }
     Some(())
 }
+
+// The frozen theme contract supports explicit named colors, but not the
+// legacy equipment-state and component-default cascades. Those remain refused.
+pub(super) fn theme(v: &Value, m: &mut Mapping) -> Option<Option<Value>> {
+    let Some(theme) = v.get("theme").filter(|x| !x.is_null()) else {
+        return Some(None);
+    };
+    if v["schemaVersion"].as_u64()? < 7 {
+        m.fail("/theme", "theme-version-mismatch");
+        return None;
+    }
+    let id = m.id("/theme/id", theme.get("id")?.as_str()?, "theme");
+    let name = m.text(theme.get("name")?, "/theme/name", "/themes/0/name")?;
+    let dark = theme.get("dark").map(Value::as_bool).unwrap_or(Some(false))?;
+    m.mark("/theme/id", "/themes/0/id");
+    m.mark("/theme/dark", "/themes/0/dark");
+    if let Some(tokens) = theme.get("tokens") {
+        let tokens = tokens.as_object()?;
+        if tokens.is_empty() {
+            m.mark("/theme/tokens", "/themes/0/colors");
+        }
+        for (key, value) in tokens {
+            let s = value.as_str()?;
+            if key.is_empty()
+                || s.len() != 7
+                || !s.starts_with('#')
+                || !s[1..].bytes().all(|b| b.is_ascii_hexdigit())
+            {
+                m.fail(&path("/theme/tokens", key), "unsupported-theme-color");
+                return None;
+            }
+            m.theme_colors.insert(key.clone(), s.to_owned());
+            m.mark(&path("/theme/tokens", key), &path("/themes/0/colors", key));
+        }
+    }
+    for key in ["styles", "componentDefaults"] {
+        if let Some(x) = theme.get(key) {
+            m.empty(x, &path("/theme", key), "/themes/0");
+        }
+    }
+    if let Some(f) = m.findings.get_mut("/theme/id") {
+        f.severity = "warning";
+        f.code = "explicit-theme-colors-only";
+        f.message =
+            "Explicit colors mapped; implicit legacy renderer defaults are not established.";
+    }
+    Some(Some(
+        json!({"id":id,"name":name,"dark":dark,"colors":m.theme_colors}),
+    ))
+}

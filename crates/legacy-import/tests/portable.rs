@@ -784,3 +784,25 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
     assert!(a.project.is_none());
     assert!(a.resource_bytes.is_empty());
 }
+
+#[test]
+fn explicit_theme_token_and_unsupported_cascade() {
+    let mut f = fixture(7);
+    f["theme"] = json!({"id":"custom-theme","name":"Custom","dark":true,"tokens":{"vessel":"#123456"}});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("rectangle");
+    c["properties"] = json!({"fillColor":"@vessel","strokeColor":"#FFFFFF","strokeWidth":"2","cornerRadius":"0"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
+    let d = serde_json::to_value(&p).unwrap();
+    assert_eq!(d["themes"][0]["colors"]["vessel"], "#123456");
+    assert_eq!(d["settings"]["defaultTheme"], d["themes"][0]["id"]);
+    assert_eq!(
+        d["screens"][0]["root"]["children"][0]["properties"]["fill"],
+        json!({"token":"vessel"})
+    );
+    f["theme"]["componentDefaults"]["rectangle"] = json!({"id":"default","fillColor":"#000000"});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}

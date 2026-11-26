@@ -113,14 +113,24 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
                     json!(raw)
                 }
                 "fill" | "strokeColor" | "activeColor" | "inactiveColor" => {
-                    if !color(raw) {
+                    if color(raw) {
+                        json!(raw)
+                    } else if let Some(token) = raw.strip_prefix('@') {
+                        if !m.theme_colors.contains_key(token) {
+                            return refuse(
+                                m,
+                                &format!("{p}/properties/{k}"),
+                                "unknown-explicit-theme-token",
+                            );
+                        }
+                        json!({"token":token})
+                    } else {
                         return refuse(
                             m,
                             &format!("{p}/properties/{k}"),
                             "theme-or-color-not-mapped",
                         );
                     }
-                    json!(raw)
                 }
                 "decimals" => json!(raw.parse::<u32>().ok()?),
                 _ => number(raw)?,

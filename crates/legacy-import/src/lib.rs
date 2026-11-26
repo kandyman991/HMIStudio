@@ -152,6 +152,7 @@ struct Mapping {
     used: BTreeSet<String>,
     contracts: Vec<Value>,
     resource_bytes: BTreeMap<String, Vec<u8>>,
+    theme_colors: BTreeMap<String, String>,
 }
 impl Mapping {
     fn mark(&mut self, p: &str, t: &str) {
@@ -248,6 +249,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         used: BTreeSet::from([project_id.clone()]),
         contracts: Vec::new(),
         resource_bytes: BTreeMap::new(),
+        theme_colors: BTreeMap::new(),
     };
     if !leaves(&v, "", &mut m.findings) {
         return stop(report, "leaf-or-path-limit");
@@ -283,6 +285,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     }
 }
 fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> {
+    let theme = resources::theme(v, m)?;
     let meta = v.get("metadata")?.as_object()?;
     let name = m.text(meta.get("name")?, "/metadata/name", "/metadata/name")?;
     let mut metadata = json!({"name":name});
@@ -477,6 +480,10 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
         }
     }
     let mut doc = json!({"format":"hmi-studio.project","schemaVersion":2,"id":project_id,"metadata":metadata,"navigation":{"startScreen":start},"localization":{"defaultLocale":"en","locales":["en"]},"screens":result,"tags":tags,"extensions":{"hmiforge.idMap":m.ids}});
+    if let Some(theme) = theme {
+        doc["settings"]["defaultTheme"] = theme["id"].clone();
+        doc["themes"] = json!([theme]);
+    }
     industrial::map(v, &mut doc, m)?;
     resources::map(v, &mut doc, m)?;
     graphics::finish(v, &mut doc, m)?;

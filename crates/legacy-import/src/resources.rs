@@ -441,7 +441,14 @@ fn style_value(key: &str, value: &Value, m: &Mapping) -> Option<(&'static str, V
             } else {
                 return None;
             };
-            Some((if key == "fillColor" { "fill" } else { "strokeColor" }, color))
+            Some((
+                if key == "fillColor" {
+                    "fill"
+                } else {
+                    "strokeColor"
+                },
+                color,
+            ))
         }
         "strokeWidthDp" | "cornerRadiusDp" | "opacity" => {
             let n = f64::from(value.as_f64()? as f32);

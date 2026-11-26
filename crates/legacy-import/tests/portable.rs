@@ -891,8 +891,7 @@ fn named_style_default_and_component_override_precedence() {
     assert_eq!(props["strokeColor"], "#333333");
     assert_eq!(props["strokeWidth"].as_f64(), Some(3.));
     assert_eq!(props["cornerRadius"].as_f64(), Some(4.));
-    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["styleId"] =
-        json!("unknown");
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["styleId"] = json!("unknown");
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_none());

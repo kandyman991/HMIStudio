@@ -851,3 +851,27 @@ fn restricted_svg_transfer_and_active_content_refusal() {
     assert!(a.project.is_none());
     assert!(a.resource_bytes.is_empty());
 }
+
+#[test]
+fn alarm_declaration_is_review_only_and_blocks_project() {
+    let mut f = fixture(10);
+    f["alarms"]["high"] = json!({"id":"high","sourceVariableId":"label-a","message":"Synthetic alarm","severity":"HIGH"});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.resource_bytes.is_empty());
+    assert_eq!(a.review_only_alarms.len(), 1);
+    let alarm = &a.review_only_alarms[0];
+    assert_eq!(alarm.source_variable_id, "label-a");
+    assert_eq!(alarm.message, "Synthetic alarm");
+    assert_eq!(alarm.severity, "HIGH");
+    assert!(a.report.findings.iter().any(|x| {
+        x.path == "/alarms/high/message" && x.code == "legacy-alarm-activation-not-representable"
+    }));
+    assert!(!serde_json::to_string(&a.report)
+        .unwrap()
+        .contains("Synthetic alarm"));
+    f["alarms"]["high"]["sourceVariableId"] = json!("missing");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.review_only_alarms.is_empty());
+}

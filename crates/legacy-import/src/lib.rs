@@ -42,6 +42,26 @@ pub struct ImportOutcome {
     pub report: MigrationReport,
     /// Verified bytes keyed by generated package-relative path; empty on refusal.
     pub resource_bytes: BTreeMap<String, Vec<u8>>,
+    /// Review-only declarations; never part of a canonical executable project.
+    pub review_only_alarms: Vec<ReviewOnlyAlarm>,
+}
+
+/// Legacy alarm declaration with unresolved activation semantics.
+/// Kept separately from the value-free migration report. Do not publish it.
+#[derive(Clone, PartialEq, Eq)]
+pub struct ReviewOnlyAlarm {
+    pub source_path: String,
+    pub id: String,
+    pub source_variable_id: String,
+    pub message: String,
+    pub severity: String,
+}
+impl std::fmt::Debug for ReviewOnlyAlarm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReviewOnlyAlarm")
+            .field("source_path", &self.source_path)
+            .finish_non_exhaustive()
+    }
 }
 
 // A fresh generic visitor rejects repeated keys at every level before mapping.
@@ -234,6 +254,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
             project: None,
             report: r,
             resource_bytes: BTreeMap::new(),
+            review_only_alarms: Vec::new(),
         }
     };
     if input.len() > MAX_INPUT_BYTES {
@@ -256,7 +277,9 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     }
     let ver = v.get("schemaVersion").and_then(Value::as_u64);
     report.source_schema_version = ver;
+    let mut review_only_alarms = Vec::new();
     let project = if matches!(ver, Some(1..=10)) && v.get("format").is_none() {
+        review_only_alarms = review_alarms(&v, &mut m);
         m.mark("/schemaVersion", "/schemaVersion");
         map_project(&v, &mut m, &project_id)
     } else {
@@ -282,8 +305,62 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         project,
         report,
         resource_bytes,
+        review_only_alarms,
     }
 }
+
+// Preserve recognized declarations as review-only data without guessing
+// the trigger, acknowledgement, or severity conversion. All leaves remain
+// blocking so no incomplete executable project can be emitted.
+fn review_alarms(v: &Value, m: &mut Mapping) -> Vec<ReviewOnlyAlarm> {
+    let Some(alarms) = v.get("alarms").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (id, alarm) in alarms {
+        let p = path("/alarms", id);
+        let parsed = (|| {
+            let fields = alarm.as_object()?;
+            if fields.keys().any(|k| {
+                !matches!(k.as_str(), "id" | "sourceVariableId" | "message" | "severity")
+            }) || id.is_empty()
+                || alarm["id"].as_str()? != id
+            {
+                return None;
+            }
+            let variable = alarm["sourceVariableId"].as_str()?;
+            if v["variables"][variable]["id"].as_str()? != variable {
+                return None;
+            }
+            let message = alarm["message"].as_str()?;
+            let severity = alarm
+                .get("severity")
+                .map(Value::as_str)
+                .unwrap_or(Some("WARNING"))?;
+            if !matches!(severity, "INFO" | "WARNING" | "HIGH" | "CRITICAL") {
+                return None;
+            }
+            Some(ReviewOnlyAlarm {
+                source_path: p.clone(),
+                id: id.clone(),
+                source_variable_id: variable.into(),
+                message: message.into(),
+                severity: severity.into(),
+            })
+        })();
+        if let Some(declaration) = parsed {
+            for key in ["id", "sourceVariableId", "message", "severity"] {
+                let leaf = path(&p, key);
+                if m.findings.contains_key(&leaf) {
+                    m.fail(&leaf, "legacy-alarm-activation-not-representable");
+                }
+            }
+            out.push(declaration);
+        }
+    }
+    out
+}
+
 fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> {
     let theme = resources::theme(v, m)?;
     let meta = v.get("metadata")?.as_object()?;

@@ -6,6 +6,8 @@ mod industrial;
 mod navigation;
 mod primitives;
 mod resources;
+mod review;
+pub use review::ReviewOnlyContract;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -44,6 +46,8 @@ pub struct ImportOutcome {
     pub resource_bytes: BTreeMap<String, Vec<u8>>,
     /// Review-only declarations; never part of a canonical executable project.
     pub review_only_alarms: Vec<ReviewOnlyAlarm>,
+    /// Recognized unsupported declarations, for local engineering review only.
+    pub review_only_contracts: Vec<ReviewOnlyContract>,
 }
 
 /// Legacy alarm declaration with unresolved activation semantics.
@@ -258,6 +262,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
             report: r,
             resource_bytes: BTreeMap::new(),
             review_only_alarms: Vec::new(),
+            review_only_contracts: Vec::new(),
         }
     };
     if input.len() > MAX_INPUT_BYTES {
@@ -284,8 +289,10 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
     let ver = v.get("schemaVersion").and_then(Value::as_u64);
     report.source_schema_version = ver;
     let mut review_only_alarms = Vec::new();
+    let mut review_only_contracts = Vec::new();
     let project = if matches!(ver, Some(1..=10)) && v.get("format").is_none() {
         review_only_alarms = review_alarms(&v, &mut m);
+        review_only_contracts = review::collect(&v, &mut m);
         m.mark("/schemaVersion", "/schemaVersion");
         map_project(&v, &mut m, &project_id)
     } else {
@@ -312,6 +319,7 @@ pub fn import_portable(input: &[u8]) -> ImportOutcome {
         report,
         resource_bytes,
         review_only_alarms,
+        review_only_contracts,
     }
 }
 

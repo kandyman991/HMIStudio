@@ -958,3 +958,34 @@ fn screen_lifecycle_navigation_is_refused() {
         .project
         .is_none());
 }
+
+#[test]
+fn unsupported_contract_review_is_separate_and_value_free_report() {
+    let mut f = fixture(10);
+    f["variables"]["label-a"]["type"] = json!("STRING");
+    f["componentDefinitions"]["fp"] = json!({"id":"fp","type":"composite","kind":"FACEPLATE"});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("textInput");
+    c["properties"] = json!({"label":"Local review text","maxLength":"40"});
+    c["bindings"] = json!({"value":"label-a"});
+    c["actions"] = json!({"press":{"action":"open.faceplate","definitionId":"fp","modal":true,"parameters":{"destination":"source"}}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.resource_bytes.is_empty());
+    assert_eq!(a.review_only_contracts.len(), 2);
+    assert_eq!(a.review_only_contracts[0].kind, "text-input-write-policy");
+    assert_eq!(
+        a.review_only_contracts[1].declaration["parameters"]["destination"],
+        "source"
+    );
+    assert!(!format!("{a:?}").contains("Local review text"));
+    assert!(!serde_json::to_string(&a.report)
+        .unwrap()
+        .contains("Local review text"));
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["password"] =
+        json!("SECRET-TEST");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert_eq!(a.review_only_contracts.len(), 1);
+    assert!(!format!("{a:?}").contains("SECRET-TEST"));
+}

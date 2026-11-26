@@ -93,3 +93,21 @@ Baseline 283f091 passed 32/32 on both platforms. Named shape styles and rectangl
 ### REUSE-03B.4 — remaining operational contracts, bounded declaration subset
 
 Baseline 7fe01d0 passed 33/33 tests on both operating systems. Added explicit signed nonzero Int32 stepping with both integer clamps, within a confirmed setpoint policy without a separate step constraint. This is a declaration mapping, not verified runtime execution. Screen lifecycle navigation is now refused according to the pinned legacy ActionRules. Passive thermal value-only declarations map to the original canonical temperature symbol; extra status slots and unsupported properties refuse, visual and unit-display parity are not claimed. Sensor/flow status and value semantics, composite press-to-faceplate dispatch and writable strings still need representable contracts or a separately authorized schema decision. Three synthetic regressions added.
+
+Recognized unsupported v10 faceplate action declarations and typed text-input properties/binding are returned separately as non-serializable review-only contracts with redacted Debug output. No arbitrary source fields are copied; unknown fields and unsupported contracts still refuse. Review entries are evidence, not validated runtime actions, and are not published or injected into canonical extensions. Unknown data must remain in the original hash-identified source file. Added a separate regression for inactive preservation and redaction.
+
+#### Import completeness audit (implementation checkpoint)
+
+| Family | Supported subset | Blocking or unverified remainder |
+|---|---|---|
+| Input | Strict unique-key bounded portable JSON v1–10, deterministic IDs and leaf report | Archive/package transport, proprietary fixtures and full-version acceptance |
+| Industrial | Supported connections, typed declarations, units, roles, permissions and bounded writes | Unsupported driver configurations, write policies and commissioning parity |
+| Layout and bindings | Absolute, selected adaptive layouts, reusable definitions, direct and expression bindings, enums | Responsive parity, unsupported composition types, richer expressions and parameters |
+| Graphics | Basic shapes and passive symbols, cardinal arrows, passive temperature value, typed dropdown | Sensor value vs active slot, Boolean flow vs numeric flow, additional active/fault slots, gauge and level graphics, renderer parity |
+| Resources | Integrity-checked PNG, restricted sequential JPEG and static rectangle SVG | Full decode/sanitization, general SVG geometry, nested images, package installation |
+| Theme/style | Explicit RGB tokens, limited static cascade and reusable declarations | Live inheritance after editing, equipment states, typography, dynamic and other component styles |
+| Operator actions | Selected navigation, typed set/toggle/pulse, bounded Int32 step | Composite press-to-faceplate event and forwarding, popup semantics, string writes, wider numeric stepping, runtime and authorization equivalence |
+| Alarms | Review-only recognized declarations | Activation, quality, acknowledgement and latching semantics |
+| Inactive preservation | Absolute geometry metadata, separate alarm/faceplate/text-input review records, value-free leaf report | Other unknown source contracts remain in original source; no general arbitrary-payload copy |
+
+No completeness/freeze acceptance is claimed. A source project with any refused leaf or gate still returns no canonical project and no resource bytes. Schema v2 remains frozen. Independent technical review and exact-head CI are pending.

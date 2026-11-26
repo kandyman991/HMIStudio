@@ -667,6 +667,7 @@ fn map_project(v: &Value, m: &mut Mapping, project_id: &str) -> Option<Project> 
         doc["v2"]["components"]["components"] = json!(m.contracts);
     }
     doc["extensions"]["hmiforge.idMap"] = json!(m.ids);
+    doc["extensions"]["hmistudio.importQuarantine"] = json!({"version":1,"state":"reviewRequired"});
     let project = load_project(&doc.to_string()).ok()?.project;
     let canonical = serde_json::to_value(&project).ok()?;
     audit_elided_targets(v, &doc, &canonical, m);

@@ -19,6 +19,10 @@ pub trait FileSystem: Send + Sync {
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()>;
     /// Atomically replaces `to` with `from` (same directory).
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
+    /// Atomically publish a staged file only if the destination is absent.
+    fn link_new(&self, _from: &Path, _to: &Path) -> io::Result<()> {
+        Err(io::Error::new(io::ErrorKind::Unsupported, "no exclusive publication support"))
+    }
     /// Removes a file.
     fn remove_file(&self, path: &Path) -> io::Result<()>;
     /// Creates a directory and its parents.
@@ -57,6 +61,10 @@ impl FileSystem for StdFileSystem {
         // file on the same volume; it fails (leaving `to` intact) if `to` is
         // read-only or open without FILE_SHARE_DELETE.
         std::fs::rename(from, to)
+    }
+
+    fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
+        std::fs::hard_link(from, to)
     }
 
     fn remove_file(&self, path: &Path) -> io::Result<()> {
@@ -191,6 +199,13 @@ impl FileSystem for FaultyFileSystem {
             return Err(injected());
         }
         StdFileSystem.rename(from, to)
+    }
+
+    fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
+        if self.fault == Fault::RenameFails && self.should_fire(to) {
+            return Err(injected());
+        }
+        StdFileSystem.link_new(from, to)
     }
 
     fn remove_file(&self, path: &Path) -> io::Result<()> {

@@ -283,7 +283,7 @@ fn autosave_path(dir: &Path) -> PathBuf {
 }
 
 /// Writes and verifies `data` in the temporary file next to `target`.
-fn stage_temp(fs: &dyn FileSystem, target: &Path, data: &[u8]) -> Result<PathBuf, SaveError> {
+pub(crate) fn stage_temp(fs: &dyn FileSystem, target: &Path, data: &[u8]) -> Result<PathBuf, SaveError> {
     let tmp = loop {
         let candidate = temp_path(target);
         match fs.write_synced(&candidate, data) {
@@ -572,6 +572,11 @@ impl ProjectSession {
         if self.closed {
             return Err(SaveError::Closed);
         }
+        if crate::legacy_quarantine::requires_review(self.project()) {
+            return Err(SaveError::Serialize {
+                message: "legacy import requires quarantined bundle persistence".into(),
+            });
+        }
         let fs = self.fs.clone();
         let fs = fs.as_ref();
         let text = to_json_string(self.project()).map_err(|e| SaveError::Serialize {
@@ -716,6 +721,11 @@ impl ProjectSession {
     pub fn autosave(&mut self) -> Result<AutosaveOutcome, SaveError> {
         if self.closed {
             return Err(SaveError::Closed);
+        }
+        if crate::legacy_quarantine::requires_review(self.project()) {
+            return Err(SaveError::Serialize {
+                message: "legacy import requires quarantined bundle persistence".into(),
+            });
         }
         if !self.is_dirty() {
             // An undo can return to the saved state after a dirty autosave.

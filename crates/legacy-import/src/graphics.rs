@@ -814,7 +814,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                         key.as_str(),
                         "id" | "displayName" | "type" | "bindingSlots" | "defaultProperties"
                     )
-                }) && x["id"] == k
+                }) && x["id"].as_str() == Some(k.as_str())
                     && x["displayName"] == "Label"
                     && x["type"] == "label"
                     && x["defaultProperties"] == json!({"text":"Label"})

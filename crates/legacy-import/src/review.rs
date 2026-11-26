@@ -22,7 +22,10 @@ impl std::fmt::Debug for ReviewOnlyContract {
 fn faceplate(action: &Value, p: &str, v: &Value) -> Option<ReviewOnlyContract> {
     if action["action"] != "open.faceplate"
         || action.as_object()?.keys().any(|k| {
-            !matches!(k.as_str(), "action" | "definitionId" | "modal" | "parameters")
+            !matches!(
+                k.as_str(),
+                "action" | "definitionId" | "modal" | "parameters"
+            )
         })
     {
         return None;

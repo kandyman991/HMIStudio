@@ -905,7 +905,8 @@ fn bounded_integer_step_and_invalid_clamps() {
     f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":0,"max":100});
     let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
     c["type"] = json!("button");
-    c["actions"] = json!({"press":{"action":"value.step","variableId":"label-a","by":-2,"min":0,"max":100}});
+    c["actions"] =
+        json!({"press":{"action":"value.step","variableId":"label-a","by":-2,"min":0,"max":100}});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     let p = a.project.unwrap_or_else(|| panic!("{:?}", a.report));
     let d = serde_json::to_value(&p).unwrap();

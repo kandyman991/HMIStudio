@@ -65,9 +65,7 @@ fn handlers(
                 "navigate.back" if !screen => json!({"type":"back"}),
                 "navigate.startup" if !screen => json!({"type":"navigateStartup"}),
                 "popup.close" if version >= 10 => json!({"type":"closePopup"}),
-                "value.set" | "value.toggle" | "value.pulse" | "value.step"
-                    if version >= 10 =>
-                {
+                "value.set" | "value.toggle" | "value.pulse" | "value.step" if version >= 10 => {
                     typed_action(a, &sp, &tp, doc, m)?
                 }
                 _ => {
@@ -144,8 +142,7 @@ fn typed_action(a: &Value, p: &str, t: &str, doc: &Value, m: &mut Mapping) -> Op
 fn integer_step(a: &Value, target: &Value, policy: &Value) -> Option<Value> {
     fn exact_i32(v: &Value) -> Option<f64> {
         let n = v.as_f64()?;
-        (n.fract() == 0. && (f64::from(i32::MIN)..=f64::from(i32::MAX)).contains(&n))
-            .then_some(n)
+        (n.fract() == 0. && (f64::from(i32::MIN)..=f64::from(i32::MAX)).contains(&n)).then_some(n)
     }
     let step = exact_i32(a.get("by")?)?;
     let min = exact_i32(a.get("min")?)?;

@@ -207,3 +207,7 @@ Acceptance reconciliation (candidate, not independently verified):
 - Gates 7–9: engineering transaction, persisted non-bypassable publish/live refusal, full resource decoding, archive admission or owner deferral, independent review and roadmap reconciliation remain open. No merge or reservation release authorized.
 
 Expected 54 importer regression groups and two additional production-engine differential tests per platform. No local execution, no Desktop Commander; verify actual hosted logs before claiming pass.
+
+### Reservation correction
+
+Hosted Desktop CI 45810348868 at ee5928c failed the implementation roadmap gate before any Rust checks ran: the proposed differential integration test was outside the existing crates/legacy-import/ reservation. Rather than weaken the gate, change another reservation or modify generated views manually, relocate the unexecuted test source into crates/legacy-import/tools/ and retain explicit isolated-run instructions. The 54 automatic importer regression groups remain unchanged. Production-engine differential execution is deferred until coordinated scope expansion or authorized isolated execution; the existing engine CI is not evidence of these two proposed tests passing. The live RUST-05 reservation remains unchanged. No engine production or test-tree change remains in the PR diff.

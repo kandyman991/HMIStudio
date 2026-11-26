@@ -109,7 +109,11 @@ fn failed_save_copy_preserves_session_and_previous_bundle() {
     let dir = TempDir::new("review-save-fault");
     let path = dir.join("review.bundle");
     let target = dir.join("failed.bundle");
-    let fs = Arc::new(FaultyFileSystem::new(Fault::RenameFails, "failed.bundle", 0));
+    let fs = Arc::new(FaultyFileSystem::new(
+        Fault::RenameFails,
+        "failed.bundle",
+        0,
+    ));
     let mut review =
         QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), fs.clone())
             .unwrap();
@@ -136,7 +140,8 @@ fn catalog_provenance_alone_refuses_production_and_plain_save() {
     let dir = TempDir::new("catalog-marker");
     let path = dir.join("review.bundle");
     let review =
-        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs()).unwrap();
+        QuarantinedImport::import_new(&source(), &path, SessionConfig::default(), std_fs())
+            .unwrap();
     let mut project = review.snapshot().project;
     project.extensions.remove("hmistudio.importQuarantine");
     project.extensions.remove("hmiforge.idMap");

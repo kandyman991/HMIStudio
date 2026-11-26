@@ -32,6 +32,37 @@ pub struct RuntimeReply {
     pub points: Vec<SimulationPoint>,
 }
 
+/// Authoritative outcome of a native simulation operation. A rejected
+/// command may retain a freshly checked session; a lost session never does.
+#[derive(Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum RuntimeOutcome {
+    Active {
+        simulation: RuntimeReply,
+    },
+    Stopped,
+    Rejected {
+        message: String,
+        simulation: Option<RuntimeReply>,
+    },
+    Lost {
+        message: String,
+    },
+    Busy,
+}
+
+impl RuntimeRequest {
+    pub fn session(&self) -> Option<u32> {
+        match self {
+            Self::Start { .. } => None,
+            Self::Read { session }
+            | Self::Write { session, .. }
+            | Self::Pulse { session, .. }
+            | Self::Stop { session } => Some(*session),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct RuntimeHost {
     executable: Option<PathBuf>,
@@ -92,6 +123,32 @@ impl RuntimeHost {
         Ok(RuntimeReply { session, points })
     }
 
+    /// Refresh only the requested session. Start retries may discover an
+    /// already-active session after an interrupted IPC response.
+    pub fn refresh(&mut self, session: Option<u32>) -> Result<Option<RuntimeReply>, String> {
+        if session.is_some_and(|id| id != self.serial) {
+            return Ok(None);
+        }
+        let Some(active) = self.active.as_mut() else {
+            return Ok(None);
+        };
+        match active.bridge.read() {
+            Ok(points) => Ok(Some(RuntimeReply {
+                session: self.serial,
+                points,
+            })),
+            Err(error) => {
+                self.stop();
+                Err(error)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn child_process_id(&self) -> u32 {
+        self.active.as_ref().unwrap().bridge.process_id()
+    }
+
     pub fn run(
         &mut self,
         request: RuntimeRequest,
@@ -134,7 +191,7 @@ impl RuntimeHost {
             Ok(points) => points,
             Err(error) => {
                 self.stop();
-                return Err(outcome.err().unwrap_or(error));
+                return Err(format!("Simulation session lost: {error}"));
             }
         };
         outcome?;
@@ -145,6 +202,17 @@ impl RuntimeHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lost_session_reply_contains_no_cached_points() {
+        let reply = RuntimeOutcome::Lost {
+            message: "child exited".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(reply).unwrap(),
+            serde_json::json!({"status":"lost","message":"child exited"})
+        );
+    }
 
     #[test]
     fn runtime_ipc_disallows_configuration_and_transport_fields() {

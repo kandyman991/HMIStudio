@@ -246,6 +246,11 @@ impl ProjectSimulation {
         }
     }
 
+    /// Direct child process ID for native diagnostics. Never exposed by IPC.
+    pub fn process_id(&self) -> u32 {
+        self.child.process_id()
+    }
+
     /// Reject stale or incompatible state before presenting data.
     pub fn read(&mut self) -> Result<Vec<SimulationPoint>, String> {
         self.drain()?;

@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Schema v2 frozen; draft PR #36 integrates portable import review and host-selected native project simulation.",
+  "summary": "Schema v2 frozen; draft PR #36 integrates portable import review, isolated native project simulation and session-loss reporting.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Independent technical review and exact-head CI for the native integration. Actual publisher and live project connection enforcement, archive/package admission, unresolved migration semantics and review-edit crash recovery remain open."
+    "Independent technical review and corrected-head CI for native simulation session-loss handling. Actual publisher and live project connection enforcement, archive/package admission, unresolved migration semantics and review-edit crash recovery remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
+      "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45855018223,
+          "id": 45856773687,
           "name": "Desktop CI",
-          "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
-          "state": "completed",
-          "result": "failure"
-        },
-        {
-          "id": 45855018079,
-          "name": "Tag engine CI",
-          "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
+          "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45855018070,
+          "id": 45856773651,
+          "name": "Tag engine CI",
+          "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
+          "state": "completed",
+          "result": "success"
+        },
+        {
+          "id": 45856773629,
           "name": "Engineering handoff snapshot",
-          "head": "2d5ccd111c93e54533f993a752216ce5ce442e1d",
+          "head": "f8d14cf5461544bbcb836f941625d6347412e0aa",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T16:12:18Z"
+      "observedAt": "2026-11-26T17:32:00Z"
     }
   ],
   "assignment": {
@@ -217,6 +217,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Hosted Windows and Linux detected S7 writable-byte aliasing in the synthetic fixture at 2d5ccd1. Corrected fixture addressing, added native admission preflight and enforce canonical engineering ranges for simulated writes. Independent review and corrected-head CI remain pending.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-26",
+      "type": "handoff",
+      "summary": "Verified f8d14cf: all 19 hosted jobs passed, including Windows 16+1 and Linux 17+1 native tests; installers skipped. Candidate review corrections add typed session outcomes, stale-value hiding, periodic native refresh and forced real-child exit/restart coverage. Retain the RUST-05 claim; corrected-head CI and review pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

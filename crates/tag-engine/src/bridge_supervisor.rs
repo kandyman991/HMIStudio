@@ -344,6 +344,10 @@ impl Supervisor {
         result
     }
 
+    pub(crate) fn process_id(&self) -> u32 {
+        self.child.id()
+    }
+
     /// Check whether the child is still alive; an exited child cannot be reused.
     pub fn is_alive(&mut self) -> io::Result<bool> {
         if !self.valid {

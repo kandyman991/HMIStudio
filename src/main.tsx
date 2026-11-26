@@ -36,6 +36,10 @@ type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean;
 type PersistenceStatus = { generation: number; pendingUntitled: boolean; autosaveMessage: string; reviewRequired: boolean };
 type SimulationPoint = { id:string; name:string; value:string|null; writable:boolean; momentary:boolean };
 type Simulation = { session:number; points:SimulationPoint[] };
+type SimulationOutcome = {status:"active"; simulation:Simulation}
+  | {status:"stopped" | "busy"}
+  | {status:"rejected"; message:string; simulation:Simulation|null}
+  | {status:"lost"; message:string};
 type SimulationRequest = { action:"start"; revision:number }
   | { action:"read" | "stop"; session:number }
   | { action:"write"; session:number; tag:string; value:string }
@@ -160,6 +164,7 @@ function Studio(){
   const [leftView,setLeftView]=useState<"project"|"layers"|"components">("project");
   const [outputView,setOutputView]=useState<"diagnostics"|"status"|"simulation">("diagnostics");
   const [simulation,setSimulation]=useState<Simulation|null>(null);
+  const [simulationUnavailable,setSimulationUnavailable]=useState(false);
   const [manualZoom,setManualZoom]=useState<number|null>(null);
   const [fitZoom,setFitZoom]=useState(1);
   const viewportRef=useRef<HTMLDivElement>(null);
@@ -178,22 +183,58 @@ function Studio(){
   const [pendingRecovery,setPendingRecovery]=useState(true);
   const [autosaveMessage,setAutosaveMessage]=useState("Checking recovery…");
   const [reviewRequired,setReviewRequired]=useState(false);
-  useEffect(()=>{setSimulation(null);},[generation.current,snapshot?.revision]);
-  async function simulate(request:SimulationRequest){
+  useEffect(()=>{setSimulation(null);setSimulationUnavailable(false);},[generation.current,snapshot?.revision]);
+  const simulate=useCallback(async(request:SimulationRequest,background=false)=>{
     if(inFlight.current||generation.current===null||pendingRecovery)return;
     inFlight.current=true;
     setBusy(true);
     try{
-      const reply=await invoke<Simulation|null>("simulation_request",{request,generation:generation.current});
-      setSimulation(reply);
-      if(request.action==="start"){
-        setPanels(p=>({...p,diagnostics:true}));
-        setOutputView("simulation");
+      const reply=await invoke<SimulationOutcome>("simulation_request",{request,generation:generation.current});
+      switch(reply.status){
+        case "active":
+          setSimulation(reply.simulation);
+          setSimulationUnavailable(false);
+          if(request.action==="start"){
+            setPanels(p=>({...p,diagnostics:true}));
+            setOutputView("simulation");
+          }
+          if(!background)setStatus("Isolated simulation active");
+          else setStatus(previous=>previous.startsWith("Simulation status unavailable")?"Isolated simulation active":previous);
+          break;
+        case "stopped":
+          setSimulation(null);
+          setSimulationUnavailable(false);
+          setStatus("Simulation stopped");
+          break;
+        case "rejected":
+          setSimulation(reply.simulation);
+          setSimulationUnavailable(false);
+          setStatus("Simulation command rejected: "+reply.message);
+          break;
+        case "lost":
+          setSimulation(null);
+          setSimulationUnavailable(false);
+          setStatus("Simulation session lost: "+reply.message);
+          break;
+        case "busy":
+          setSimulationUnavailable(true);
+          if(!background)setStatus("Simulation status unavailable: project operation pending");
+          break;
       }
-      setStatus(reply?"Isolated simulation active":"Simulation stopped");
-    }catch(error){setStatus(String(error));}
+    }catch(error){
+      // An IPC failure is not proof of child exit. Keep the session identity
+      // for a retry/stop, but hide its cached values until native verification.
+      setSimulationUnavailable(true);
+      setStatus("Simulation status unavailable: "+String(error));
+    }
     finally{inFlight.current=false;setBusy(false);}
-  }
+  },[pendingRecovery]);
+  const simulationSession=simulation?.session;
+  useEffect(()=>{
+    if(simulationSession===undefined)return;
+    const timer=window.setInterval(()=>void simulate({action:"read",session:simulationSession},true),1000);
+    return()=>window.clearInterval(timer);
+  },[simulationSession,simulate]);
   const updatePersistence=useCallback((p:PersistenceStatus)=>{
     setPendingRecovery(p.pendingUntitled);
     setAutosaveMessage(p.autosaveMessage);
@@ -407,7 +448,7 @@ function Studio(){
     "Move earlier":{run:()=>reorder(earlier),enabled:ready&&earlier!==undefined},
     "Move later":{run:()=>reorder(later),enabled:ready&&later!==undefined},
     "Validate project":{run:()=>void send({request:"validate"}),enabled:ready},
-    "Isolated simulation":{run:toggleSimulation,enabled:ready,checked:!!simulation},
+    "Isolated simulation":{run:toggleSimulation,enabled:ready,checked:!!simulation&&!simulationUnavailable},
     "Fit preview":{run:()=>setManualZoom(null),enabled:!!screen},
     "Zoom in":{run:()=>setManualZoom(changeZoom(zoom,.1)),enabled:!!screen&&zoom<2},
     "Zoom out":{run:()=>setManualZoom(changeZoom(zoom,-.1)),enabled:!!screen&&zoom>.25},
@@ -470,7 +511,7 @@ function Studio(){
     return()=>{document.removeEventListener("pointerdown",outside,true);document.removeEventListener("focusin",outside,true);};
   },[menu]);
   const matchingActions=Object.keys(actions).filter(item=>matchesCatalog(item,commandQuery));
-  const simulationOutput=simulation?<section aria-label="Isolated simulated tags">
+  const simulationOutput=simulationUnavailable?<p role="status">Simulation status unavailable. Cached values hidden; retry or stop the session.</p>:simulation?<section aria-label="Isolated simulated tags">
     <button disabled={busy} onClick={()=>void simulate({action:"read",session:simulation.session})}>Refresh values</button>
     {simulation.points.map(point=><SimulatedTag key={simulation.session+":"+point.id} point={point} disabled={busy}
       write={value=>void simulate({action:"write",session:simulation.session,tag:point.id,value})}

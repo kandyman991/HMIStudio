@@ -5,7 +5,7 @@ mod runtime_host;
 mod session_host;
 use hmi_engineering_core::ProjectSnapshot;
 use persistence_host::{recovery_project, Host};
-use runtime_host::{RuntimeReply, RuntimeRequest};
+use runtime_host::{RuntimeOutcome, RuntimeRequest};
 use serde::{Deserialize, Serialize};
 use session_host::{WorkspaceReply, WorkspaceRequest};
 use std::{path::PathBuf, sync::Mutex, time::Duration};
@@ -92,14 +92,20 @@ async fn simulation_request(
     app: AppHandle,
     request: RuntimeRequest,
     generation: u64,
-) -> Result<Option<RuntimeReply>, String> {
+) -> Result<RuntimeOutcome, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<Mutex<Host>>();
-        let mut host = state.try_lock().map_err(|_| "Project operation pending")?;
-        host.simulate(generation, request, || {
+        let mut host = match state.try_lock() {
+            Ok(host) => host,
+            Err(std::sync::TryLockError::WouldBlock) => return Ok(RuntimeOutcome::Busy),
+            Err(std::sync::TryLockError::Poisoned(_)) => {
+                return Err("Simulation host unavailable".into())
+            }
+        };
+        Ok(host.simulation_outcome(generation, request, || {
             ask(&app, "Confirm the selected action in isolated simulation?")
                 == MessageDialogResult::Yes
-        })
+        }))
     })
     .await
     .map_err(|error| error.to_string())?

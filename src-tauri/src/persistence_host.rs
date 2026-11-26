@@ -402,6 +402,50 @@ impl Host {
         self.runtime.run(request, confirm)
     }
 
+    /// Translate native state, not error-message wording, into IPC outcomes.
+    pub fn simulation_outcome(
+        &mut self,
+        generation: u64,
+        request: crate::runtime_host::RuntimeRequest,
+        confirm: impl FnOnce() -> bool,
+    ) -> crate::runtime_host::RuntimeOutcome {
+        use crate::runtime_host::{RuntimeOutcome, RuntimeRequest};
+        if let Err(message) = self.check_generation(generation) {
+            return RuntimeOutcome::Lost { message };
+        }
+        if self.pending_untitled {
+            return RuntimeOutcome::Lost {
+                message: "Resolve untitled recovery before starting simulation".into(),
+            };
+        }
+        if let RuntimeRequest::Start { revision } = &request {
+            if *revision != self.snapshot().revision {
+                return RuntimeOutcome::Lost {
+                    message: "Project changed. Refresh before starting simulation".into(),
+                };
+            }
+        }
+        let session = request.session();
+        match self.simulate(generation, request, confirm) {
+            Ok(Some(simulation)) => RuntimeOutcome::Active { simulation },
+            Ok(None) => RuntimeOutcome::Stopped,
+            Err(message) => match self.runtime.refresh(session) {
+                Ok(Some(simulation)) => RuntimeOutcome::Rejected {
+                    message,
+                    simulation: Some(simulation),
+                },
+                Ok(None) if session.is_none() => RuntimeOutcome::Rejected {
+                    message,
+                    simulation: None,
+                },
+                Ok(None) => RuntimeOutcome::Lost { message },
+                Err(error) => RuntimeOutcome::Lost {
+                    message: format!("Simulation session lost: {error}"),
+                },
+            },
+        }
+    }
+
     pub fn stop_simulation(&mut self) {
         self.runtime.stop();
     }
@@ -853,6 +897,130 @@ mod tests {
         assert_eq!(project.tags.len(), 3);
         assert_eq!(project.connections.len(), 1);
         assert_eq!(project.v2.industrial.tags.len(), 2);
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    #[ignore = "requires freshly built hmi-engine selected by hosted CI"]
+    fn native_project_simulation_reports_child_loss_and_restarts() {
+        use crate::runtime_host::{RuntimeHost, RuntimeOutcome, RuntimeRequest as Request};
+        use std::process::Command;
+        use std::time::{Duration, Instant};
+
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        fs::write(&source, simulation_legacy_source()).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.runtime = RuntimeHost::new(Some(PathBuf::from(
+            std::env::var_os("HMI_ENGINE_TEST_BIN").expect("CI must provide a fresh engine"),
+        )));
+        host.import_review(&source, &review, false).unwrap();
+        let generation = host.generation;
+        let revision = host.snapshot().revision;
+        let start = || Request::Start { revision };
+        let RuntimeOutcome::Active { simulation: first } =
+            host.simulation_outcome(generation, start(), || false)
+        else {
+            panic!("simulation did not start");
+        };
+        let session = first.session;
+        let count = first
+            .points
+            .iter()
+            .find(|point| point.name == "Count")
+            .unwrap()
+            .id
+            .clone();
+        let write = |value: &str| Request::Write {
+            session,
+            tag: count.clone(),
+            value: value.into(),
+        };
+        for (value, confirmed) in [("101", true), ("24", false)] {
+            assert!(matches!(
+                host.simulation_outcome(generation, write(value), || confirmed),
+                RuntimeOutcome::Rejected {
+                    simulation: Some(reply),
+                    ..
+                } if reply.session == session
+            ));
+        }
+        assert!(matches!(
+            host.simulation_outcome(generation, write("24"), || true),
+            RuntimeOutcome::Active { .. }
+        ));
+        let read = || Request::Read { session };
+        let deadline = Instant::now() + Duration::from_secs(4);
+        loop {
+            let RuntimeOutcome::Active { simulation } =
+                host.simulation_outcome(generation, read(), || false)
+            else {
+                panic!("simulation lost before forced exit");
+            };
+            if simulation
+                .points
+                .iter()
+                .any(|p| p.id == count && p.value.as_deref() == Some("24"))
+            {
+                break;
+            }
+            assert!(Instant::now() < deadline, "write not observed");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        // Kill only the direct, test-owned real engine, without using the
+        // supervisor's normal shutdown path.
+        let pid = host.runtime.child_process_id().to_string();
+        #[cfg(windows)]
+        let status = Command::new("taskkill")
+            .args(["/PID", &pid, "/F"])
+            .status()
+            .unwrap();
+        #[cfg(unix)]
+        let status = Command::new("kill")
+            .args(["-KILL", &pid])
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let deadline = Instant::now() + Duration::from_secs(4);
+        loop {
+            match host.simulation_outcome(generation, read(), || false) {
+                RuntimeOutcome::Lost { .. } => break,
+                RuntimeOutcome::Active { .. } => {}
+                _ => panic!("engine exit was not classified as session loss"),
+            }
+            assert!(Instant::now() < deadline, "engine exit not detected");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(matches!(
+            host.simulation_outcome(generation, write("24"), || true),
+            RuntimeOutcome::Lost { .. }
+        ));
+        let RuntimeOutcome::Active { simulation: second } =
+            host.simulation_outcome(generation, start(), || false)
+        else {
+            panic!("fresh simulation did not start");
+        };
+        assert_ne!(second.session, session);
+        assert!(second
+            .points
+            .iter()
+            .any(|p| p.id == count && p.value.as_deref() == Some("0")));
+        assert!(matches!(
+            host.simulation_outcome(generation, read(), || false),
+            RuntimeOutcome::Lost { .. }
+        ));
+        assert!(matches!(
+            host.simulation_outcome(
+                generation,
+                Request::Read {
+                    session: second.session
+                },
+                || false,
+            ),
+            RuntimeOutcome::Active { .. }
+        ));
         assert!(host.production_candidate().is_err());
     }
 

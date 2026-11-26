@@ -1,7 +1,9 @@
 //! Native persistence boundary. The webview never supplies a filesystem path.
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
-    legacy_quarantine::{requires_review, QuarantinedImport, MAX_LEGACY_SOURCE_BYTES},
+    legacy_quarantine::{
+        requires_review, review_recovery_path, QuarantinedImport, MAX_LEGACY_SOURCE_BYTES,
+    },
     persistence::sidecar_dir,
     AutosaveOutcome, ProjectSession, ProjectSnapshot, SaveOptions, SessionConfig,
 };
@@ -357,6 +359,15 @@ impl Host {
                 recovery_retained,
             } => {
                 let mut message = review_message(bundle);
+                message.push_str(". ");
+                if bundle.is_dirty()
+                    && !bundle.recovery_current()
+                    && !self.autosave_message.starts_with("Autosave failed:")
+                {
+                    message.push_str("Review recovery snapshot pending");
+                } else {
+                    message.push_str(&self.autosave_message);
+                }
                 if *recovery_retained {
                     message.push_str(". Previous recovery retained");
                 }
@@ -488,6 +499,9 @@ impl Host {
                 safe_file(path)?;
                 safe_sidecar(&sidecar_dir(path))?;
             }
+        } else if let ActiveProject::Review { bundle, .. } = &self.active {
+            safe_regular_file(bundle.path(), true)?;
+            safe_sidecar(&sidecar_dir(bundle.path()))?;
         }
         Ok(())
     }
@@ -615,7 +629,7 @@ impl Host {
         Ok(())
     }
 
-    fn activate_review(&mut self, candidate: QuarantinedImport) {
+    fn activate_review(&mut self, candidate: QuarantinedImport, guard: File) {
         // The bundle has already been published/verified; never report it
         // rolled back if cleaning the previous recovery slot fails.
         let recovery_retained = self.clear_active_recovery().is_err()
@@ -630,7 +644,12 @@ impl Host {
             bundle: Box::new(candidate),
             recovery_retained,
         };
-        self.project_lock = None;
+        self.project_lock = Some(guard);
+        self.autosave_message = if self.is_dirty() {
+            "Review recovery snapshot restored".into()
+        } else {
+            "Review autosave ready".into()
+        };
         self.project_replaced();
     }
 
@@ -665,27 +684,68 @@ impl Host {
         if safe_regular_file(&target, true)? {
             return Err("Choose a new review bundle filename".into());
         }
+        let guard = lock_dir(&sidecar_dir(&target))?;
+        if safe_file(&review_recovery_path(&target))? {
+            return Err("Target has review recovery data; choose a different filename".into());
+        }
         let fs = Arc::new(GuardedFileSystem);
         let bytes = StdFileSystem
             .read_limited(source, MAX_LEGACY_SOURCE_BYTES)
             .map_err(err)?;
         let candidate = QuarantinedImport::import_new(&bytes, &target, config(&self.untitled), fs)
             .map_err(err)?;
-        self.activate_review(candidate);
+        self.activate_review(candidate, guard);
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn open_review(&mut self, path: &Path, discard: bool) -> Result<()> {
+        self.open_review_with(path, discard, |pending| {
+            if pending {
+                return Err("Review recovery decision required".into());
+            }
+            Ok(Some(false))
+        })
+        .map(|_| ())
+    }
+
+    pub fn open_review_with(
+        &mut self,
+        path: &Path,
+        discard: bool,
+        decide: impl FnOnce(bool) -> Result<Option<bool>>,
+    ) -> Result<bool> {
         self.prepare_review_switch(discard)?;
         let path = normalize_review(path)?;
         if self.path() == Some(path.as_path()) {
             return Err("This review bundle is already open".into());
         }
-        let candidate =
-            QuarantinedImport::reopen(&path, config(&self.untitled), Arc::new(GuardedFileSystem))
-                .map_err(err)?;
-        self.activate_review(candidate);
-        Ok(())
+        if !safe_regular_file(&path, true)? {
+            return Err("Review bundle does not exist".into());
+        }
+        let guard = lock_dir(&sidecar_dir(&path))?;
+        let recovery = review_recovery_path(&path);
+        let pending = safe_file(&recovery)?;
+        let Some(recover) = decide(pending)? else {
+            return Ok(false);
+        };
+        let fs = Arc::new(GuardedFileSystem);
+        let candidate = if recover {
+            QuarantinedImport::recover(&path, config(&self.untitled), fs)
+        } else {
+            QuarantinedImport::reopen(&path, config(&self.untitled), fs)
+        }
+        .map_err(err)?;
+        let mut discard_sync_failed = false;
+        if pending && !recover {
+            remove_recovery(&recovery)?;
+            discard_sync_failed = StdFileSystem.sync_dir(&sidecar_dir(&path)).is_err();
+        }
+        self.activate_review(candidate, guard);
+        if discard_sync_failed {
+            self.autosave_message = "Review recovery discarded; directory sync failed".into();
+        }
+        Ok(true)
     }
 
     pub fn save(&mut self) -> Result<()> {
@@ -713,7 +773,16 @@ impl Host {
                 if safe_regular_file(&target, true)? {
                     return Err("Choose a new review bundle filename".into());
                 }
-                return bundle.save_copy(&target).map_err(err);
+                let guard = lock_dir(&sidecar_dir(&target))?;
+                if safe_file(&review_recovery_path(&target))? {
+                    return Err(
+                        "Target has review recovery data; choose a different filename".into(),
+                    );
+                }
+                bundle.save_copy(&target).map_err(err)?;
+                self.project_lock = Some(guard);
+                self.autosave_message = "Review autosave ready".into();
+                return Ok(());
             }
         };
         let path = normalize_project(path)?;
@@ -743,20 +812,23 @@ impl Host {
             return;
         }
         let preflight = self.preflight();
-        if let ActiveProject::Ordinary(session) = &mut self.active {
-            self.autosave_message = match preflight.and_then(|_| session.autosave().map_err(err)) {
-                Ok(AutosaveOutcome::Clean) => "No unsaved edits to recover".into(),
-                Ok(_) => "Recovery snapshot current".into(),
-                Err(e) => format!("Autosave failed: {e}"),
-            };
-        }
+        let result = preflight.and_then(|_| match &mut self.active {
+            ActiveProject::Ordinary(session) => session.autosave().map_err(err),
+            ActiveProject::Review { bundle, .. } => bundle.autosave().map_err(err),
+        });
+        self.autosave_message = match result {
+            Ok(AutosaveOutcome::Clean) => "No unsaved edits to recover".into(),
+            Ok(_) => "Recovery snapshot current".into(),
+            Err(e) => format!("Autosave failed: {e}"),
+        };
     }
 
     // Discard only the active project's recovery after explicit confirmation.
     // Call only after a successful candidate open or immediately before exit.
     pub fn clear_active_recovery(&self) -> Result<()> {
-        if self.is_review() {
-            return Ok(());
+        if let ActiveProject::Review { bundle, .. } = &self.active {
+            self.preflight()?;
+            return bundle.discard_recovery().map_err(err);
         }
         remove_recovery(&self.active_recovery()?)
     }
@@ -776,7 +848,7 @@ impl Host {
 
 fn review_message(review: &QuarantinedImport) -> String {
     let mut message = if review.is_dirty() {
-        "Review required — unsaved edits; save a new review copy (no autosave)".to_string()
+        "Review required — unsaved edits; save a new review copy".to_string()
     } else {
         "Review required — production/live blocked; review bundle saved".to_string()
     };
@@ -1271,7 +1343,10 @@ mod tests {
         assert!(host.production_candidate().is_err());
         host.autosave();
         assert!(!host.untitled.join(RECOVERY).exists());
-        assert!(host.persistence_message().contains("no autosave"));
+        assert!(host
+            .persistence_message()
+            .contains("Recovery snapshot current"));
+        assert!(review_recovery_path(&target).exists());
         host.save_as(&copy).unwrap();
         assert!(!host.is_dirty());
         host.new_project(false).unwrap();
@@ -1292,6 +1367,96 @@ mod tests {
             .is_err());
         assert!(host.is_review());
         assert_eq!(fs::read(&source).unwrap(), original);
+    }
+
+    #[test]
+    fn native_review_recovery_survives_restart_cancel_and_save_copy() {
+        use crate::session_host::WorkspaceRequest;
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        let copy = t.0.join("copy.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        let original = fs::read(&path).unwrap();
+        let before = host.snapshot();
+        host.request(
+            WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Crash edit".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        let slot = review_recovery_path(&path);
+        assert!(slot.exists());
+        let mut other = Host::new(&t.0.join("other-app")).unwrap();
+        assert!(other
+            .open_review_with(&path, false, |_| Ok(Some(true)))
+            .is_err());
+        drop(host);
+        let mut host = Host::new(&app).unwrap();
+        let before = host.snapshot();
+        assert!(!host
+            .open_review_with(&path, false, |pending| {
+                assert!(pending);
+                Ok(None)
+            })
+            .unwrap());
+        assert_eq!(host.snapshot(), before);
+        assert!(slot.exists());
+        assert!(host
+            .open_review_with(&path, false, |pending| {
+                assert!(pending);
+                Ok(Some(true))
+            })
+            .unwrap());
+        assert!(host.is_review() && host.is_dirty());
+        assert!(host.production_candidate().is_err());
+        assert_eq!(host.snapshot().project.screens[0].name, "Crash edit");
+        assert!(host.save().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(!slot.exists());
+        assert!(!host.is_dirty());
+        assert_eq!(fs::read(&source).unwrap(), LEGACY_SOURCE);
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert!(host.production_candidate().is_err());
+        host.new_project(false).unwrap();
+        host.open_review(&copy, false).unwrap();
+        assert_eq!(host.snapshot().project.screens[0].name, "Crash edit");
+    }
+
+    #[test]
+    fn native_review_recovery_corrupt_slot_is_preserved_until_explicit_discard() {
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        drop(host);
+        let slot = review_recovery_path(&path);
+        fs::write(&slot, b"corrupt").unwrap();
+        let mut host = Host::new(&app).unwrap();
+        let before = host.snapshot();
+        assert!(host
+            .open_review_with(&path, false, |_| Ok(Some(true)))
+            .is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&slot).unwrap(), b"corrupt");
+        assert!(host
+            .open_review_with(&path, false, |_| Ok(Some(false)))
+            .unwrap());
+        assert!(!slot.exists());
+        assert!(host.is_review() && !host.is_dirty());
+        assert!(host.production_candidate().is_err());
     }
 
     #[test]

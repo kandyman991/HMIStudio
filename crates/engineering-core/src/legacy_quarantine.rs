@@ -13,14 +13,18 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::fs::FileSystem;
-use crate::persistence::stage_temp;
+use crate::persistence::{sidecar_dir, stage_temp};
 use crate::{
-    ProjectSession, ProjectSnapshot, SessionConfig, Transaction, TransactionError,
+    AutosaveOutcome, ProjectSession, ProjectSnapshot, SessionConfig, Transaction, TransactionError,
     TransactionOutcome,
 };
 
 const MARKER: &str = "hmistudio.importQuarantine";
 const FORMAT: &str = "hmi-studio.legacy-review";
+const RECOVERY_FORMAT: &str = "hmi-studio.legacy-review-recovery";
+pub fn review_recovery_path(bundle: &Path) -> PathBuf {
+    sidecar_dir(bundle).join("review-recovery.json")
+}
 const MAX_BUNDLE_BYTES: usize = 64 * 1024 * 1024;
 /// Native import readers use the same bound as the portable decoder.
 pub const MAX_LEGACY_SOURCE_BYTES: usize = hmi_legacy_import::MAX_INPUT_BYTES;
@@ -47,7 +51,7 @@ fn is_legacy_id(id: &str) -> bool {
 // loaded as a valid project (for example a review envelope renamed as JSON).
 pub(crate) fn storage_requires_review(bytes: &[u8]) -> bool {
     serde_json::from_slice::<Value>(bytes).is_ok_and(|value| {
-        value["format"].as_str() == Some(FORMAT)
+        matches!(value["format"].as_str(), Some(FORMAT | RECOVERY_FORMAT))
             || value["id"].as_str().is_some_and(is_legacy_id)
             || value["extensions"]
                 .as_object()
@@ -61,6 +65,8 @@ pub enum ImportError {
     Refused,
     #[error("invalid or incomplete review bundle")]
     InvalidBundle,
+    #[error("review recovery does not match the saved bundle or is damaged")]
+    InvalidRecovery,
     #[error("review bundle exceeds size limit")]
     SizeLimit,
     #[error("bundle I/O failed at {0}")]
@@ -85,6 +91,22 @@ struct Envelope {
     version: u32,
     sha256: String,
     payload: Payload,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RecoveryBody {
+    base_sha256: String,
+    project: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RecoveryEnvelope {
+    format: String,
+    version: u32,
+    sha256: String,
+    body: RecoveryBody,
 }
 
 fn digest(bytes: &[u8]) -> String {
@@ -180,7 +202,6 @@ fn verify_report(report: &Value, original: &Project) -> Result<(), ImportError> 
 
 fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
     let original = decode_project(&payload.original_project)?;
-    let current = decode_project(&payload.project)?;
     verify_report(&payload.report, &original)?;
     // A checksum is not proof of report completeness. Replay the exact admitted
     // bytes and compare all immutable import evidence, including resources.
@@ -196,7 +217,17 @@ fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
         return Err(ImportError::InvalidBundle);
     }
     verify_resources(&original, &payload.resources)?;
-    verify_resources(&current, &payload.resources)?;
+    let current = decode_project(&payload.project)?;
+    verify_review_edit(&original, &current, &payload.resources)?;
+    Ok(current)
+}
+
+fn verify_review_edit(
+    original: &Project,
+    current: &Project,
+    resources: &BTreeMap<String, Vec<u8>>,
+) -> Result<(), ImportError> {
+    verify_resources(current, resources)?;
     if original.id != current.id
         || [MARKER, "hmiforge.idMap", "hmiforge.standardCatalog"]
             .iter()
@@ -204,7 +235,7 @@ fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
     {
         return Err(ImportError::InvalidBundle);
     }
-    Ok(current)
+    Ok(())
 }
 
 /// Engineering session with immutable import evidence. The inner session
@@ -214,6 +245,8 @@ pub struct QuarantinedImport {
     payload: Payload,
     path: PathBuf,
     warnings: Vec<&'static str>,
+    recovery_owned: bool,
+    base_sha256: String,
 }
 
 impl QuarantinedImport {
@@ -241,12 +274,14 @@ impl QuarantinedImport {
             resources: outcome.resource_bytes,
         };
         let project = verify_payload(&payload)?;
-        let warnings = write_new(&payload, target, fs.as_ref())?;
+        let (warnings, base_sha256) = write_new(&payload, target, fs.as_ref())?;
         Ok(Self {
             session: ProjectSession::with_fs(project, config, fs),
             payload,
             path: target.to_path_buf(),
             warnings,
+            recovery_owned: false,
+            base_sha256,
         })
     }
 
@@ -279,7 +314,144 @@ impl QuarantinedImport {
             payload: envelope.payload,
             path: path.to_path_buf(),
             warnings: Vec::new(),
+            recovery_owned: false,
+            base_sha256: digest(&bytes),
         })
+    }
+
+    /// Recovery is deliberately separate from ordinary project autosave.
+    /// The native caller must hold the bundle's sidecar writer lock.
+    pub fn recover(
+        path: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<Self, ImportError> {
+        let mut review = Self::reopen(path, config.clone(), fs.clone())?;
+        let project = review.read_recovery()?;
+        review.session = ProjectSession::bare(project, config, fs);
+        review.session.storage.autosaved_state = Some(review.session.current_state_id());
+        review.recovery_owned = true;
+        Ok(review)
+    }
+
+    fn read_recovery(&self) -> Result<Project, ImportError> {
+        let fs = self.session.fs.as_ref();
+        let bytes = fs
+            .read_limited(&review_recovery_path(&self.path), MAX_BUNDLE_BYTES)
+            .map_err(|_| ImportError::InvalidRecovery)?;
+        let envelope: RecoveryEnvelope =
+            serde_json::from_slice(&bytes).map_err(|_| ImportError::InvalidRecovery)?;
+        let body = serde_json::to_vec(&envelope.body).map_err(|_| ImportError::InvalidRecovery)?;
+        if envelope.format != RECOVERY_FORMAT
+            || envelope.version != 1
+            || envelope.sha256 != digest(&body)
+            || envelope.body.base_sha256 != self.base_sha256
+        {
+            return Err(ImportError::InvalidRecovery);
+        }
+        let project = load_project(&envelope.body.project)
+            .map_err(|_| ImportError::InvalidRecovery)?
+            .project;
+        let serialized = hmi_project_model::serialization::to_json_string(&project)
+            .map_err(|_| ImportError::InvalidRecovery)?;
+        if serialized != envelope.body.project {
+            return Err(ImportError::InvalidRecovery);
+        }
+        let original = decode_project(&self.payload.original_project)?;
+        verify_review_edit(&original, &project, &self.payload.resources)?;
+        Ok(project)
+    }
+
+    pub fn autosave(&mut self) -> Result<AutosaveOutcome, ImportError> {
+        let fs = self.session.fs.as_ref();
+        let path = review_recovery_path(&self.path);
+        let dir = sidecar_dir(&self.path);
+        if !self.is_dirty() {
+            if self.recovery_owned {
+                self.discard_recovery()?;
+                self.recovery_owned = false;
+                self.session.storage.autosaved_state = None;
+            }
+            return Ok(AutosaveOutcome::Clean);
+        }
+        // A recovery is bound to the exact saved envelope bytes, not just
+        // a project ID or report revision. A changed base cannot be recovered.
+        let saved = fs.read_limited(&self.path, MAX_BUNDLE_BYTES);
+        if !saved.is_ok_and(|bytes| digest(&bytes) == self.base_sha256) {
+            self.session.storage.autosaved_state = None;
+            return Err(ImportError::InvalidRecovery);
+        }
+        // Never replace an unresolved or foreign recovery slot.
+        if fs.exists(&path) {
+            if !self.recovery_owned {
+                return Err(ImportError::InvalidRecovery);
+            }
+            let previous = self.read_recovery().inspect_err(|_| {
+                self.session.storage.autosaved_state = None;
+            })?;
+            if self.session.storage.autosaved_state == Some(self.session.current_state_id())
+                && &previous == self.session.project()
+            {
+                return Ok(AutosaveOutcome::UpToDate);
+            }
+        }
+        self.session.storage.autosaved_state = None;
+        let original = decode_project(&self.payload.original_project)?;
+        verify_review_edit(&original, self.session.project(), &self.payload.resources)?;
+        let project = hmi_project_model::serialization::to_json_string(self.session.project())
+            .map_err(|_| ImportError::InvalidRecovery)?;
+        let body = RecoveryBody {
+            base_sha256: self.base_sha256.clone(),
+            project,
+        };
+        let serialized = serde_json::to_vec(&body).map_err(|_| ImportError::InvalidRecovery)?;
+        let envelope = RecoveryEnvelope {
+            format: RECOVERY_FORMAT.into(),
+            version: 1,
+            sha256: digest(&serialized),
+            body,
+        };
+        let bytes = serde_json::to_vec(&envelope).map_err(|_| ImportError::InvalidRecovery)?;
+        if bytes.len() > MAX_BUNDLE_BYTES {
+            return Err(ImportError::SizeLimit);
+        }
+        fs.create_dir_all(&dir)
+            .map_err(|_| ImportError::Io("recovery directory"))?;
+        let tmp = stage_temp(fs, &path, &bytes, |p, b| fs.write_review_synced(p, b))
+            .map_err(|_| ImportError::Io("recovery stage"))?;
+        // The native sidecar lock serializes cooperating writers. Use one atomic
+        // replacement, preserving the previous snapshot on failure.
+        if fs.rename(&tmp, &path).is_err() {
+            let _ = fs.remove_file(&tmp);
+            return Err(ImportError::Io("recovery publish"));
+        }
+        self.recovery_owned = true;
+        fs.sync_dir(&dir)
+            .map_err(|_| ImportError::Io("recovery sync"))?;
+        self.session.storage.autosaved_state = Some(self.session.current_state_id());
+        Ok(AutosaveOutcome::Written {
+            path: path.display().to_string(),
+            revision: self.session.revision(),
+        })
+    }
+
+    /// Retire this session's recovery only after explicit discard or a committed save.
+    pub fn discard_recovery(&self) -> Result<(), ImportError> {
+        let fs = self.session.fs.as_ref();
+        let path = review_recovery_path(&self.path);
+        if self.recovery_owned {
+            if fs.exists(&path) {
+                self.read_recovery()?;
+            }
+            match fs.remove_file(&path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => return Err(ImportError::Io("recovery remove")),
+            }
+            fs.sync_dir(&sidecar_dir(&self.path))
+                .map_err(|_| ImportError::Io("recovery sync"))?;
+        }
+        Ok(())
     }
 
     pub fn snapshot(&self) -> ProjectSnapshot {
@@ -290,6 +462,10 @@ impl QuarantinedImport {
 
     pub fn is_dirty(&self) -> bool {
         self.session.is_dirty()
+    }
+
+    pub fn recovery_current(&self) -> bool {
+        self.session.status().autosave_current
     }
 
     /// The review session exposes editing, validation and history only.
@@ -346,9 +522,19 @@ impl QuarantinedImport {
         let mut payload = self.payload.clone();
         payload.project = canonical(self.session.project())?;
         verify_payload(&payload)?;
-        let warnings = write_new(&payload, target, self.session.fs.as_ref())?;
+        let (warnings, base_sha256) = write_new(&payload, target, self.session.fs.as_ref())?;
+        let mut warnings = warnings;
+        // A successful publication with a durability/cleanup warning must not
+        // discard the last recovery snapshot. The user can explicitly retire
+        // it after verifying the newly published copy.
+        if self.recovery_owned && (!warnings.is_empty() || self.discard_recovery().is_err()) {
+            warnings.push("saved review copy; previous recovery retained");
+        }
         self.session.mark_saved();
+        self.session.storage.autosaved_state = None;
+        self.recovery_owned = false;
         self.payload = payload;
+        self.base_sha256 = base_sha256;
         self.path = target.to_path_buf();
         self.warnings = warnings;
         Ok(())
@@ -359,7 +545,7 @@ fn write_new(
     payload: &Payload,
     target: &Path,
     fs: &dyn FileSystem,
-) -> Result<Vec<&'static str>, ImportError> {
+) -> Result<(Vec<&'static str>, String), ImportError> {
     let body = serde_json::to_vec(payload).map_err(|_| ImportError::InvalidBundle)?;
     let envelope = Envelope {
         format: FORMAT.into(),
@@ -392,5 +578,5 @@ fn write_new(
     if fs.sync_dir(parent).is_err() {
         warnings.push("published bundle; directory sync failed");
     }
-    Ok(warnings)
+    Ok((warnings, digest(&bytes)))
 }

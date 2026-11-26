@@ -266,9 +266,17 @@ fn handle_project_action(
         ProjectAction::OpenReview => {
             if let Some(path) = pick_review(app, false)? {
                 if let Some(discard) = confirm_switch(app, &mut host)? {
-                    host.open_review(&path, discard)?;
-                    replaced = true;
-                    message = host.persistence_message();
+                    replaced = host.open_review_with(&path, discard, |pending| {
+                        if !pending { return Ok(Some(false)); }
+                        match ask(app, "A recovery snapshot exists for this review bundle.\nYes: Recover edits. No: Open saved bundle and discard recovery. Cancel: Keep current project.") {
+                            MessageDialogResult::Yes => Ok(Some(true)),
+                            MessageDialogResult::No => Ok(Some(false)),
+                            _ => Ok(None),
+                        }
+                    })?;
+                    if replaced {
+                        message = host.persistence_message();
+                    }
                 }
             }
         }

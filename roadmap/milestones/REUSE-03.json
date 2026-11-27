@@ -2,9 +2,9 @@
   "id": "REUSE-03",
   "title": "Legacy import and canonical model v2",
   "track": "Reuse",
-  "phase": "proposed",
+  "phase": "merged",
   "counts": true,
-  "summary": "REUSE-03B completion candidate: bounded legacy import, semantic coverage/refusal matrix, quarantine, persisted replay and redacted native refusal diagnostics. Full successor validation and cumulative independent review remain required.",
+  "summary": "PR #36 completed the REUSE-03B engineering review and integrated legacy import, quarantine and migration evidence replay on frozen schema v2. REUSE-04 owns B5-07.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -14,9 +14,6 @@
   "criteria": [
     "Resolve O-3 model additions, O-4 expressions and O-1 fixture rights. Freeze model v2 before decoder/mapping integration.",
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
-  ],
-  "blockers": [
-    "Verify full CI on the F01/F02 correction head and close the cumulative independent milestone review before integration. Actual production publisher/live admission consumer enforcement and runtime parity remain separate downstream gates."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,63 +28,36 @@
   "prs": [
     {
       "number": 36,
-      "head": "7afef8c9a4b298a01dc45439d312af291f947150",
+      "head": "5f476d065bb09f40d060f862a64fadeaa0208e27",
       "branch": "feat/reuse-03b-legacy-import",
-      "state": "draft",
+      "state": "merged",
       "runs": [
         {
-          "id": 46051484034,
+          "id": 46059751484,
           "name": "Desktop CI",
-          "head": "7afef8c9a4b298a01dc45439d312af291f947150",
+          "head": "5f476d065bb09f40d060f862a64fadeaa0208e27",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46051484040,
+          "id": 46059751542,
           "name": "Tag engine CI",
-          "head": "7afef8c9a4b298a01dc45439d312af291f947150",
+          "head": "5f476d065bb09f40d060f862a64fadeaa0208e27",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46051484038,
+          "id": 46059751515,
           "name": "Engineering handoff snapshot",
-          "head": "7afef8c9a4b298a01dc45439d312af291f947150",
+          "head": "5f476d065bb09f40d060f862a64fadeaa0208e27",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-27T19:50:32Z"
+      "observedAt": "2026-11-27T21:24:42Z",
+      "merge": "e2b94059f815f549a1186ce565f30e08f9db96a1"
     }
   ],
-  "assignment": {
-    "owner": "ChatGPT",
-    "branch": "feat/reuse-03b-legacy-import",
-    "scope": [
-      ".github/ci/plan.py",
-      ".github/ci/test_plan.py",
-      ".github/workflows/ci.yml",
-      ".github/workflows/tag-engine.yml",
-      "crates/engineering-core/",
-      "crates/hmi-engine/src/engine.rs",
-      "crates/hmi-engine/src/main.rs",
-      "crates/hmi-engine/tests/isolated_runtime.rs",
-      "crates/hmi-engine/tests/legacy_address_conformance.rs",
-      "crates/legacy-import/",
-      "crates/tag-engine/src/bridge_project_simulation.rs",
-      "crates/tag-engine/src/bridge_supervisor.rs",
-      "crates/tag-engine/src/lib.rs",
-      "crates/tag-engine/tests/bridge_project_simulation.rs",
-      "src-tauri/Cargo.lock",
-      "src-tauri/Cargo.toml",
-      "src-tauri/src/main.rs",
-      "src-tauri/src/persistence_host.rs",
-      "src-tauri/src/runtime_host.rs",
-      "src-tauri/src/session_host.rs",
-      "src/main.tsx"
-    ],
-    "observedAt": "2026-11-27T16:23:34Z"
-  },
   "history": [
     {
       "date": "2026-11-25",
@@ -322,8 +292,13 @@
       "type": "handoff",
       "summary": "Verified predecessor 7afef8c full 21/21 hosted CI. Address F01 completion proposal metadata and F02 bounded redacted native refusal diagnostics in the successor candidate; cumulative independent review and successor CI remain pending. Retain the RUST-05 claim and disabled CI-03 pin.",
       "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-27",
+      "type": "merged",
+      "summary": "Codex independently verified F01/F02 on 5f476d0, closed cumulative engineering review, confirmed 21/21 hosted jobs and verified merge e2b9405 on main. Owner deferred B5-07 to REUSE-04 before image use.",
+      "record": "docs/LEGACY_IMPORT.md"
     }
   ],
-  "proposal": "PR #36 is the completion proposal for REUSE-03. No acceptance or merge claimed. Corrected candidate requires full exact-head CI and closure of cumulative milestone review.",
   "completionPr": 36
 }

@@ -14,7 +14,8 @@
   "criteria": [
     "Resolve owner decisions on the runtime repository and key compatibility.",
     "Verify byte-identical signed format-2 packages, Kotlin decoder admission, JVM and Android emulator parity within tolerance and manual RUST-05 acceptance.",
-    "Evaluate generated Kotlin export under O-11."
+    "Evaluate generated Kotlin export under O-11.",
+    "B5-07 blocks rendering, extraction for use and runtime consumption of imported raster images until a full bounded pixel decoder enforces dimensions, pixel count and decoded-byte limits, and rejects malformed compressed data. Verify both supported raster formats at the consumer boundary."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md"
@@ -23,5 +24,13 @@
     "Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work."
   ],
   "parent": "RUST-05",
-  "claimGroup": "RUST-05"
+  "claimGroup": "RUST-05",
+  "history": [
+    {
+      "date": "2026-11-27",
+      "type": "note",
+      "summary": "Owner assigned the bounded raster decoding gate from REUSE-03B to this milestone. Imported bytes remain inert pending validation.",
+      "record": "docs/LEGACY_IMPORT.md"
+    }
+  ]
 }

@@ -477,3 +477,7 @@ Verified a7cdda0 full 21/21 hosted CI ([Desktop](https://github.com/kandyman991/
 ## REUSE-03B F01/F02 correction candidate (2026-11-27)
 
 Verified predecessor `7afef8c9a4b298a01dc45439d312af291f947150` all 21 jobs (Desktop 46051484034, Tag engine 46051484040, handoff 46051484038), CI-03 disabled and installers skipped. Designated PR #36 as REUSE-03 completion proposal and regenerated roadmap outputs from the checked-in rendering logic. Candidate adds bounded redacted native refusal codes and local dialog, with core and host regressions. Local Rust execution unavailable; verify successor full CI and close cumulative independent review before ready/merge. Retain RUST-05 reservation, frozen schema and production quarantine; no installer or acceptance claimed.
+
+## REUSE-03B integrated (2026-11-27)
+
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) merged at `e2b94059f815f549a1186ce565f30e08f9db96a1` after independent F01/F02 verification and full CI on `5f476d065bb09f40d060f862a64fadeaa0208e27`. The [review closure](docs/LEGACY_IMPORT.md#reuse-03b-engineering-review-closure-2026-11-27) records the 21 jobs and B5-07 disposition. REUSE-04 requires bounded full raster decoding before any renderer or runtime consumes imported image bytes.

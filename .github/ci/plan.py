@@ -133,90 +133,138 @@ def ci03_api(path, token):
     return json.loads(raw)
 
 
-def checkpoint_pr(run, head, base):
-    # Manual runs have no PR base association and cannot establish this pilot pin.
-    return run.get("event") == "pull_request" and any(
-        p.get("number") == 36
-        and p.get("base", {}).get("ref") == "main"
-        and p.get("base", {}).get("sha") == base
-        and p.get("base", {}).get("repo", {}).get("id") == CI03_REPO_ID
-        and p.get("head", {}).get("ref") == CI03_BRANCH
-        and p.get("head", {}).get("sha") == head
-        and p.get("head", {}).get("repo", {}).get("id") == CI03_REPO_ID
-        for p in (run.get("pull_requests") or [])
+def ci03_reject(reason, workflow=None):
+    # Fixed reason codes only: never print tokens, raw API payloads or exceptions.
+    print(json.dumps({"ci03_reason": reason, "workflow": workflow}))
+    return False
+
+
+def checkpoint_pr(run, head, base, current_head):
+    # Associated PR metadata can follow the live PR rather than the historical
+    # run. Bind execution to head_sha and association to the same PR and base.
+    # A concurrent further head change safely falls back to full validation.
+    return (
+        run.get("event") == "pull_request"
+        and run.get("head_sha") == head
+        and run.get("head_branch") == CI03_BRANCH
+        and any(
+            p.get("number") == 36
+            and p.get("base", {}).get("ref") == "main"
+            and p.get("base", {}).get("sha") == base
+            and p.get("base", {}).get("repo", {}).get("id") == CI03_REPO_ID
+            and p.get("head", {}).get("ref") == CI03_BRANCH
+            and p.get("head", {}).get("sha") in (head, current_head)
+            and p.get("head", {}).get("repo", {}).get("id") == CI03_REPO_ID
+            for p in (run.get("pull_requests") or [])
+        )
     )
 
 
-def full_checkpoint(head, base, token):
+def checkpoint_title(head, base):
+    # Both validation workflows capture the triggering event in run-name.
+    return f"PR 36 head {head} base {base}"
+
+
+def full_checkpoint(head, base, token, current_head):
     if not token:
-        return False
+        return ci03_reject("checkpoint-token-missing")
     expected = {
-        "Desktop CI": (".github/workflows/ci.yml", FULL_DESKTOP),
-        "Tag engine CI": (".github/workflows/tag-engine.yml", FULL_TAG),
-        "Engineering handoff snapshot": (".github/workflows/handoff.yml", {"snapshot"}),
+        "Desktop CI": (".github/workflows/ci.yml", FULL_DESKTOP, True),
+        "Tag engine CI": (".github/workflows/tag-engine.yml", FULL_TAG, True),
+        # Read-only metadata snapshot, not base-dependent validation.
+        "Engineering handoff snapshot": (".github/workflows/handoff.yml", {"snapshot"}, False),
     }
     query = urlencode({"head_sha": head, "status": "success", "per_page": 50})
     runs = ci03_api("/actions/runs?" + query, token)["workflow_runs"]
-    for name, (workflow_path, required) in expected.items():
+    for name, (workflow_path, required, needs_event_title) in expected.items():
         candidates = [
             run for run in runs
             if run.get("name") == name
             and run.get("head_sha") == head
             and run.get("head_branch") == CI03_BRANCH
             and run.get("path") == workflow_path
-            and checkpoint_pr(run, head, base)
             and run.get("status") == "completed"
             and run.get("conclusion") == "success"
         ]
+        if not candidates:
+            return ci03_reject("checkpoint-successful-run-missing", name)
+        candidates = [
+            run for run in candidates
+            if checkpoint_pr(run, head, base, current_head)
+        ]
+        if not candidates:
+            return ci03_reject("checkpoint-pr-association-mismatch", name)
+        if needs_event_title:
+            candidates = [
+                run for run in candidates
+                if run.get("display_title") == checkpoint_title(head, base)
+            ]
+            if not candidates:
+                return ci03_reject("checkpoint-event-head-base-mismatch", name)
         verified = False
         for run in candidates[:3]:
-            run_id = run.get("id")
-            if not isinstance(run_id, int):
+            run_id, attempt = run.get("id"), run.get("run_attempt")
+            if type(run_id) is not int or type(attempt) is not int or attempt < 1:
                 continue
             jobs = ci03_api(f"/actions/runs/{run_id}/jobs?per_page=100", token)
-            # Never infer full validation from a successful aggregate or a skipped job.
-            if jobs["total_count"] > len(jobs["jobs"]):
+            # Verify individual completed jobs from this run/head/attempt.
+            # A skipped, paginated-away or mixed-attempt job never qualifies.
+            if jobs["total_count"] != len(jobs["jobs"]):
                 continue
             successful = {
-                j["name"] for j in jobs["jobs"] if j.get("conclusion") == "success"
+                j["name"] for j in jobs["jobs"]
+                if j.get("status") == "completed"
+                and j.get("conclusion") == "success"
+                and j.get("run_id") == run_id
+                and j.get("head_sha") == head
+                and j.get("run_attempt") == attempt
             }
             if required <= successful:
                 verified = True
                 break
         if not verified:
-            return False
+            return ci03_reject("checkpoint-required-jobs-unverified", name)
     return True
 
 
 def ci03_targeted(env):
     if not ci03_event(env):
-        return False
+        return ci03_reject("event-outside-pilot")
+    stage = "checkpoint-pin-unavailable"
     try:
         base, head = env["CI_BASE"], env["CI_HEAD"]
         checkpoint = ci03_pin(Path(CI03_PIN).read_text(encoding="utf-8"), base)
-        if checkpoint is None or checkpoint == head:
-            return False
+        if checkpoint is None:
+            return ci03_reject("checkpoint-pin-disabled-invalid-or-base-changed")
+        if checkpoint == head:
+            return ci03_reject("checkpoint-is-current-head")
+        stage = "checkpoint-base-ancestry-unverified"
         git("merge-base", "--is-ancestor", base, checkpoint)
+        stage = "checkpoint-head-ancestry-unverified"
         git("merge-base", "--is-ancestor", checkpoint, head)
+        stage = "checkpoint-history-unavailable"
         if git("rev-list", "--merges", f"{checkpoint}..{head}").strip():
-            return False
+            return ci03_reject("checkpoint-history-has-merge")
         paths = changed_paths(checkpoint, head, "push")
         if not ci03_paths(paths):
-            return False
+            return ci03_reject("checkpoint-diff-outside-allowlist-or-unavailable")
         messages = git("log", "--format=%B%x00", f"{checkpoint}..{head}").decode()
         if not ci03_intent([m for m in messages.split("\0") if m.strip()]):
-            return False
-        return full_checkpoint(checkpoint, base, env.get("CI03_TOKEN", ""))
+            return ci03_reject("checkpoint-commit-trailer-missing")
+        stage = "checkpoint-api-evidence-unavailable"
+        return full_checkpoint(checkpoint, base, env.get("CI03_TOKEN", ""), head)
     except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.CalledProcessError):
         # Unavailable evidence is never permission to skip checks.
-        return False
+        return ci03_reject(stage)
+
 
 def main():
     event = os.environ["CI_EVENT"]
     head = os.environ["CI_HEAD"]
     force = event == "workflow_dispatch" or os.environ.get("CI_REF", "").startswith("refs/tags/")
     paths = None if force else changed_paths(os.environ.get("CI_BASE", ""), head, event)
-    targeted = paths is not None and ci03_targeted(os.environ)
+    targeted = (ci03_reject("full-validation-forced-or-main-diff-unavailable")
+                if paths is None else ci03_targeted(os.environ))
     flags = classify(paths or [], force=force or paths is None)
     if targeted:
         flags = dict.fromkeys(FLAGS, False)

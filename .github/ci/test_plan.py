@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 import subprocess
 from plan import (classify, changed_paths, ci03_event, ci03_pin, ci03_paths,
-                  ci03_intent, checkpoint_pr, full_checkpoint, ci03_targeted,
+                  ci03_intent, checkpoint_pr, checkpoint_title, full_checkpoint, ci03_targeted,
                   FULL_DESKTOP, FULL_TAG, CI03_REPO_ID)
 
 class PlanTests(unittest.TestCase):
@@ -98,41 +98,83 @@ class PlanTests(unittest.TestCase):
         self.assertFalse(ci03_intent(["CI-03: importer-only\nCI-03: full"]))
         self.assertFalse(ci03_intent([]))
 
-    def test_ci03_full_checkpoint_requires_actual_successful_jobs(self):
+    def checkpoint_fixture(self):
+        head, base, current = "a" * 40, "b" * 40, "c" * 40
         names = ["Desktop CI", "Tag engine CI", "Engineering handoff snapshot"]
         paths = ["ci.yml", "tag-engine.yml", "handoff.yml"]
         branch = "feat/reuse-03b-legacy-import"
+        # The historical run retains its own head, while GitHub updates the
+        # associated PR head after the pin commit advances the branch.
         pr = dict(number=36,
-                  base=dict(ref="main", sha="b" * 40, repo=dict(id=CI03_REPO_ID)),
-                  head=dict(ref=branch, sha="a" * 40, repo=dict(id=CI03_REPO_ID)))
+                  base=dict(ref="main", sha=base, repo=dict(id=CI03_REPO_ID)),
+                  head=dict(ref=branch, sha=current, repo=dict(id=CI03_REPO_ID)))
         runs = [dict(id=i, name=n, path=".github/workflows/" + path,
-                     head_sha="a" * 40, head_branch=branch, pull_requests=[pr],
-                     event="pull_request", status="completed", conclusion="success")
+                     head_sha=head, head_branch=branch, pull_requests=[pr],
+                     display_title=checkpoint_title(head, base),
+                     run_attempt=1, event="pull_request",
+                     status="completed", conclusion="success")
                 for i, (n, path) in enumerate(zip(names, paths), 1)]
-        def jobs(required):
+        runs[2]["display_title"] = "Read-only handoff"
+        def jobs(required, run_id):
             return {"total_count": len(required), "jobs": [
-                {"name": name, "conclusion": "success"} for name in sorted(required)]}
-        complete = [{"workflow_runs": runs}, jobs(FULL_DESKTOP), jobs(FULL_TAG), jobs({"snapshot"})]
+                dict(name=name, conclusion="success", status="completed",
+                     head_sha=head, run_id=run_id, run_attempt=1)
+                for name in sorted(required)]}
+        complete = [{"workflow_runs": runs}, jobs(FULL_DESKTOP, 1),
+                    jobs(FULL_TAG, 2), jobs({"snapshot"}, 3)]
+        return head, base, current, runs, complete
+
+    def test_ci03_full_checkpoint_requires_actual_successful_jobs(self):
+        head, base, current, runs, complete = self.checkpoint_fixture()
         with patch("plan.ci03_api", side_effect=complete):
-            self.assertTrue(full_checkpoint("a" * 40, "b" * 40, "token"))
-        incomplete = jobs(FULL_DESKTOP)
+            self.assertTrue(full_checkpoint(head, base, "token", current))
+        incomplete = complete[1]
         incomplete["jobs"][0]["conclusion"] = "skipped"
-        with patch("plan.ci03_api", side_effect=[{"workflow_runs": runs}, incomplete]):
-            self.assertFalse(full_checkpoint("a" * 40, "b" * 40, "token"))
-        self.assertFalse(full_checkpoint("a" * 40, "b" * 40, ""))
-        self.assertFalse(checkpoint_pr(runs[0], "a" * 40, "c" * 40))
+        with patch("plan.ci03_api", side_effect=[complete[0], incomplete]):
+            self.assertFalse(full_checkpoint(head, base, "token", current))
+        self.assertFalse(full_checkpoint(head, base, "", current))
+        self.assertFalse(checkpoint_pr(runs[0], head, "d" * 40, current))
         self.assertFalse(checkpoint_pr(dict(runs[0], event="workflow_dispatch"),
-                                       "a" * 40, "b" * 40))
+                                       head, base, current))
         self.assertFalse(checkpoint_pr(dict(runs[0], pull_requests=[]),
-                                       "a" * 40, "b" * 40))
+                                       head, base, current))
+        self.assertFalse(checkpoint_pr(runs[0], head, base, "d" * 40))
         wrong = [dict(runs[0], path=".github/workflows/other.yml"), *runs[1:]]
         with patch("plan.ci03_api", return_value={"workflow_runs": wrong}):
-            self.assertFalse(full_checkpoint("a" * 40, "b" * 40, "token"))
-        incomplete_tag = jobs(FULL_TAG - {"Tag engine gate"})
-        with patch("plan.ci03_api", side_effect=[
-            {"workflow_runs": runs}, jobs(FULL_DESKTOP), incomplete_tag
-        ]):
-            self.assertFalse(full_checkpoint("a" * 40, "b" * 40, "token"))
+            self.assertFalse(full_checkpoint(head, base, "token", current))
+        head, base, current, _, complete = self.checkpoint_fixture()
+        tag = complete[2]
+        tag["jobs"] = [j for j in tag["jobs"] if j["name"] != "Tag engine gate"]
+        tag["total_count"] = len(tag["jobs"])
+        with patch("plan.ci03_api", side_effect=complete):
+            self.assertFalse(full_checkpoint(head, base, "token", current))
+
+    def test_ci03_historical_event_evidence_is_required(self):
+        for index in (0, 1):
+            for bad_title in ("", "PR title", checkpoint_title("a" * 40, "d" * 40),
+                              checkpoint_title("c" * 40, "b" * 40)):
+                head, base, current, runs, complete = self.checkpoint_fixture()
+                runs[index]["display_title"] = bad_title
+                with (
+                    patch("plan.ci03_api", side_effect=complete),
+                    patch("plan.ci03_reject", return_value=False) as reason,
+                ):
+                    self.assertFalse(full_checkpoint(head, base, "token", current))
+                    reason.assert_called_once_with("checkpoint-event-head-base-mismatch",
+                                                   runs[index]["name"])
+
+    def test_ci03_job_evidence_is_bound_to_attempt_and_head(self):
+        for field, wrong in (("run_id", 9), ("run_attempt", 2),
+                             ("head_sha", "c" * 40), ("status", "in_progress")):
+            head, base, current, _, complete = self.checkpoint_fixture()
+            complete[1]["jobs"][0][field] = wrong
+            with (
+                patch("plan.ci03_api", side_effect=complete),
+                patch("plan.ci03_reject", return_value=False) as reason,
+            ):
+                self.assertFalse(full_checkpoint(head, base, "token", current))
+                reason.assert_called_once_with("checkpoint-required-jobs-unverified",
+                                               "Desktop CI")
 
     def test_ci03_full_fallback_on_missing_evidence(self):
         env = self.ci03_env()

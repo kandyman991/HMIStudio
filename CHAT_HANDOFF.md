@@ -455,4 +455,16 @@ Verified exact head `9448aba5cc3f7180a074109216ae943578211845` passed all 21/21 
 
 Activated `docs/CI03_CHECKPOINT.md` with `9448aba5cc3f7180a074109216ae943578211845 b9ae1d5ac102effbcf6f0e2f1cdd8d66fb7facb8` for this allowlisted routine importer-only slice (`CI-03: importer-only`). Completed the reconciled REUSE-03B semantic coverage and explicit refusal matrix in `docs/LEGACY_IMPORT.md`, made nested composite parameter forwarding always emit `reusable-binding-type-not-mapped` (refused inputs only; admitted outputs and historical `0.1.0`–`0.1.5` replay unchanged), and added four explicit negative regression groups covering all remaining unsupported B.5 contracts (85/85 local importer tests, 90/90 local `engineering-core` tests including 26 quarantine/replay tests, 104/104 local `project-model` tests, frozen schema v2 SHA-256 unchanged). Next: verify targeted CI (`ci03_targeted=true`) on this head, then disable the CI-03 pin, reconcile structured roadmap/dashboard/handoff, and run final full 21/21 exact-head CI at the REUSE-03B milestone review boundary.
 
+## REUSE-03B milestone review boundary reconciliation (2026-11-27)
+
+Verified CI-03 targeted pilot demonstration on exact head `f5c021be3032518a4c47ae0c3a8c16a61e381226`:
+- [Desktop CI](https://github.com/kandyman991/HMIStudio/actions/runs/46043011080): `changes` (`ci03_targeted=true`, 32/32 routing/roadmap tests), `crates (ubuntu-24.04, crates/legacy-import)` (85/85 tests — 69 portable, 11 package, 5 revision — plus fmt, strict Clippy, rustdoc, Cargo.lock diff), and `Required CI` (`CI-03 targeted draft checks only; not full milestone validation.`); `frontend`, `desktop`, Windows crates, other crates and advisory gate skipped without equating skipped jobs with passes.
+- [Tag engine CI](https://github.com/kandyman991/HMIStudio/actions/runs/46043011201): `Tag engine routing` (`ci03_targeted=true`) and `Tag engine gate` (`true:skipped:skipped`); `check` and `audit` skipped.
+- [Engineering handoff snapshot](https://github.com/kandyman991/HMIStudio/actions/runs/46043011026): `snapshot` succeeded.
+
+Reset `docs/CI03_CHECKPOINT.md` to `disabled`, reconciled `roadmap/milestones/REUSE-03.json`, regenerated `docs/MILESTONE_PLAN.md` and `roadmap/dashboard.html`, and verified with `node roadmap/generate.mjs --check --verify-migration` and all 32 CI/roadmap regression tests. Preserved frozen canonical schema v2 (`b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738`), historical evidence replay (`0.1.0`–`0.1.5`, envelope v2/v3/v4), production quarantine, write-safety controls, retained RUST-05 reservation, draft PR #36 status and draft installer deferral.
+
+**Next exact action:** Verify final full 21/21 exact-head CI on this reconciliation head, then perform the comprehensive independent technical review of REUSE-03B on draft PR #36 before any ready-for-review transition, merge or milestone acceptance. Do not generate installers, merge PR #36 or authorize production deployment here.
+
+
 

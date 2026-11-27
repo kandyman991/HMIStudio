@@ -2,6 +2,7 @@
 //! No filesystem extraction, installation, signature trust, or runtime admission.
 use crate::{revision, MAX_INPUT_BYTES};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use flate2::{Decompress, FlushDecompress, Status};
 use serde::{de, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -377,6 +378,23 @@ fn unpack(bytes: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, PackageError> {
             .map_err(|_| PackageError::InvalidContents)?;
         if decoded.len() != expected {
             return Err(PackageError::InvalidContents);
+        }
+        // The ZIP reader's EOF/CRC check does not establish that the raw
+        // DEFLATE stream consumed every byte of its declared compressed region.
+        if file.compression() == CompressionMethod::Deflated {
+            let input = &bytes[data..data + compressed];
+            let mut exact = vec![0; expected + 1];
+            let mut decoder = Decompress::new(false);
+            let status = decoder
+                .decompress(input, &mut exact, FlushDecompress::Finish)
+                .map_err(|_| PackageError::InvalidContents)?;
+            if status != Status::StreamEnd
+                || decoder.total_in() != compressed as u64
+                || decoder.total_out() != expected as u64
+                || exact[..expected] != decoded
+            {
+                return Err(PackageError::InvalidContents);
+            }
         }
         if entries.insert(name, decoded).is_some() {
             return Err(PackageError::UnexpectedEntry);

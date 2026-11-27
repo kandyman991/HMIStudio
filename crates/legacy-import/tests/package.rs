@@ -351,3 +351,40 @@ fn signed_envelope_changes_and_descriptor_tampering_are_refused() {
     broken[descriptor + 4] ^= 1;
     assert!(decode_runtime_package(&broken).is_err());
 }
+
+#[test]
+fn deflate_stream_must_consume_the_entire_declared_payload() {
+    let text = serde_json::to_vec(&manifest(PROJECT, SETTINGS)).unwrap();
+    let valid = archive(
+        &[
+            ("manifest.json", &text),
+            ("project.json", PROJECT),
+            ("runtime.json", SETTINGS),
+        ],
+        CompressionMethod::Deflated,
+    );
+    assert!(decode_runtime_package(&valid).is_ok());
+    let central = u32_at(&valid, valid.len() - 22 + 16);
+    let last = central_headers(&valid)[2];
+    let local = u32_at(&valid, last + 42);
+    let compressed = u32_at(&valid, last + 20);
+    assert_eq!(u16_at(&valid, local + 6) & 8, 0);
+    for append in [true, false] {
+        let mut bad = valid.clone();
+        let delta = if append {
+            bad.insert(central, 0x42);
+            1isize
+        } else {
+            bad.remove(central - 1);
+            -1isize
+        };
+        let updated = (compressed as isize + delta) as u32;
+        let shifted = (last as isize + delta) as usize;
+        let eocd = bad.len() - 22;
+        bad[local + 18..local + 22].copy_from_slice(&updated.to_le_bytes());
+        bad[shifted + 20..shifted + 24].copy_from_slice(&updated.to_le_bytes());
+        bad[eocd + 16..eocd + 20]
+            .copy_from_slice(&((central as isize + delta) as u32).to_le_bytes());
+        assert!(decode_runtime_package(&bad).is_err(), "append={append}");
+    }
+}

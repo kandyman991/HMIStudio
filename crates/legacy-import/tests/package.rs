@@ -483,3 +483,34 @@ fn live_package_requires_a_source_and_variable_reference() {
         }
     }
 }
+
+#[test]
+fn legacy_component_slot_alignment_requires_schema_three() {
+    let baseline: Value = serde_json::from_slice(PROJECT).unwrap();
+    for (field, value) in [
+        ("maxHeightDp", json!(100)),
+        ("alignH", json!("CENTER")),
+        ("alignV", json!("MIDDLE")),
+    ] {
+        let mut source = baseline.clone();
+        source["schemaVersion"] = json!(3);
+        source["screens"]["main"]["layout"] = json!({
+            "root": {
+                "node": "stack",
+                "direction": "ROW",
+                "children": [{"node":"component","componentId":"c"}]
+            }
+        });
+        source["screens"]["main"]["layout"]["root"]["children"][0][field] = value;
+        let bytes = serde_json::to_vec(&source).unwrap();
+        let mut m = manifest(&bytes, SETTINGS);
+        m["schemaVersion"] = json!(2);
+        assert_eq!(
+            decode_runtime_package(&package(&m, &bytes, SETTINGS)).err(),
+            Some(PackageError::InvalidProject),
+            "{field}"
+        );
+        m["schemaVersion"] = json!(3);
+        assert!(decode_runtime_package(&package(&m, &bytes, SETTINGS)).is_ok());
+    }
+}

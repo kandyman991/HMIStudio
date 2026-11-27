@@ -525,7 +525,7 @@ fn component_v10(v: &Value) -> bool {
 
 fn layout_v3(v: &Value) -> bool {
     match v["node"].as_str() {
-        Some("slot") => ["maxHeightDp", "alignH", "alignV"]
+        Some("component") => ["maxHeightDp", "alignH", "alignV"]
             .iter()
             .any(|k| !v[*k].is_null()),
         Some("stack") => {

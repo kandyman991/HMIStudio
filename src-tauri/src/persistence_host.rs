@@ -749,11 +749,7 @@ impl Host {
     }
 
     /// Shared file-source admission for portable JSON and runtime packages.
-    fn check_import_file_paths(
-        &self,
-        source: &Path,
-        target: &Path,
-    ) -> Result<(PathBuf, PathBuf)> {
+    fn check_import_file_paths(&self, source: &Path, target: &Path) -> Result<(PathBuf, PathBuf)> {
         self.preflight()?;
         if !safe_file(source)? {
             return Err("Legacy source does not exist".into());

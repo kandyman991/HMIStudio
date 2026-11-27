@@ -414,7 +414,11 @@ fn package_schema_is_the_feature_floor_not_the_declared_version() {
         (6, "/componentDefinitions", json!({"d":{"kind":"SYMBOL"}})),
         (7, "/theme", json!({})),
         (8, "/security", json!({})),
-        (9, "/externalSources", json!({"s":{"commissioningAllowed":true}})),
+        (
+            9,
+            "/externalSources",
+            json!({"s":{"commissioningAllowed":true}}),
+        ),
         (10, "/enumerations", json!({"e":{}})),
         (
             10,
@@ -451,7 +455,9 @@ fn package_schema_is_the_feature_floor_not_the_declared_version() {
     let mut source = baseline;
     source["schemaVersion"] = json!(10);
     let bytes = serde_json::to_vec(&source).unwrap();
-    assert!(decode_runtime_package(&package(&manifest(&bytes, SETTINGS), &bytes, SETTINGS)).is_ok());
+    assert!(
+        decode_runtime_package(&package(&manifest(&bytes, SETTINGS), &bytes, SETTINGS)).is_ok()
+    );
 }
 
 #[test]

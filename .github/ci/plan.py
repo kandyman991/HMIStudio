@@ -80,7 +80,10 @@ FULL_OS = ("ubuntu-24.04", "windows-latest")
 FULL_DESKTOP = {"changes", "frontend", "Required CI"} | {
     f"crates ({os_name}, crates/{crate})" for os_name in FULL_OS for crate in FULL_CRATES
 } | {"desktop (ubuntu-24.04, deb)", "desktop (windows-latest, msi)"}
-FULL_TAG = {"audit"} | {f"check ({os_name})" for os_name in FULL_OS}
+FULL_TAG = {"Tag engine routing", "Tag engine gate", "audit"} | {
+    f"check ({os_name})" for os_name in FULL_OS
+}
+CI03_REPO_ID = 1469988677
 
 
 def ci03_event(env):
@@ -130,23 +133,38 @@ def ci03_api(path, token):
     return json.loads(raw)
 
 
-def full_checkpoint(head, token):
+def checkpoint_pr(run, head, base):
+    # Manual runs have no PR base association and cannot establish this pilot pin.
+    return run.get("event") == "pull_request" and any(
+        p.get("number") == 36
+        and p.get("base", {}).get("ref") == "main"
+        and p.get("base", {}).get("sha") == base
+        and p.get("base", {}).get("repo", {}).get("id") == CI03_REPO_ID
+        and p.get("head", {}).get("ref") == CI03_BRANCH
+        and p.get("head", {}).get("sha") == head
+        and p.get("head", {}).get("repo", {}).get("id") == CI03_REPO_ID
+        for p in (run.get("pull_requests") or [])
+    )
+
+
+def full_checkpoint(head, base, token):
     if not token:
         return False
     expected = {
-        "Desktop CI": FULL_DESKTOP,
-        "Tag engine CI": FULL_TAG,
-        "Engineering handoff snapshot": {"snapshot"},
+        "Desktop CI": (".github/workflows/ci.yml", FULL_DESKTOP),
+        "Tag engine CI": (".github/workflows/tag-engine.yml", FULL_TAG),
+        "Engineering handoff snapshot": (".github/workflows/handoff.yml", {"snapshot"}),
     }
     query = urlencode({"head_sha": head, "status": "success", "per_page": 50})
     runs = ci03_api("/actions/runs?" + query, token)["workflow_runs"]
-    for name, required in expected.items():
+    for name, (workflow_path, required) in expected.items():
         candidates = [
             run for run in runs
             if run.get("name") == name
             and run.get("head_sha") == head
             and run.get("head_branch") == CI03_BRANCH
-            and run.get("event") in ("pull_request", "workflow_dispatch")
+            and run.get("path") == workflow_path
+            and checkpoint_pr(run, head, base)
             and run.get("status") == "completed"
             and run.get("conclusion") == "success"
         ]
@@ -178,6 +196,7 @@ def ci03_targeted(env):
         checkpoint = ci03_pin(Path(CI03_PIN).read_text(encoding="utf-8"), base)
         if checkpoint is None or checkpoint == head:
             return False
+        git("merge-base", "--is-ancestor", base, checkpoint)
         git("merge-base", "--is-ancestor", checkpoint, head)
         if git("rev-list", "--merges", f"{checkpoint}..{head}").strip():
             return False
@@ -187,8 +206,8 @@ def ci03_targeted(env):
         messages = git("log", "--format=%B%x00", f"{checkpoint}..{head}").decode()
         if not ci03_intent([m for m in messages.split("\0") if m.strip()]):
             return False
-        return full_checkpoint(checkpoint, env.get("CI03_TOKEN", ""))
-    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError):
+        return full_checkpoint(checkpoint, base, env.get("CI03_TOKEN", ""))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.CalledProcessError):
         # Unavailable evidence is never permission to skip checks.
         return False
 
@@ -197,7 +216,7 @@ def main():
     head = os.environ["CI_HEAD"]
     force = event == "workflow_dispatch" or os.environ.get("CI_REF", "").startswith("refs/tags/")
     paths = None if force else changed_paths(os.environ.get("CI_BASE", ""), head, event)
-    targeted = ci03_targeted(os.environ)
+    targeted = paths is not None and ci03_targeted(os.environ)
     flags = classify(paths or [], force=force or paths is None)
     if targeted:
         flags = dict.fromkeys(FLAGS, False)

@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch
 import subprocess
 from plan import (classify, changed_paths, ci03_event, ci03_pin, ci03_paths,
-                  ci03_intent, full_checkpoint, ci03_targeted, FULL_DESKTOP, FULL_TAG)
+                  ci03_intent, checkpoint_pr, full_checkpoint, ci03_targeted,
+                  FULL_DESKTOP, FULL_TAG, CI03_REPO_ID)
 
 class PlanTests(unittest.TestCase):
     def assert_flags(self, paths, expected, force=False):
@@ -99,21 +100,39 @@ class PlanTests(unittest.TestCase):
 
     def test_ci03_full_checkpoint_requires_actual_successful_jobs(self):
         names = ["Desktop CI", "Tag engine CI", "Engineering handoff snapshot"]
-        runs = [dict(id=i, name=n, head_sha="a" * 40,
-                     head_branch="feat/reuse-03b-legacy-import",
+        paths = ["ci.yml", "tag-engine.yml", "handoff.yml"]
+        branch = "feat/reuse-03b-legacy-import"
+        pr = dict(number=36,
+                  base=dict(ref="main", sha="b" * 40, repo=dict(id=CI03_REPO_ID)),
+                  head=dict(ref=branch, sha="a" * 40, repo=dict(id=CI03_REPO_ID)))
+        runs = [dict(id=i, name=n, path=".github/workflows/" + path,
+                     head_sha="a" * 40, head_branch=branch, pull_requests=[pr],
                      event="pull_request", status="completed", conclusion="success")
-                for i, n in enumerate(names, 1)]
+                for i, (n, path) in enumerate(zip(names, paths), 1)]
         def jobs(required):
             return {"total_count": len(required), "jobs": [
                 {"name": name, "conclusion": "success"} for name in sorted(required)]}
         complete = [{"workflow_runs": runs}, jobs(FULL_DESKTOP), jobs(FULL_TAG), jobs({"snapshot"})]
         with patch("plan.ci03_api", side_effect=complete):
-            self.assertTrue(full_checkpoint("a" * 40, "token"))
+            self.assertTrue(full_checkpoint("a" * 40, "b" * 40, "token"))
         incomplete = jobs(FULL_DESKTOP)
         incomplete["jobs"][0]["conclusion"] = "skipped"
         with patch("plan.ci03_api", side_effect=[{"workflow_runs": runs}, incomplete]):
-            self.assertFalse(full_checkpoint("a" * 40, "token"))
-        self.assertFalse(full_checkpoint("a" * 40, ""))
+            self.assertFalse(full_checkpoint("a" * 40, "b" * 40, "token"))
+        self.assertFalse(full_checkpoint("a" * 40, "b" * 40, ""))
+        self.assertFalse(checkpoint_pr(runs[0], "a" * 40, "c" * 40))
+        self.assertFalse(checkpoint_pr(dict(runs[0], event="workflow_dispatch"),
+                                       "a" * 40, "b" * 40))
+        self.assertFalse(checkpoint_pr(dict(runs[0], pull_requests=[]),
+                                       "a" * 40, "b" * 40))
+        wrong = [dict(runs[0], path=".github/workflows/other.yml"), *runs[1:]]
+        with patch("plan.ci03_api", return_value={"workflow_runs": wrong}):
+            self.assertFalse(full_checkpoint("a" * 40, "b" * 40, "token"))
+        incomplete_tag = jobs(FULL_TAG - {"Tag engine gate"})
+        with patch("plan.ci03_api", side_effect=[
+            {"workflow_runs": runs}, jobs(FULL_DESKTOP), incomplete_tag
+        ]):
+            self.assertFalse(full_checkpoint("a" * 40, "b" * 40, "token"))
 
     def test_ci03_full_fallback_on_missing_evidence(self):
         env = self.ci03_env()
@@ -124,12 +143,12 @@ class PlanTests(unittest.TestCase):
                 patch("plan.git", side_effect=subprocess.CalledProcessError(1, "git")):
             self.assertFalse(ci03_targeted(env))
         with patch("plan.Path.read_text", return_value=pin), \
-                patch("plan.git", side_effect=[b"", b"", b"routine\nCI-03: importer-only\0"]), \
+                patch("plan.git", side_effect=[b"", b"", b"", b"routine\nCI-03: importer-only\0"]), \
                 patch("plan.changed_paths", return_value=["crates/legacy-import/src/graphics.rs"]), \
                 patch("plan.full_checkpoint", side_effect=OSError("unavailable")):
             self.assertFalse(ci03_targeted(env))
         with patch("plan.Path.read_text", return_value=pin), \
-                patch("plan.git", side_effect=[b"", b"", b"routine\nCI-03: importer-only\0"]), \
+                patch("plan.git", side_effect=[b"", b"", b"", b"routine\nCI-03: importer-only\0"]), \
                 patch("plan.changed_paths", return_value=["crates/legacy-import/src/graphics.rs"]), \
                 patch("plan.full_checkpoint", return_value=True):
             self.assertTrue(ci03_targeted(env))

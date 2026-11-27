@@ -2,7 +2,8 @@
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
     legacy_quarantine::{
-        requires_review, review_recovery_identity, review_recovery_path, revision_transport,
+        package_transport, requires_review, review_recovery_identity, review_recovery_path,
+        revision_transport,
         QuarantinedImport, RevisionSource, MAX_LEGACY_SOURCE_BYTES,
     },
     persistence::sidecar_dir,
@@ -853,6 +854,72 @@ impl Host {
         Ok(())
     }
 
+    /// Native-only package selection preflight, repeated before admission.
+    pub fn check_package_import_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        self.preflight()?;
+        self.check_import_source(source)?;
+        let source = source.canonicalize().map_err(err)?;
+        if !safe_file(&source)?
+            || !source.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("hmipkg"))
+        {
+            return Err("Select an existing .hmipkg runtime package".into());
+        }
+        let untitled = self.untitled.canonicalize().map_err(err)?;
+        let overlaps_active = self.path().is_some_and(|path| {
+            path.canonicalize().is_ok_and(|p| {
+                source == p || source.starts_with(sidecar_dir(&p))
+            }) || sidecar_dir(path)
+                .canonicalize()
+                .is_ok_and(|p| source.starts_with(p))
+        });
+        if overlaps_active || source.starts_with(untitled) {
+            return Err("Selected package overlaps active workspace storage".into());
+        }
+        let target = normalize_review(target)?;
+        if source == target
+            || source.starts_with(sidecar_dir(&target))
+            || sidecar_dir(&target)
+                .canonicalize()
+                .is_ok_and(|p| source.starts_with(p))
+            || safe_regular_file(&target, true)?
+        {
+            return Err("Choose a new review bundle outside the selected package storage".into());
+        }
+        Ok((source, target))
+    }
+
+    pub fn import_package_review(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+    ) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        let (source, target) = self.check_package_import_paths(source, target)?;
+        let bytes = read_revision_record(&source, package_transport::MAX_PACKAGE_BYTES)?;
+        package_transport::decode_runtime_package(&bytes).map_err(err)?;
+        if bytes != read_revision_record(&source, package_transport::MAX_PACKAGE_BYTES)? {
+            return Err("Legacy runtime package changed during import; retry".into());
+        }
+        let guard = lock_dir(&sidecar_dir(&target))?;
+        if safe_file(&review_recovery_path(&target))? {
+            return Err("Target has review recovery data; choose a different filename".into());
+        }
+        let candidate = QuarantinedImport::import_package(
+            &bytes,
+            &target,
+            config(&self.untitled),
+            Arc::new(GuardedFileSystem),
+        )
+        .map_err(err)?;
+        self.activate_review(candidate, guard);
+        Ok(())
+    }
+
     #[cfg(test)]
     pub fn open_review(&mut self, path: &Path, discard: bool) -> Result<()> {
         self.open_review_with(path, discard, |pending| {
@@ -1017,6 +1084,9 @@ fn review_message(review: &QuarantinedImport) -> String {
     };
     if review.has_revision_source() {
         message.push_str(". Selected legacy revision evidence retained locally");
+    }
+    if review.has_package_source() {
+        message.push_str(". Exact legacy runtime package evidence retained locally");
     }
     if !review.warnings().is_empty() {
         message.push_str(". ");
@@ -1607,6 +1677,83 @@ mod tests {
             assert_eq!(fs::read(path).unwrap(), bytes);
         }
         assert!(!root.join("LOCK").exists());
+    }
+
+    #[test]
+    fn native_package_import_recovery_save_copy_and_source_immutability() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-signed-java.synthetic");
+        fs::write(&source, archive).unwrap();
+        let app = t.0.join("app");
+        let path = t.0.join("review.hmi-review");
+        let copy = t.0.join("copy.hmi-review");
+        let mut host = Host::new(&app).unwrap();
+        host.import_package_review(&source, &path, false).unwrap();
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        assert!(host.persistence_message().contains("package evidence"));
+        assert!(host.save_as(&source).is_err());
+        let before = host.snapshot();
+        host.request(
+            crate::session_host::WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Package crash edit".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        drop(host);
+        let mut host = Host::new(&app).unwrap();
+        host.open_review_with(&path, false, |pending| {
+            assert!(pending);
+            Ok(Some(true))
+        })
+        .unwrap();
+        assert!(host.is_dirty());
+        assert_eq!(host.snapshot().project.screens[0].name, "Package crash edit");
+        assert!(host.production_candidate().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(host.persistence_message().contains("package evidence"));
+        assert!(!review_recovery_path(&path).exists());
+        assert_eq!(fs::read(&source).unwrap(), archive);
+    }
+
+    #[test]
+    fn native_package_import_refuses_invalid_or_overlapping_source() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let target = t.0.join("review.hmi-review");
+        let app = t.0.join("app");
+        let mut host = Host::new(&app).unwrap();
+        edit(&mut host, "Active edit");
+        host.autosave();
+        let before = host.snapshot();
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        fs::write(&source, b"not a package").unwrap();
+        assert!(host.import_package_review(&source, &target, true).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(recovery).unwrap(), recovery_bytes);
+        let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic");
+        let overlap = app.join("source.hmipkg");
+        fs::write(&overlap, archive).unwrap();
+        assert!(host.import_package_review(&overlap, &target, true).is_err());
+        assert_eq!(fs::read(&overlap).unwrap(), archive);
+        let sidecar = sidecar_dir(&target);
+        fs::create_dir_all(&sidecar).unwrap();
+        let overlap = sidecar.join("source.hmipkg");
+        fs::write(&overlap, archive).unwrap();
+        assert!(host.import_package_review(&overlap, &target, true).is_err());
+        assert_eq!(fs::read(&overlap).unwrap(), archive);
+        assert!(!target.exists());
+        assert_eq!(host.snapshot(), before);
     }
 
     #[test]

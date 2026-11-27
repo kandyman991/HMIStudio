@@ -31,7 +31,7 @@ type Command =
   | { op: "setProperty"; node: string; name: string; value: string };
 type Request = { request: "snapshot" | "validate" } | { request: "undo" | "redo"; expectedRevision: number } | { request: "execute"; transaction: { commands: Command[]; expectedRevision: number; label: string } };
 type Reply = { generation: number; response: { response: string; error?: { message: string }; outcome?: { allocatedIds: Record<string,string> } }; snapshot: Snapshot };
-type ProjectAction = "open" | "importLegacy" | "importLegacyRevision" | "openReview" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
+type ProjectAction = "open" | "importLegacy" | "importLegacyRevision" | "importLegacyPackage" | "openReview" | "save" | "saveAs" | "recover" | "resolveUntitled" | "exit" | "newProject";
 type ProjectReply = { snapshot: Snapshot; generation: number; replaced: boolean; message: string; persistence: PersistenceStatus };
 type PersistenceStatus = { generation: number; pendingUntitled: boolean; autosaveMessage: string; reviewRequired: boolean };
 type SimulationPoint = { id:string; name:string; value:string|null; writable:boolean; momentary:boolean };
@@ -493,6 +493,7 @@ function Studio(){
     "Open project":{run:()=>void projectAction("open"),enabled:ready,shortcut:"Mod+O"},
     "Import legacy project (review)":{run:()=>void projectAction("importLegacy"),enabled:ready},
     "Import legacy revision (review)":{run:()=>void projectAction("importLegacyRevision"),enabled:ready},
+    "Import legacy runtime package (review)":{run:()=>void projectAction("importLegacyPackage"),enabled:ready},
     "Open review bundle":{run:()=>void projectAction("openReview"),enabled:ready},
     "Save project":{run:()=>void projectAction("save"),enabled:ready,shortcut:"Mod+S"},
     "Save project as":{run:()=>void projectAction("saveAs"),enabled:ready,shortcut:"Mod+Shift+S"},

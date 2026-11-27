@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 has verified native revision import and a candidate bounded, read-only runtime ZIP package decoder.",
+  "summary": "Draft PR #36 has validated bounded runtime ZIP decoding and a candidate guarded native runtime package admission with persisted evidence replay.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify exact-head hosted CI, importer/core dependency advisory gate and independent ZIP decoder review. Package-specific semantic validation, native ZIP admission/persisted package provenance, remaining legacy migration semantics and actual production publisher/live admission consumers remain open."
+    "Verify native package admission candidate exact-head hosted CI, independent consent/source integrity/quarantine/recovery/save-copy review; remaining legacy migration semantics and actual production publisher/live admission consumers remain open."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
+      "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 45909126289,
+          "id": 46012725497,
           "name": "Desktop CI",
-          "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
+          "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45909126398,
+          "id": 46012725537,
           "name": "Tag engine CI",
-          "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
+          "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 45909126285,
+          "id": 46012725495,
           "name": "Engineering handoff snapshot",
-          "head": "12ee69f0a698b3c8ad6f46d390564c55d306f895",
+          "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-26T23:24:16Z"
+      "observedAt": "2026-11-27T14:33:46Z"
     }
   ],
   "assignment": {
@@ -289,6 +289,12 @@
       "date": "2026-11-26",
       "type": "handoff",
       "summary": "Verified exact-head 12ee69f, including Windows/Linux native revision regressions and real-child tests; closed REUSE-03B.13B review. Candidate bounded runtime ZIP transport decoder handles format 1/2, structural signature status only, and original synthetic Java fixtures. Local 66 importer and 87 core tests, strict importer Clippy/rustdoc and three locked dependency resolutions passed. New dependency advisory gate, exact-head CI and independent decoder review remain required before native ZIP admission.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-27",
+      "type": "handoff",
+      "summary": "Exact head 79860c8 passed all 19 hosted jobs and 70 importer tests per platform. Actual original Kotlin writer differential passed 10/10 packages on pinned 92a612d; scoped REUSE-03B.13C transport review closed. Candidate REUSE-03B.13D adds consent-gated native package import and v4 exact archive replay through quarantine, recovery and Save Copy. Existing claim retained; candidate validation and independent review pending.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

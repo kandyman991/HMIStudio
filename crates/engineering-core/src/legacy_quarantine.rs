@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-pub use hmi_legacy_import::revision as revision_transport;
+pub use hmi_legacy_import::{package as package_transport, revision as revision_transport};
 use hmi_legacy_import::{import_portable, replay_portable};
 use hmi_project_model::model::Project;
 use hmi_project_model::serialization::{load_project, save_project};
@@ -86,6 +86,8 @@ struct Payload {
     // Omit on v2 portable bundles to preserve historical checksum bytes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     revision_source: Option<RevisionSource>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    package_source: Option<PackageSource>,
 }
 
 /// Exact private local evidence for the selected revision, not executable
@@ -132,6 +134,28 @@ impl RevisionSource {
             revision_transport::decode_current_revision(&selection, self.revision.as_bytes())
                 .map_err(|_| ImportError::InvalidBundle)?;
         Ok(revision.project_bytes())
+    }
+}
+
+/// Private source archive, retained without extraction or publisher trust.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PackageSource {
+    decoder_version: u32,
+    archive: Vec<u8>,
+    archive_sha256: String,
+}
+
+impl PackageSource {
+    fn decode(&self) -> Result<package_transport::DecodedRuntimePackage, ImportError> {
+        if self.decoder_version != 1
+            || self.archive.len() > package_transport::MAX_PACKAGE_BYTES
+            || digest(&self.archive) != self.archive_sha256
+        {
+            return Err(ImportError::InvalidBundle);
+        }
+        package_transport::decode_runtime_package(&self.archive)
+            .map_err(|_| ImportError::InvalidBundle)
     }
 }
 
@@ -269,6 +293,15 @@ fn verify_report(report: &Value, original: &Project) -> Result<(), ImportError> 
 }
 
 fn verify_payload(payload: &Payload) -> Result<Project, ImportError> {
+    if payload.package_source.is_some() && payload.revision_source.is_some() {
+        return Err(ImportError::InvalidBundle);
+    }
+    if let Some(package) = &payload.package_source {
+        let decoded = package.decode()?;
+        if decoded.project_bytes() != payload.source.as_bytes() {
+            return Err(ImportError::InvalidBundle);
+        }
+    }
     if let Some(revision) = &payload.revision_source {
         if revision.project_bytes()? != payload.source.as_bytes() {
             return Err(ImportError::InvalidBundle);
@@ -331,7 +364,7 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
-        Self::import_with_source(source, None, target, config, fs)
+        Self::import_with_source(source, None, None, target, config, fs)
     }
 
     /// Admit a verified revision snapshot through the same quarantine gate.
@@ -343,12 +376,32 @@ impl QuarantinedImport {
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
         let project_bytes = source.project_bytes()?.to_vec();
-        Self::import_with_source(&project_bytes, Some(source), target, config, fs)
+        Self::import_with_source(&project_bytes, Some(source), None, target, config, fs)
+    }
+
+    /// Admit a legacy runtime archive only through complete portable mapping
+    /// and review quarantine. Its settings and signature grant no authority.
+    /// The native caller must obtain consent to retain the exact archive.
+    pub fn import_package(
+        archive: &[u8],
+        target: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<Self, ImportError> {
+        let decoded =
+            package_transport::decode_runtime_package(archive).map_err(|_| ImportError::Refused)?;
+        let evidence = PackageSource {
+            decoder_version: 1,
+            archive: archive.to_vec(),
+            archive_sha256: decoded.archive_sha256().to_owned(),
+        };
+        Self::import_with_source(decoded.project_bytes(), None, Some(evidence), target, config, fs)
     }
 
     fn import_with_source(
         source: &[u8],
         revision_source: Option<RevisionSource>,
+        package_source: Option<PackageSource>,
         target: &Path,
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
@@ -368,6 +421,7 @@ impl QuarantinedImport {
             report: serde_json::to_value(outcome.report).map_err(|_| ImportError::InvalidBundle)?,
             resources: outcome.resource_bytes,
             revision_source,
+            package_source,
         };
         let project = verify_payload(&payload)?;
         let (warnings, base_sha256) = write_new(&payload, target, fs.as_ref())?;
@@ -655,6 +709,11 @@ impl QuarantinedImport {
         self.payload.revision_source.is_some()
     }
 
+    /// Whether this review retains an exact legacy runtime archive.
+    pub fn has_package_source(&self) -> bool {
+        self.payload.package_source.is_some()
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -701,7 +760,9 @@ impl QuarantinedImport {
 }
 
 fn payload_version(payload: &Payload) -> u32 {
-    if payload.revision_source.is_some() {
+    if payload.package_source.is_some() {
+        4
+    } else if payload.revision_source.is_some() {
         3
     } else {
         2

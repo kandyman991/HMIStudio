@@ -910,3 +910,114 @@ fn revision_review_rejects_recomputed_outer_checksum_and_wrong_container_version
     std::fs::write(&path, serde_json::to_vec(&foreign).unwrap()).unwrap();
     assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
 }
+
+#[test]
+fn package_review_replays_exact_archive_on_recovery_and_copy() {
+    let dir = TempDir::new("package-review");
+    let path = dir.join("review.bundle");
+    let copy = dir.join("copy.bundle");
+    let archive = include_bytes!("../../legacy-import/tests/fixtures/runtime-signed-java.synthetic");
+    let mut review =
+        QuarantinedImport::import_package(archive, &path, SessionConfig::default(), std_fs())
+            .unwrap();
+    assert!(review.has_package_source());
+    assert!(!review.has_revision_source());
+    assert!(requires_review(&review.snapshot().project));
+    let before: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(before["version"], 4);
+    let evidence = &before["payload"]["packageSource"];
+    assert_eq!(evidence["decoderVersion"], 1);
+    assert_eq!(evidence["archive"], json!(archive.as_slice()));
+    assert!(!serde_json::to_string(review.report()).unwrap().contains("packageSource"));
+    rename_review(&mut review, "Package edit");
+    review.autosave().unwrap();
+    drop(review);
+    let mut restored =
+        QuarantinedImport::recover(&path, SessionConfig::default(), std_fs()).unwrap();
+    assert!(restored.has_package_source());
+    assert!(restored.is_dirty());
+    assert_eq!(restored.snapshot().project.screens[0].name, "Package edit");
+    restored.save_copy(&copy).unwrap();
+    let after: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&copy).unwrap()).unwrap();
+    assert_eq!(after["version"], 4);
+    assert_eq!(after["payload"]["packageSource"], *evidence);
+    assert!(QuarantinedImport::reopen(&copy, SessionConfig::default(), std_fs())
+        .unwrap()
+        .has_package_source());
+    assert!(!review_recovery_path(&path).exists());
+}
+
+#[test]
+fn package_review_rejects_resealed_invalid_archive_and_foreign_project() {
+    use sha2::{Digest, Sha256};
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Evidence<'a> {
+        decoder_version: &'a serde_json::Value,
+        archive: &'a serde_json::Value,
+        archive_sha256: &'a serde_json::Value,
+    }
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Checksum<'a> {
+        source: &'a serde_json::Value,
+        original_project: &'a serde_json::Value,
+        project: &'a serde_json::Value,
+        report: &'a serde_json::Value,
+        resources: &'a serde_json::Value,
+        package_source: Evidence<'a>,
+    }
+    fn seal(value: &mut serde_json::Value) {
+        let p = &value["payload"];
+        let e = &p["packageSource"];
+        let bytes = serde_json::to_vec(&Checksum {
+            source: &p["source"],
+            original_project: &p["originalProject"],
+            project: &p["project"],
+            report: &p["report"],
+            resources: &p["resources"],
+            package_source: Evidence {
+                decoder_version: &e["decoderVersion"],
+                archive: &e["archive"],
+                archive_sha256: &e["archiveSha256"],
+            },
+        })
+        .unwrap();
+        value["sha256"] = json!(format!("{:x}", Sha256::digest(bytes)));
+    }
+
+    let dir = TempDir::new("package-evidence");
+    let path = dir.join("review.bundle");
+    let archive = include_bytes!("../../legacy-import/tests/fixtures/runtime-signed-java.synthetic");
+    QuarantinedImport::import_package(archive, &path, SessionConfig::default(), std_fs()).unwrap();
+    let good: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let mut invalid = good.clone();
+    invalid["version"] = json!(3);
+    std::fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
+    let mut invalid = good.clone();
+    invalid["payload"]["packageSource"]["decoderVersion"] = json!(2);
+    seal(&mut invalid);
+    std::fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
+    let mut invalid = good.clone();
+    let damaged = b"not a zip";
+    invalid["payload"]["packageSource"]["archive"] = json!(damaged.as_slice());
+    invalid["payload"]["packageSource"]["archiveSha256"] =
+        json!(format!("{:x}", Sha256::digest(damaged)));
+    seal(&mut invalid);
+    std::fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
+    // Retain a valid archive but replace its extracted portable project.
+    let mut invalid = good;
+    invalid["payload"]["source"] = json!(std::str::from_utf8(&source()).unwrap());
+    seal(&mut invalid);
+    std::fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
+    let target = dir.join("refused.bundle");
+    assert!(QuarantinedImport::import_package(damaged, &target, SessionConfig::default(), std_fs())
+        .is_err());
+    assert!(!target.exists());
+}

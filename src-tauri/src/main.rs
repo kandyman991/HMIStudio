@@ -18,6 +18,7 @@ enum ProjectAction {
     Open,
     ImportLegacy,
     ImportLegacyRevision,
+    ImportLegacyPackage,
     OpenReview,
     NewProject,
     Save,
@@ -143,6 +144,21 @@ fn pick(app: &AppHandle, title: &str, saving: bool) -> Result<Option<PathBuf>, S
         dialog.blocking_pick_file()
     };
     selected
+        .map(|p| p.into_path().map_err(|e| e.to_string()))
+        .transpose()
+}
+
+fn pick_runtime_package(app: &AppHandle) -> Result<Option<PathBuf>, String> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("Legacy runtime package", &["hmipkg"])
+        .set_title("Select legacy runtime package");
+    if let Some(window) = app.get_webview_window("main") {
+        dialog = dialog.set_parent(&window);
+    }
+    dialog
+        .blocking_pick_file()
         .map(|p| p.into_path().map_err(|e| e.to_string()))
         .transpose()
 }
@@ -292,6 +308,20 @@ fn handle_project_action(
                 }
             }
         }
+        ProjectAction::ImportLegacyPackage => {
+            if let Some(source) = pick_runtime_package(app)? {
+                if ask(app, "Import this legacy runtime package? The new local review bundle retains the exact archive, including private project, runtime and signature metadata. No publisher trust, live values or production authorization are granted. Choose a private destination.") == MessageDialogResult::Yes {
+                    if let Some(target) = pick_review(app, true)? {
+                        host.check_package_import_paths(&source, &target)?;
+                        if let Some(discard) = confirm_switch(app, &mut host)? {
+                            host.import_package_review(&source, &target, discard)?;
+                            replaced = true;
+                            message = host.persistence_message();
+                        }
+                    }
+                }
+            }
+        }
         ProjectAction::OpenReview => {
             if let Some(path) = pick_review(app, false)? {
                 if let Some(discard) = confirm_switch(app, &mut host)? {
@@ -424,6 +454,7 @@ mod persistence_ipc_tests {
             r#""saveForce""#,
             r#"{"action":"importLegacy","source":"/tmp/source.json"}"#,
             r#"{"action":"importLegacyRevision","source":"/tmp/store.hmistudio"}"#,
+            r#"{"action":"importLegacyPackage","source":"/tmp/source.hmipkg","consent":true}"#,
             r#"{"action":"openReview","path":"/tmp/hidden.hmi-review"}"#,
             r#""publish""#,
             r#""connectLive""#,

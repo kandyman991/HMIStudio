@@ -750,9 +750,9 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 - Complete remaining within-v2 legacy semantic mappings and explicit refusal/deferral matrix, preserve historical replay, and reconcile actual production publisher/live admission consumer gates.
 
-**Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
+**Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-27T16:23:34Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [62c188b](https://github.com/kandyman991/HMIStudio/commit/62c188b325d10ed2be04746146e83155d6ec31cc) · snapshot 2026-11-27T15:06:36Z · [Desktop CI #46021303006](https://github.com/kandyman991/HMIStudio/actions/runs/46021303006) success, [Tag engine CI #46021302962](https://github.com/kandyman991/HMIStudio/actions/runs/46021302962) success, [Engineering handoff snapshot #46021302996](https://github.com/kandyman991/HMIStudio/actions/runs/46021302996) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [68dd143](https://github.com/kandyman991/HMIStudio/commit/68dd143e6c5f8ad40c6a205fe53ae5d3d5564ec4) · snapshot 2026-11-27T16:23:34Z · [Desktop CI #46030540630](https://github.com/kandyman991/HMIStudio/actions/runs/46030540630) success, [Tag engine CI #46030540571](https://github.com/kandyman991/HMIStudio/actions/runs/46030540571) success, [Engineering handoff snapshot #46030540586](https://github.com/kandyman991/HMIStudio/actions/runs/46030540586) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -794,6 +794,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Verified exact-head 12ee69f, including Windows/Linux native revision regressions and real-child tests; closed REUSE-03B.13B review. Candidate bounded runtime ZIP transport decoder handles format 1/2, structural signature status only, and original synthetic Java fixtures. Local 66 importer and 87 core tests, strict importer Clippy/rustdoc and three locked dependency resolutions passed. New dependency advisory gate, exact-head CI and independent decoder review remain required before native ZIP admission. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-27 · handoff · Exact head 79860c8 passed all 19 hosted jobs and 70 importer tests per platform. Actual original Kotlin writer differential passed 10/10 packages on pinned 92a612d; scoped REUSE-03B.13C transport review closed. Candidate REUSE-03B.13D adds consent-gated native package import and v4 exact archive replay through quarantine, recovery and Save Copy. Existing claim retained; candidate validation and independent review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-27 · handoff · Independent REUSE-03B.13D review closed at 62c188b: all 19 hosted jobs passed, including Windows 28+2 and Linux 31+2 native tests and deterministic archive replacement refusal on both platforms. Native package consent, source preservation, quarantine and v4 evidence replay validated within documented limits. REUSE-03B.14 semantic coverage starts under retained RUST-05 claim. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-27 · handoff · Owner authorized CI-03 scoped importer-only draft validation; extend RUST-05 scope for shared classifier and regression tests. Full checkpoint and focused independent control review required before activation; existing production and final milestone gates retained. Applied hosted 14C formatting corrections. · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
@@ -863,7 +864,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 ## Shared reservation snapshot
 
-- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-26T15:55:17Z
+- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-27T16:23:34Z
 
 ## Engineering decisions
 

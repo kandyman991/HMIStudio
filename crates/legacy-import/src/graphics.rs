@@ -278,11 +278,7 @@ fn passive_status(
         if v.get(key)
             .is_some_and(|x| x.as_object().is_none_or(|o| !o.is_empty()))
         {
-            return refuse(
-                m,
-                &path(p, key),
-                "status-action-or-expression-not-mapped",
-            );
+            return refuse(m, &path(p, key), "status-action-or-expression-not-mapped");
         }
     }
     let pp = path(p, "properties");
@@ -321,7 +317,8 @@ fn passive_status(
                 f.disposition = "preserved";
                 f.code = "status-presentation-preserved";
                 f.severity = "warning";
-                f.message = "Source presentation retained as evidence; renderer parity is not established.";
+                f.message =
+                    "Source presentation retained as evidence; renderer parity is not established.";
             }
         }
     }

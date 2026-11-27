@@ -31,39 +31,41 @@
   "prs": [
     {
       "number": 36,
-      "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
+      "head": "68dd143e6c5f8ad40c6a205fe53ae5d3d5564ec4",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 46021303006,
+          "id": 46030540630,
           "name": "Desktop CI",
-          "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
+          "head": "68dd143e6c5f8ad40c6a205fe53ae5d3d5564ec4",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46021302962,
+          "id": 46030540571,
           "name": "Tag engine CI",
-          "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
+          "head": "68dd143e6c5f8ad40c6a205fe53ae5d3d5564ec4",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46021302996,
+          "id": 46030540586,
           "name": "Engineering handoff snapshot",
-          "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
+          "head": "68dd143e6c5f8ad40c6a205fe53ae5d3d5564ec4",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-27T15:06:36Z"
+      "observedAt": "2026-11-27T16:23:34Z"
     }
   ],
   "assignment": {
     "owner": "ChatGPT",
     "branch": "feat/reuse-03b-legacy-import",
     "scope": [
+      ".github/ci/plan.py",
+      ".github/ci/test_plan.py",
       ".github/workflows/ci.yml",
       ".github/workflows/tag-engine.yml",
       "crates/engineering-core/",
@@ -84,7 +86,7 @@
       "src-tauri/src/session_host.rs",
       "src/main.tsx"
     ],
-    "observedAt": "2026-11-26T15:55:17Z"
+    "observedAt": "2026-11-27T16:23:34Z"
   },
   "history": [
     {
@@ -302,6 +304,12 @@
       "type": "handoff",
       "summary": "Independent REUSE-03B.13D review closed at 62c188b: all 19 hosted jobs passed, including Windows 28+2 and Linux 31+2 native tests and deterministic archive replacement refusal on both platforms. Native package consent, source preservation, quarantine and v4 evidence replay validated within documented limits. REUSE-03B.14 semantic coverage starts under retained RUST-05 claim.",
       "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-27",
+      "type": "handoff",
+      "summary": "Owner authorized CI-03 scoped importer-only draft validation; extend RUST-05 scope for shared classifier and regression tests. Full checkpoint and focused independent control review required before activation; existing production and final milestone gates retained. Applied hosted 14C formatting corrections.",
+      "record": "docs/CI_RUNNER_POLICY.md"
     }
   ]
 }

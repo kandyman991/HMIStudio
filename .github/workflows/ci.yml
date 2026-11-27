@@ -13,6 +13,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   changes:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -21,6 +24,8 @@ jobs:
       package: ${{ steps.plan.outputs.package }}
       crates: ${{ steps.plan.outputs.crates }}
       crate_dirs: ${{ steps.plan.outputs.crate_dirs }}
+      crate_os: ${{ steps.plan.outputs.crate_os }}
+      targeted: ${{ steps.plan.outputs.targeted }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,6 +41,13 @@ jobs:
           CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
           CI_REF: ${{ github.ref }}
+          CI_ACTION: ${{ github.event.action }}
+          CI_PR: ${{ github.event.pull_request.number }}
+          CI_DRAFT: ${{ github.event.pull_request.draft }}
+          CI_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          CI_HEAD_REF: ${{ github.head_ref }}
+          CI_BASE_REF: ${{ github.base_ref }}
+          CI03_TOKEN: ${{ github.token }}
         run: python3 .github/ci/plan.py
   frontend:
     needs: changes
@@ -60,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        os: ${{ fromJSON(needs.changes.outputs.crate_os) }}
         crate: ${{ fromJSON(needs.changes.outputs.crate_dirs) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.crate == 'crates/hmi-engine' && 45 || 25 }}
@@ -109,7 +121,7 @@ jobs:
           cargo install cargo-audit --version 0.23.0 --locked
           cargo audit --file Cargo.lock
       - name: Legacy import advisory gate (no ignored advisories)
-        if: matrix.crate == 'crates/legacy-import' && runner.os == 'Linux'
+        if: matrix.crate == 'crates/legacy-import' && runner.os == 'Linux' && needs.changes.outputs.targeted == 'false'
         run: |
           cargo install cargo-audit --version 0.23.0 --locked
           cargo audit --file Cargo.lock
@@ -197,6 +209,9 @@ jobs:
           WANT_CRATES: ${{ needs.changes.outputs.crates }}
           WANT_NATIVE: ${{ needs.changes.outputs.native }}
           WANT_PACKAGE: ${{ needs.changes.outputs.package }}
+          TARGETED: ${{ needs.changes.outputs.targeted }}
+          CRATE_DIRS: ${{ needs.changes.outputs.crate_dirs }}
+          CRATE_OS: ${{ needs.changes.outputs.crate_os }}
         shell: bash
         run: |
           set -euo pipefail
@@ -211,4 +226,14 @@ jobs:
           check "$WANT_CRATES" "$CRATES" crates
           check "$WANT_NATIVE" "$DESKTOP" desktop
           case "$WANT_PACKAGE:$WANT_NATIVE" in true:true|false:true|false:false) ;; *) exit 1 ;; esac
-          echo "All applicable checks passed; intentionally skipped jobs are not test passes."
+          case "$TARGETED" in
+            true)
+              test "$WANT_FRONTEND:$WANT_NATIVE:$WANT_PACKAGE:$WANT_CRATES" = false:false:false:true
+              test "$CRATE_DIRS" = '["crates/legacy-import"]'
+              test "$CRATE_OS" = '["ubuntu-24.04"]'
+              echo "CI-03 targeted draft checks only; not full milestone validation."
+              ;;
+            false) echo "CI-02 applicable checks passed." ;;
+            *) exit 1 ;;
+          esac
+          echo "Intentionally skipped jobs are not test passes."

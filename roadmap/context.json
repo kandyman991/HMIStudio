@@ -81,6 +81,8 @@
       "owner": "ChatGPT",
       "branch": "feat/reuse-03b-legacy-import",
       "scope": [
+        ".github/ci/plan.py",
+        ".github/ci/test_plan.py",
         ".github/workflows/ci.yml",
         ".github/workflows/tag-engine.yml",
         "crates/engineering-core/",
@@ -101,7 +103,7 @@
         "src-tauri/src/session_host.rs",
         "src/main.tsx"
       ],
-      "observedAt": "2026-11-26T15:55:17Z"
+      "observedAt": "2026-11-27T16:23:34Z"
     }
   ]
 }

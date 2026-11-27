@@ -1814,7 +1814,12 @@ fn passive_status_refuses_unsafe_or_unrepresented_semantics() {
         ("sensor", "DOUBLE", "properties/highFault", json!("90")),
         ("sensor", "DOUBLE", "properties/enumeration", json!("enum")),
         ("sensor", "DOUBLE", "properties/unit", json!("psi")),
-        ("sensor", "DOUBLE", "properties/label", json!("{{template}}")),
+        (
+            "sensor",
+            "DOUBLE",
+            "properties/label",
+            json!("{{template}}"),
+        ),
         (
             "flowIndicator",
             "BOOL",

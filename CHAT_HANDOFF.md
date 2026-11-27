@@ -424,3 +424,7 @@ Verified corrected head `7e376cf` all 19 hosted jobs and 73 importer tests per p
 ## REUSE-03B.14C — passive sensor/flow state (2026-11-27)
 
 Exact `68dd143` passed 19/19 jobs and 75 importer tests on both platforms. Candidate 14C maps restricted numeric sensor and Boolean flow direct read-only bindings using frozen numericDisplay/indicator, preserves matching engineering unit and directional caption/evidence; no legacy quality/threshold/animation equivalence. Revision 0.1.4 retains prior replay. Three synthetic regression groups; local Cargo/rustfmt unavailable. Verify exact-head CI and correct any failures before next semantic slice. Keep draft PR #36 and RUST-05 claim; comprehensive review at REUSE-03B completion.
+
+## CI-03 pilot — bootstrap (2026-11-27)
+
+Owner authorized targeted importer validation for routine remaining REUSE-03B slices, full milestone and early risk gates retained. Current 14C head e4e53fb failed rustfmt on both importer jobs (Desktop CI 46032028963); applied the three hosted format diffs. CI-03 candidate uses shared planner, exact full checkpoint evidence, explicit allowlist and commit trailer, full fallback, and unchanged draft installer deferral. Checkpoint intentionally disabled until full bootstrap CI and focused independent control review. Next verify actual 14C tests and policy routing tests, independently review control change, then pin exact successful full head/base and demonstrate a targeted draft run. No full validation claimed on candidate.

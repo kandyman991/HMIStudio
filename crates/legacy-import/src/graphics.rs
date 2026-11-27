@@ -49,7 +49,10 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     let id = m.id(&path(p, "id"), key, "node");
     mark(m, p, "id", t, "id");
     m.mark(&path(p, "type"), &format!("{t}/element"));
-    if matches!(kind, "numericField" | "indicator" | "button" | "gauge" | "levelIndicator") {
+    if matches!(
+        kind,
+        "numericField" | "indicator" | "button" | "gauge" | "levelIndicator"
+    ) {
         if let Some(f) = m.findings.get_mut(&path(p, "type")) {
             f.severity = "warning";
             f.code = "component-renderer-parity-pending";
@@ -312,12 +315,20 @@ fn passive_instrument(
         .and_then(Value::as_object)
         .is_some_and(|b| b.len() == 1 && b.get(slot).is_some_and(Value::is_string))
     {
-        return refuse(m, &path(p, "bindings"), "instrument-single-numeric-binding-required");
+        return refuse(
+            m,
+            &path(p, "bindings"),
+            "instrument-single-numeric-binding-required",
+        );
     }
     if v.get("expressions")
         .is_some_and(|e| e.as_object().is_none_or(|o| !o.is_empty()))
     {
-        return refuse(m, &path(p, "expressions"), "instrument-expression-not-mapped");
+        return refuse(
+            m,
+            &path(p, "expressions"),
+            "instrument-expression-not-mapped",
+        );
     }
     if v.get("actions")
         .is_some_and(|e| e.as_object().is_none_or(|o| !o.is_empty()))

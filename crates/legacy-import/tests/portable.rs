@@ -1569,12 +1569,24 @@ fn passive_instrument_refuses_unrepresentable_semantics() {
         ("gauge", "properties/highFault", json!("95")),
         ("gauge", "properties/unit", json!("psi")),
         ("gauge", "properties/label", json!("{{template}}")),
-        ("gauge", "bindings", json!({"value":"label-a","fault":"label-a"})),
+        (
+            "gauge",
+            "bindings",
+            json!({"value":"label-a","fault":"label-a"}),
+        ),
         ("gauge", "bindings", json!({})),
         ("gauge", "expressions", json!({"value":"1"})),
-        ("levelIndicator", "properties/orientation", json!("vertical")),
+        (
+            "levelIndicator",
+            "properties/orientation",
+            json!("vertical"),
+        ),
         ("levelIndicator", "properties/unit", json!("L")),
-        ("levelIndicator", "properties/fillColor", json!("@level.fill")),
+        (
+            "levelIndicator",
+            "properties/fillColor",
+            json!("@level.fill"),
+        ),
         ("levelIndicator", "bindings", json!({"value":"label-a"})),
     ] {
         let mut f = instrument_fixture(kind);
@@ -1595,10 +1607,14 @@ fn passive_instrument_refuses_unrepresentable_semantics() {
     }
     let mut f = instrument_fixture("gauge");
     f["variables"]["label-a"]["access"] = json!("READ_WRITE");
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
     let mut f = instrument_fixture("levelIndicator");
     f["variables"]["label-a"]["engineeringUnit"] = json!("L");
-    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
 }
 
 #[test]

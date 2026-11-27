@@ -3,8 +3,7 @@ use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
     legacy_quarantine::{
         package_transport, requires_review, review_recovery_identity, review_recovery_path,
-        revision_transport,
-        QuarantinedImport, RevisionSource, MAX_LEGACY_SOURCE_BYTES,
+        revision_transport, QuarantinedImport, RevisionSource, MAX_LEGACY_SOURCE_BYTES,
     },
     persistence::sidecar_dir,
     AutosaveOutcome, ProjectSession, ProjectSnapshot, SaveOptions, SessionConfig,
@@ -864,17 +863,19 @@ impl Host {
         self.check_import_source(source)?;
         let source = source.canonicalize().map_err(err)?;
         if !safe_file(&source)?
-            || !source.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("hmipkg"))
+            || !source
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("hmipkg"))
         {
             return Err("Select an existing .hmipkg runtime package".into());
         }
         let untitled = self.untitled.canonicalize().map_err(err)?;
         let overlaps_active = self.path().is_some_and(|path| {
-            path.canonicalize().is_ok_and(|p| {
-                source == p || source.starts_with(sidecar_dir(&p))
-            }) || sidecar_dir(path)
-                .canonicalize()
-                .is_ok_and(|p| source.starts_with(p))
+            path.canonicalize()
+                .is_ok_and(|p| source == p || source.starts_with(sidecar_dir(&p)))
+                || sidecar_dir(path)
+                    .canonicalize()
+                    .is_ok_and(|p| source.starts_with(p))
         });
         if overlaps_active || source.starts_with(untitled) {
             return Err("Selected package overlaps active workspace storage".into());
@@ -909,12 +910,9 @@ impl Host {
         if safe_file(&review_recovery_path(&target))? {
             return Err("Target has review recovery data; choose a different filename".into());
         }
-        let candidate = prepared.publish(
-            &target,
-            config(&self.untitled),
-            Arc::new(GuardedFileSystem),
-        )
-        .map_err(err)?;
+        let candidate = prepared
+            .publish(&target, config(&self.untitled), Arc::new(GuardedFileSystem))
+            .map_err(err)?;
         self.activate_review(candidate, guard);
         Ok(())
     }
@@ -1682,7 +1680,9 @@ mod tests {
     fn native_package_import_recovery_save_copy_and_source_immutability() {
         let t = Temp::new();
         let source = t.0.join("legacy.hmipkg");
-        let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-signed-java.synthetic");
+        let archive = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-signed-java.synthetic"
+        );
         fs::write(&source, archive).unwrap();
         let app = t.0.join("app");
         let path = t.0.join("review.hmi-review");
@@ -1714,7 +1714,10 @@ mod tests {
         })
         .unwrap();
         assert!(host.is_dirty());
-        assert_eq!(host.snapshot().project.screens[0].name, "Package crash edit");
+        assert_eq!(
+            host.snapshot().project.screens[0].name,
+            "Package crash edit"
+        );
         assert!(host.production_candidate().is_err());
         host.save_as(&copy).unwrap();
         assert!(host.persistence_message().contains("package evidence"));
@@ -1740,8 +1743,9 @@ mod tests {
         assert!(!sidecar_dir(&target).exists());
         assert_eq!(host.snapshot(), before);
         assert_eq!(fs::read(recovery).unwrap(), recovery_bytes);
-        let unsupported =
-            include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsupported.synthetic");
+        let unsupported = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsupported.synthetic"
+        );
         fs::write(&source, unsupported).unwrap();
         assert!(package_transport::decode_runtime_package(unsupported).is_ok());
         assert!(host.import_package_review(&source, &target, true).is_err());
@@ -1755,7 +1759,9 @@ mod tests {
             .unwrap();
         assert!(host.import_package_review(&source, &target, true).is_err());
         assert!(!sidecar_dir(&target).exists());
-        let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic");
+        let archive = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic"
+        );
         let overlap = app.join("source.hmipkg");
         fs::write(&overlap, archive).unwrap();
         assert!(host.import_package_review(&overlap, &target, true).is_err());
@@ -1778,14 +1784,20 @@ mod tests {
         let symlink = t.0.join("link.hmipkg");
         let hardlink = t.0.join("hardlink.hmipkg");
         let target = t.0.join("review.hmi-review");
-        let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic");
+        let archive = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic"
+        );
         fs::write(&source, archive).unwrap();
         std::os::unix::fs::symlink(&source, &symlink).unwrap();
         let mut host = Host::new(&t.0.join("app")).unwrap();
         let before = host.snapshot();
-        assert!(host.import_package_review(&symlink, &target, false).is_err());
+        assert!(host
+            .import_package_review(&symlink, &target, false)
+            .is_err());
         fs::hard_link(&source, &hardlink).unwrap();
-        assert!(host.import_package_review(&hardlink, &target, false).is_err());
+        assert!(host
+            .import_package_review(&hardlink, &target, false)
+            .is_err());
         assert!(host.import_package_review(&source, &target, false).is_err());
         assert_eq!(host.snapshot(), before);
         assert_eq!(fs::read(&source).unwrap(), archive);

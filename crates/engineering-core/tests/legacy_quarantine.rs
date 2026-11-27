@@ -916,20 +916,22 @@ fn package_review_replays_exact_archive_on_recovery_and_copy() {
     let dir = TempDir::new("package-review");
     let path = dir.join("review.bundle");
     let copy = dir.join("copy.bundle");
-    let archive = include_bytes!("../../legacy-import/tests/fixtures/runtime-signed-java.synthetic");
+    let archive =
+        include_bytes!("../../legacy-import/tests/fixtures/runtime-signed-java.synthetic");
     let mut review =
         QuarantinedImport::import_package(archive, &path, SessionConfig::default(), std_fs())
             .unwrap();
     assert!(review.has_package_source());
     assert!(!review.has_revision_source());
     assert!(requires_review(&review.snapshot().project));
-    let before: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let before: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     assert_eq!(before["version"], 4);
     let evidence = &before["payload"]["packageSource"];
     assert_eq!(evidence["decoderVersion"], 1);
     assert_eq!(evidence["archive"], json!(archive.as_slice()));
-    assert!(!serde_json::to_string(review.report()).unwrap().contains("packageSource"));
+    assert!(!serde_json::to_string(review.report())
+        .unwrap()
+        .contains("packageSource"));
     rename_review(&mut review, "Package edit");
     review.autosave().unwrap();
     drop(review);
@@ -939,13 +941,14 @@ fn package_review_replays_exact_archive_on_recovery_and_copy() {
     assert!(restored.is_dirty());
     assert_eq!(restored.snapshot().project.screens[0].name, "Package edit");
     restored.save_copy(&copy).unwrap();
-    let after: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&copy).unwrap()).unwrap();
+    let after: serde_json::Value = serde_json::from_slice(&std::fs::read(&copy).unwrap()).unwrap();
     assert_eq!(after["version"], 4);
     assert_eq!(after["payload"]["packageSource"], *evidence);
-    assert!(QuarantinedImport::reopen(&copy, SessionConfig::default(), std_fs())
-        .unwrap()
-        .has_package_source());
+    assert!(
+        QuarantinedImport::reopen(&copy, SessionConfig::default(), std_fs())
+            .unwrap()
+            .has_package_source()
+    );
     assert!(!review_recovery_path(&path).exists());
 }
 
@@ -990,7 +993,8 @@ fn package_review_rejects_resealed_invalid_archive_and_foreign_project() {
 
     let dir = TempDir::new("package-evidence");
     let path = dir.join("review.bundle");
-    let archive = include_bytes!("../../legacy-import/tests/fixtures/runtime-signed-java.synthetic");
+    let archive =
+        include_bytes!("../../legacy-import/tests/fixtures/runtime-signed-java.synthetic");
     QuarantinedImport::import_package(archive, &path, SessionConfig::default(), std_fs()).unwrap();
     let good: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     let mut invalid = good.clone();
@@ -1017,8 +1021,13 @@ fn package_review_rejects_resealed_invalid_archive_and_foreign_project() {
     std::fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
     assert!(QuarantinedImport::reopen(&path, SessionConfig::default(), std_fs()).is_err());
     let target = dir.join("refused.bundle");
-    assert!(QuarantinedImport::import_package(damaged, &target, SessionConfig::default(), std_fs())
-        .is_err());
+    assert!(QuarantinedImport::import_package(
+        damaged,
+        &target,
+        SessionConfig::default(),
+        std_fs()
+    )
+    .is_err());
     assert!(!target.exists());
 }
 
@@ -1031,7 +1040,12 @@ fn transport_integrity_is_not_complete_portable_admission() {
     assert!(QuarantinedImport::prepare_package(archive).is_err());
     let dir = TempDir::new("unsupported-package");
     let target = dir.join("review.bundle");
-    assert!(QuarantinedImport::import_package(archive, &target, SessionConfig::default(), std_fs())
-        .is_err());
+    assert!(QuarantinedImport::import_package(
+        archive,
+        &target,
+        SessionConfig::default(),
+        std_fs()
+    )
+    .is_err());
     assert!(!target.exists());
 }

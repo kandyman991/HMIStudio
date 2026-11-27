@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-pub use hmi_legacy_import::{package as package_transport, revision as revision_transport};
 use hmi_legacy_import::{import_portable, replay_portable};
+pub use hmi_legacy_import::{package as package_transport, revision as revision_transport};
 use hmi_project_model::model::Project;
 use hmi_project_model::serialization::{load_project, save_project};
 use serde::{Deserialize, Serialize};

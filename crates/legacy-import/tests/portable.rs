@@ -794,7 +794,7 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
         .unwrap_or_else(|| panic!("{:?}", imported.report));
     let doc = serde_json::to_value(&project).unwrap();
     let props = &doc["components"][0]["root"]["children"][0]["properties"];
-    assert_eq!(imported.report.importer_version, "0.1.4");
+    assert_eq!(imported.report.importer_version, "0.1.5");
     let size = imported
         .report
         .findings
@@ -1506,7 +1506,7 @@ fn passive_instrument_mapping_is_deterministic_and_read_only() {
         let b = import_portable(&bytes);
         assert!(a.report.has_complete_mapping(), "{:?}", a.report);
         assert_eq!(a.report, b.report);
-        assert_eq!(a.report.importer_version, "0.1.4");
+        assert_eq!(a.report.importer_version, "0.1.5");
         let project = a.project.unwrap();
         assert_eq!(
             save_project(&project).unwrap(),
@@ -1666,7 +1666,7 @@ fn reusable_numeric_parameter_specializes_exact_type_and_replays() {
             doc["tags"][0]["id"]
         );
         let report = serde_json::to_value(&a.report).unwrap();
-        assert_eq!(report["importerVersion"], "0.1.4");
+        assert_eq!(report["importerVersion"], "0.1.5");
         let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
         assert_eq!(replay.report, a.report);
         assert_eq!(
@@ -1780,7 +1780,7 @@ fn passive_status_preserves_read_only_types_and_direction_evidence() {
             a.report.findings.iter().map(|x| x.path.clone()).collect()
         );
         let report = serde_json::to_value(&a.report).unwrap();
-        assert_eq!(report["importerVersion"], "0.1.4");
+        assert_eq!(report["importerVersion"], "0.1.5");
         let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
         assert_eq!(replay.report, a.report);
         assert_eq!(
@@ -1872,6 +1872,183 @@ fn passive_status_revision_replays_predecessor_instrument_and_parameter_mappings
         expected["importerVersion"] = json!("0.1.3");
         let replay = hmi_legacy_import::replay_portable(&bytes, &expected).unwrap();
         assert_eq!(serde_json::to_value(&replay.report).unwrap(), expected);
+        assert_eq!(
+            save_project(&a.project.unwrap()).unwrap(),
+            save_project(&replay.project.unwrap()).unwrap()
+        );
+    }
+}
+
+fn active_input_fixture(kind: &str) -> Value {
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
+    let props = match kind {
+        "switch" => {
+            f["variables"]["label-a"]["type"] = json!("BOOL");
+            f["variables"]["label-a"]["access"] = json!("COMMAND");
+            f["externalMappings"]["map-a"]["externalAddress"] = json!("DB1.X0.0");
+            f["externalMappings"]["map-a"]["command"] = json!({"kind":"MAINTAINED"});
+            json!({"label":"Enable","onText":"ON","offText":"OFF"})
+        }
+        "slider" => {
+            f["externalMappings"]["map-a"]["command"] =
+                json!({"kind":"SETPOINT","min":0,"max":100,"step":2});
+            json!({"label":"Speed","min":"0","max":"100","step":"2"})
+        }
+        _ => {
+            f["externalMappings"]["map-a"]["command"] =
+                json!({"kind":"SETPOINT","min":0,"max":100});
+            json!({"label":"Speed","min":"0","max":"100"})
+        }
+    };
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!(kind);
+    c["properties"] = props;
+    c["bindings"] = json!({"value":"label-a"});
+    c["requiredPermission"] = Value::Null;
+    f
+}
+
+#[test]
+fn active_input_requires_exact_command_and_implicit_operate() {
+    for kind in ["switch", "slider", "numericInput"] {
+        let f = active_input_fixture(kind);
+        let bytes = serde_json::to_vec(&f).unwrap();
+        let a = import_portable(&bytes);
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+        let project = a.project.unwrap();
+        let doc = serde_json::to_value(&project).unwrap();
+        let n = &doc["screens"][0]["root"]["children"][0];
+        assert_eq!(n["element"]["kind"], kind);
+        assert_eq!(n["bindings"][0]["mode"], "readWrite");
+        assert_eq!(n["bindings"][0]["source"]["tag"], doc["tags"][0]["id"]);
+        assert_eq!(
+            doc["v2"]["industrial"]["nodes"][0]["requiredPermission"],
+            "operate"
+        );
+        assert_eq!(
+            doc["extensions"]["hmistudio.importQuarantine"]["state"],
+            "reviewRequired"
+        );
+        if kind == "switch" {
+            assert_eq!(n["bindings"][0]["property"], "checked");
+            assert_eq!(doc["v2"]["industrial"]["tags"][0]["command"], "maintained");
+        } else {
+            assert_eq!(n["bindings"][0]["property"], "value");
+            assert_eq!(n["properties"]["min"], 0);
+            assert_eq!(n["properties"]["max"], 100);
+            if kind == "slider" {
+                assert_eq!(n["properties"]["step"], 2);
+            }
+        }
+        let mut leaves = BTreeSet::new();
+        paths(&f, "", &mut leaves);
+        assert_eq!(
+            leaves,
+            a.report.findings.iter().map(|x| x.path.clone()).collect()
+        );
+        let report = serde_json::to_value(&a.report).unwrap();
+        let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
+        assert_eq!(replay.report, a.report);
+        assert_eq!(
+            save_project(&replay.project.unwrap()).unwrap(),
+            save_project(&project).unwrap()
+        );
+        let mut prior = report;
+        prior["importerVersion"] = json!("0.1.4");
+        assert!(hmi_legacy_import::replay_portable(&bytes, &prior)
+            .unwrap()
+            .project
+            .is_none());
+    }
+}
+
+#[test]
+fn active_input_refuses_unsafe_or_unrepresented_writes() {
+    for (kind, path, value) in [
+        (
+            "switch",
+            "/externalMappings/map-a/command/kind",
+            json!("MOMENTARY"),
+        ),
+        (
+            "switch",
+            "/externalMappings/map-a/writeConfirmed",
+            json!(false),
+        ),
+        ("slider", "/externalMappings/map-a/command/step", json!(1)),
+        (
+            "numericInput",
+            "/externalMappings/map-a/command/max",
+            json!(99),
+        ),
+        (
+            "numericInput",
+            "/screens/screen~1a/components/label-a/properties/min",
+            json!("0.5"),
+        ),
+        (
+            "slider",
+            "/screens/screen~1a/components/label-a/properties/step",
+            json!("3"),
+        ),
+        (
+            "switch",
+            "/screens/screen~1a/components/label-a/properties/onText",
+            json!("RUN"),
+        ),
+        (
+            "switch",
+            "/screens/screen~1a/components/label-a/bindings",
+            json!({"value":"second"}),
+        ),
+        (
+            "numericInput",
+            "/screens/screen~1a/components/label-a/requiredPermission",
+            json!("unknown"),
+        ),
+        ("numericInput", "/schemaVersion", json!(9)),
+    ] {
+        let mut f = active_input_fixture(kind);
+        *f.pointer_mut(path).unwrap() = value;
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        assert!(a.project.is_none(), "{kind} {path}");
+        assert!(a.resource_bytes.is_empty());
+    }
+    for (kind, key, value) in [
+        ("numericInput", "decimals", json!("2")),
+        ("numericInput", "step", json!("1")),
+        ("slider", "decimals", json!("0")),
+    ] {
+        let mut f = active_input_fixture(kind);
+        f["screens"]["screen/a"]["components"]["label-a"]["properties"][key] = value;
+        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+            .project
+            .is_none());
+    }
+    let mut f = active_input_fixture("switch");
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"] =
+        json!({"valueChange":{"action":"navigate.back"}});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+}
+
+#[test]
+fn active_input_revision_preserves_predecessor_passive_replay() {
+    for f in [
+        passive_status_fixture("sensor", "DOUBLE"),
+        passive_status_fixture("flowIndicator", "BOOL"),
+        numeric_parameter_fixture("DOUBLE"),
+    ] {
+        let bytes = serde_json::to_vec(&f).unwrap();
+        let a = import_portable(&bytes);
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+        let mut prior = serde_json::to_value(&a.report).unwrap();
+        prior["importerVersion"] = json!("0.1.4");
+        let replay = hmi_legacy_import::replay_portable(&bytes, &prior).unwrap();
+        assert_eq!(serde_json::to_value(&replay.report).unwrap(), prior);
         assert_eq!(
             save_project(&a.project.unwrap()).unwrap(),
             save_project(&replay.project.unwrap()).unwrap()

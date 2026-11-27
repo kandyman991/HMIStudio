@@ -321,7 +321,8 @@ pub(super) fn map(
             MappingRevision::VerifiedSize
             | MappingRevision::PassiveInstruments
             | MappingRevision::NumericParameters
-            | MappingRevision::PassiveStatus => {
+            | MappingRevision::PassiveStatus
+            | MappingRevision::ActiveInputs => {
                 metadata["legacySizeBytes"] = json!(bytes.len());
                 "extensions/legacySizeBytes"
             }

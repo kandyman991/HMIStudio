@@ -32,9 +32,12 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "numericField" => "numericDisplay",
         "gauge" if m.revision.passive_instruments() => "gauge",
         "levelIndicator" if m.revision.passive_instruments() => "progressBar",
-        "sensor" if matches!(m.revision, MappingRevision::PassiveStatus) => "numericDisplay",
-        "flowIndicator" if matches!(m.revision, MappingRevision::PassiveStatus) => "indicator",
+        "sensor" if m.revision.passive_status() => "numericDisplay",
+        "flowIndicator" if m.revision.passive_status() => "indicator",
         "indicator" => "indicator",
+        "switch" if matches!(m.revision, MappingRevision::ActiveInputs) => "switch",
+        "slider" if matches!(m.revision, MappingRevision::ActiveInputs) => "slider",
+        "numericInput" if matches!(m.revision, MappingRevision::ActiveInputs) => "numericInput",
         "composite" => "instance",
         "line" => "line",
         "arrow" => "arrow",
@@ -1023,6 +1026,184 @@ fn bindings(
     n["bindings"] = json!(bs);
     Some(())
 }
+// Declaration migration only. No control event execution or production trust is
+// introduced. The tag's existing confirmed command policy is authoritative.
+struct InputContext<'a> {
+    ids: &'a BTreeMap<String, String>,
+    tags: &'a Value,
+    policies: &'a Value,
+}
+
+fn active_input(
+    v: &Value,
+    n: &mut Value,
+    p: &str,
+    t: &str,
+    m: &mut Mapping,
+    ctx: &InputContext<'_>,
+) -> Option<()> {
+    let kind = v["type"].as_str()?;
+    let bp = path(p, "bindings");
+    let Some(bindings) = v.get("bindings").and_then(Value::as_object) else {
+        return refuse(m, &bp, "input-direct-binding-required");
+    };
+    if bindings.len() != 1 {
+        return refuse(m, &bp, "input-direct-binding-required");
+    }
+    let Some(var) = bindings.get("value").and_then(Value::as_str) else {
+        return refuse(m, &bp, "input-direct-binding-required");
+    };
+    for key in ["expressions", "actions"] {
+        if v.get(key)
+            .is_some_and(|x| x.as_object().is_none_or(|o| !o.is_empty()))
+        {
+            return refuse(m, &path(p, key), "input-extra-behavior-not-mapped");
+        }
+    }
+    let sp = path(&bp, "value");
+    let Some(id) = ctx.ids.get(var) else {
+        return refuse(m, &sp, "input-unknown-tag");
+    };
+    let tag = ctx.tags.as_array()?.iter().find(|x| x["id"] == *id)?;
+    let Some(policy) = ctx.policies.as_array()?.iter().find(|x| x["tag"] == *id) else {
+        return refuse(m, &sp, "input-confirmed-command-required");
+    };
+    if tag["access"] != "readWrite" || policy["writeConfirmed"] != true {
+        return refuse(m, &sp, "input-confirmed-command-required");
+    }
+    let props = v.get("properties")?.as_object()?;
+    let pp = path(p, "properties");
+    let switching = kind == "switch";
+    let slider = kind == "slider";
+    for (key, value) in props {
+        let at = path(&pp, key);
+        let Some(raw) = value.as_str() else {
+            return refuse(m, &at, "input-property-not-mapped");
+        };
+        match key.as_str() {
+            "label" => {
+                if raw.contains("{{") {
+                    return refuse(m, &at, "input-template-not-mapped");
+                }
+                if switching {
+                    n["properties"]["label"] = value.clone();
+                    m.mark(&at, &format!("{t}/properties/label"));
+                } else {
+                    n["extensions"]["hmiforge.inputPresentation"]["label"] = value.clone();
+                    m.mark(
+                        &at,
+                        &format!("{t}/extensions/hmiforge.inputPresentation/label"),
+                    );
+                    if let Some(f) = m.findings.get_mut(&at) {
+                        f.disposition = "preserved";
+                        f.severity = "warning";
+                        f.code = "input-caption-preserved";
+                        f.message = "Literal input caption retained as inactive presentation evidence.";
+                    }
+                }
+            }
+            "onText" | "offText" if switching => {
+                let expected = if key == "onText" { "ON" } else { "OFF" };
+                if raw != expected {
+                    return refuse(m, &at, "input-custom-state-text-not-mapped");
+                }
+                n["extensions"]["hmiforge.inputPresentation"][key] = value.clone();
+                m.mark(
+                    &at,
+                    &format!("{t}/extensions/hmiforge.inputPresentation/{key}"),
+                );
+                if let Some(f) = m.findings.get_mut(&at) {
+                    f.disposition = "preserved";
+                    f.severity = "warning";
+                    f.code = "input-state-text-preserved";
+                    f.message = "Default state text retained; renderer parity is not established.";
+                }
+            }
+            "min" | "max" if !switching => {}
+            "step" if slider => {}
+            _ => return refuse(m, &at, "input-property-not-mapped"),
+        }
+    }
+    if switching {
+        if tag["dataType"] != "bool" || policy["command"] != "maintained" {
+            return refuse(m, &sp, "switch-maintained-bool-required");
+        }
+        if !tag["unit"].is_null() {
+            return refuse(m, &sp, "switch-unit-not-mapped");
+        }
+    } else {
+        if !matches!(tag["dataType"].as_str(), Some("int32" | "int64"))
+            || policy["command"] != "setpoint"
+        {
+            return refuse(m, &sp, "input-integer-setpoint-required");
+        }
+        let integer = |key: &str| props.get(key)?.as_str()?.parse::<i64>().ok();
+        let (Some(min), Some(max)) = (integer("min"), integer("max")) else {
+            return refuse(m, &pp, "input-explicit-integer-range-required");
+        };
+        const SAFE: i64 = 9_007_199_254_740_991;
+        if min >= max || !(-SAFE..=SAFE).contains(&min) || !(-SAFE..=SAFE).contains(&max) {
+            return refuse(m, &pp, "input-inexact-or-invalid-range");
+        }
+        if tag["dataType"] == "int32"
+            && (i32::try_from(min).is_err() || i32::try_from(max).is_err())
+        {
+            return refuse(m, &pp, "input-inexact-or-invalid-range");
+        }
+        let limits = &policy["limits"];
+        if limits["min"].as_i64() != Some(min) || limits["max"].as_i64() != Some(max) {
+            return refuse(m, &pp, "input-command-range-mismatch");
+        }
+        if slider {
+            let Some(step) = integer("step").filter(|s| *s > 0) else {
+                return refuse(
+                    m,
+                    &path(&pp, "step"),
+                    "slider-explicit-integer-step-required",
+                );
+            };
+            // Legacy slider uses Float32 geometry, at most 200 intermediate ticks,
+            // then snaps to the declared grid. Keep only exactly representable grids.
+            let span = max - min;
+            if !(-16_777_216..=16_777_216).contains(&min)
+                || !(-16_777_216..=16_777_216).contains(&max)
+                || step > span
+                || span % step != 0
+                || span / step > 201
+                || limits["step"].as_i64() != Some(step)
+            {
+                return refuse(m, &path(&pp, "step"), "slider-command-grid-mismatch");
+            }
+            n["properties"]["step"] = json!(step);
+            n["properties"]["orientation"] = json!("horizontal");
+            m.mark(&path(&pp, "step"), &format!("{t}/properties/step"));
+            if !tag["unit"].is_null() {
+                return refuse(m, &sp, "slider-unit-not-mapped");
+            }
+        } else {
+            // No quantization or decimal rounding: canonical input and command
+            // declarations must describe the same unstepped integer domain.
+            if !limits["step"].is_null() {
+                return refuse(m, &pp, "numeric-input-command-step-not-mapped");
+            }
+            n["properties"]["showUnit"] = json!(!tag["unit"].is_null());
+        }
+        for (key, value) in [("min", min), ("max", max)] {
+            n["properties"][key] = json!(value);
+            m.mark(&path(&pp, key), &format!("{t}/properties/{key}"));
+        }
+    }
+    let property = if switching { "checked" } else { "value" };
+    n["bindings"] = json!([{"property":property,"source":{"tag":id},"mode":"readWrite"}]);
+    m.mark(&sp, &format!("{t}/bindings/0/source/tag"));
+    if let Some(f) = m.findings.get_mut(&path(p, "type")) {
+        f.code = "active-input-runtime-parity-pending";
+        f.severity = "warning";
+        f.message = "Typed input and command constraints mapped; operator-event and renderer parity require validation before production use.";
+    }
+    Some(())
+}
+
 pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> {
     let ver = v["schemaVersion"].as_u64()?;
     let mut types = BTreeMap::new();
@@ -1145,10 +1326,15 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     {
                         return refuse(m, &ep, "nested-instrument-parameter-not-mapped");
                     }
-                    if matches!(m.revision, MappingRevision::PassiveStatus)
+                    if m.revision.passive_status()
                         && matches!(e["type"].as_str(), Some("sensor" | "flowIndicator"))
                     {
                         return refuse(m, &ep, "nested-status-parameter-not-mapped");
+                    }
+                    if matches!(m.revision, MappingRevision::ActiveInputs)
+                        && matches!(e["type"].as_str(), Some("switch" | "slider" | "numericInput"))
+                    {
+                        return refuse(m, &ep, "nested-active-input-not-mapped");
                     }
                     if e["type"] == "dropDown" {
                         return refuse(m, &ep, "nested-dropdown-not-mapped");
@@ -1190,6 +1376,8 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
         .map(|d| Some((d["id"].as_str()?.to_owned(), d["parameters"].clone())))
         .collect::<Option<_>>()?;
     let mut symbol_defs = Vec::new();
+    let input_tags = doc["tags"].clone();
+    let input_policies = doc["v2"]["industrial"]["tags"].clone();
     for (i, s) in doc["screens"].as_array_mut()?.iter_mut().enumerate() {
         let (key, source) = v["screens"].as_object()?.iter().find(|(k, _)| {
             m.ids
@@ -1225,6 +1413,25 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     classifications.push(class);
                 } else if matches!(c["type"].as_str(), Some("image" | "svgImage")) {
                     super::resources::image(c, n, &cp, &nt, m, ver, &v["assets"])?;
+                } else if matches!(
+                    c["type"].as_str(),
+                    Some("switch" | "slider" | "numericInput")
+                ) {
+                    if !matches!(m.revision, MappingRevision::ActiveInputs) {
+                        return refuse(m, &cp, "component-kind-not-mapped");
+                    }
+                    active_input(
+                        c,
+                        n,
+                        &cp,
+                        &nt,
+                        m,
+                        &InputContext {
+                            ids: &ids,
+                            tags: &input_tags,
+                            policies: &input_policies,
+                        },
+                    )?;
                 } else if c["type"] == "dropDown" {
                     if ver < 10 {
                         return refuse(m, &cp, "dropdown-version-mismatch");

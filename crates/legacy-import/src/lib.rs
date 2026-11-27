@@ -289,7 +289,7 @@ fn fixed(v: f64) -> Value {
 /// initial supported subset is identical across versions. Unsupported features
 /// refuse the entire result, and report only paths/codes, not source values. The report may contain source key names; keep it local.
 pub fn import_portable(input: &[u8]) -> ImportOutcome {
-    import_with_revision(input, MappingRevision::PassiveStatus)
+    import_with_revision(input, MappingRevision::ActiveInputs)
 }
 
 #[derive(Clone, Copy)]
@@ -299,18 +299,29 @@ enum MappingRevision {
     PassiveInstruments,
     NumericParameters,
     PassiveStatus,
+    ActiveInputs,
 }
 
 impl MappingRevision {
     fn passive_instruments(self) -> bool {
         matches!(
             self,
-            Self::PassiveInstruments | Self::NumericParameters | Self::PassiveStatus
+            Self::PassiveInstruments
+                | Self::NumericParameters
+                | Self::PassiveStatus
+                | Self::ActiveInputs
         )
     }
 
     fn numeric_parameters(self) -> bool {
-        matches!(self, Self::NumericParameters | Self::PassiveStatus)
+        matches!(
+            self,
+            Self::NumericParameters | Self::PassiveStatus | Self::ActiveInputs
+        )
+    }
+
+    fn passive_status(self) -> bool {
+        matches!(self, Self::PassiveStatus | Self::ActiveInputs)
     }
 }
 
@@ -339,6 +350,7 @@ pub fn replay_portable(input: &[u8], report: &Value) -> Option<ImportOutcome> {
         "0.1.2" => MappingRevision::PassiveInstruments,
         "0.1.3" => MappingRevision::NumericParameters,
         "0.1.4" => MappingRevision::PassiveStatus,
+        "0.1.5" => MappingRevision::ActiveInputs,
         _ => return None,
     };
     Some(import_with_revision(input, revision))
@@ -355,6 +367,7 @@ fn import_with_revision(input: &[u8], revision: MappingRevision) -> ImportOutcom
             MappingRevision::PassiveInstruments => "0.1.2",
             MappingRevision::NumericParameters => "0.1.3",
             MappingRevision::PassiveStatus => "0.1.4",
+            MappingRevision::ActiveInputs => "0.1.5",
         },
         findings: vec![],
         id_map: BTreeMap::new(),

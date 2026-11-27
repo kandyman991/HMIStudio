@@ -748,41 +748,77 @@ impl Host {
         self.generation += 1;
     }
 
-    pub fn check_import_source(&self, source: &Path) -> Result<()> {
+    /// Shared file-source admission for portable JSON and runtime packages.
+    fn check_import_file_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        self.preflight()?;
         if !safe_file(source)? {
             return Err("Legacy source does not exist".into());
         }
-        if !self.is_review() {
-            let source = source.canonicalize().map_err(err)?;
-            let recovery = self.active_recovery()?;
-            if self.path().and_then(|p| p.canonicalize().ok()).as_ref() == Some(&source)
-                || recovery.canonicalize().ok().as_ref() == Some(&source)
-            {
-                return Err(
-                    "Select a legacy source outside the active project and its recovery slot"
-                        .into(),
-                );
-            }
+        let source = source.canonicalize().map_err(err)?;
+        if !safe_file(&source)? {
+            return Err("Legacy source changed during selection".into());
         }
-        Ok(())
+        let untitled = self.untitled.canonicalize().map_err(err)?;
+        let overlaps_active = self.path().is_some_and(|path| {
+            path.canonicalize()
+                .is_ok_and(|p| source == p || source.starts_with(sidecar_dir(&p)))
+                || sidecar_dir(path)
+                    .canonicalize()
+                    .is_ok_and(|p| source.starts_with(p))
+        });
+        if overlaps_active || source.starts_with(untitled) {
+            return Err("Selected source overlaps active workspace storage".into());
+        }
+        let target = normalize_review(target)?;
+        if source == target
+            || source.starts_with(sidecar_dir(&target))
+            || sidecar_dir(&target)
+                .canonicalize()
+                .is_ok_and(|p| source.starts_with(p))
+            || safe_regular_file(&target, true)?
+        {
+            return Err("Choose a new review bundle outside the selected source storage".into());
+        }
+        Ok((source, target))
+    }
+
+    /// Check portable source and destination before save/discard confirmation.
+    pub fn check_portable_import_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        self.check_import_file_paths(source, target)
     }
 
     pub fn import_review(&mut self, source: &Path, target: &Path, discard: bool) -> Result<()> {
+        self.import_review_with(source, target, discard, read_revision_record)
+    }
+
+    fn import_review_with(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+        mut read: impl FnMut(&Path, usize) -> Result<Vec<u8>>,
+    ) -> Result<()> {
         self.prepare_review_switch(discard)?;
-        self.check_import_source(source)?;
-        let target = normalize_review(target)?;
-        if safe_regular_file(&target, true)? {
-            return Err("Choose a new review bundle filename".into());
+        let (source, target) = self.check_portable_import_paths(source, target)?;
+        let bytes = read(&source, MAX_LEGACY_SOURCE_BYTES)?;
+        let prepared = QuarantinedImport::prepare_portable(&bytes).map_err(err)?;
+        if bytes != read(&source, MAX_LEGACY_SOURCE_BYTES)? {
+            return Err("Portable legacy source changed during import; retry".into());
         }
         let guard = lock_dir(&sidecar_dir(&target))?;
         if safe_file(&review_recovery_path(&target))? {
             return Err("Target has review recovery data; choose a different filename".into());
         }
-        let fs = Arc::new(GuardedFileSystem);
-        let bytes = StdFileSystem
-            .read_limited(source, MAX_LEGACY_SOURCE_BYTES)
-            .map_err(err)?;
-        let candidate = QuarantinedImport::import_new(&bytes, &target, config(&self.untitled), fs)
+        let candidate = prepared
+            .publish(&target, config(&self.untitled), Arc::new(GuardedFileSystem))
             .map_err(err)?;
         self.activate_review(candidate, guard);
         Ok(())
@@ -838,17 +874,14 @@ impl Host {
         let (root, target) = self.check_revision_import_paths(source, target)?;
         // Validate the source before creating any destination lock directory.
         let evidence = read_revision_source(&root)?;
+        let prepared = QuarantinedImport::prepare_revision(evidence).map_err(err)?;
         let guard = lock_dir(&sidecar_dir(&target))?;
         if safe_file(&review_recovery_path(&target))? {
             return Err("Target has review recovery data; choose a different filename".into());
         }
-        let candidate = QuarantinedImport::import_revision(
-            evidence,
-            &target,
-            config(&self.untitled),
-            Arc::new(GuardedFileSystem),
-        )
-        .map_err(err)?;
+        let candidate = prepared
+            .publish(&target, config(&self.untitled), Arc::new(GuardedFileSystem))
+            .map_err(err)?;
         self.activate_review(candidate, guard);
         Ok(())
     }
@@ -859,36 +892,12 @@ impl Host {
         source: &Path,
         target: &Path,
     ) -> Result<(PathBuf, PathBuf)> {
-        self.preflight()?;
-        self.check_import_source(source)?;
-        let source = source.canonicalize().map_err(err)?;
-        if !safe_file(&source)?
-            || !source
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("hmipkg"))
+        let (source, target) = self.check_import_file_paths(source, target)?;
+        if !source
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("hmipkg"))
         {
             return Err("Select an existing .hmipkg runtime package".into());
-        }
-        let untitled = self.untitled.canonicalize().map_err(err)?;
-        let overlaps_active = self.path().is_some_and(|path| {
-            path.canonicalize()
-                .is_ok_and(|p| source == p || source.starts_with(sidecar_dir(&p)))
-                || sidecar_dir(path)
-                    .canonicalize()
-                    .is_ok_and(|p| source.starts_with(p))
-        });
-        if overlaps_active || source.starts_with(untitled) {
-            return Err("Selected package overlaps active workspace storage".into());
-        }
-        let target = normalize_review(target)?;
-        if source == target
-            || source.starts_with(sidecar_dir(&target))
-            || sidecar_dir(&target)
-                .canonicalize()
-                .is_ok_and(|p| source.starts_with(p))
-            || safe_regular_file(&target, true)?
-        {
-            return Err("Choose a new review bundle outside the selected package storage".into());
         }
         Ok((source, target))
     }
@@ -2136,6 +2145,73 @@ mod tests {
         assert_eq!(fs::read(recovery).unwrap(), bytes);
         assert_eq!(fs::read(source).unwrap(), b"{}");
         assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+    }
+
+    #[test]
+    fn native_portable_import_refuses_source_overlap_and_replacement() {
+        let t = Temp::new();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Pending edit");
+        host.autosave();
+        let before = host.snapshot();
+        let generation = host.generation;
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        let target = t.0.join("review.hmi-review");
+        let overlapping_target = t.0.join("overlap.hmi-review");
+        let sidecar = sidecar_dir(&overlapping_target);
+        fs::create_dir(&sidecar).unwrap();
+        let overlapping_source = sidecar.join("source.json");
+        fs::write(&overlapping_source, LEGACY_SOURCE).unwrap();
+        assert!(host
+            .import_review(&overlapping_source, &overlapping_target, true)
+            .is_err());
+        assert!(!sidecar.join("writer.lock").exists());
+        assert_eq!(fs::read(&overlapping_source).unwrap(), LEGACY_SOURCE);
+
+        let source = t.0.join("legacy.json");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut changed = false;
+        let result = host.import_review_with(&source, &target, true, |path, limit| {
+            let bytes = read_revision_record(path, limit)?;
+            if !changed {
+                changed = true;
+                fs::write(path, b"{}").unwrap();
+            }
+            Ok(bytes)
+        });
+        assert!(changed);
+        assert!(result.is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(fs::read(&source).unwrap(), b"{}");
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(host.generation, generation);
+        assert_eq!(fs::read(&recovery).unwrap(), recovery_bytes);
+    }
+
+    #[test]
+    fn native_revision_semantic_refusal_creates_no_destination_sidecar() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        // Valid transport checksum; the embedded project has an unsupported field.
+        let record = concat!(
+            "2f2351b2db7b51f2b8b725df5d0aaa6016af176a6e3d385d0eb6a6da61db0db4\n",
+            r#"{"formatVersion":1,"id":"0000000001-1234abcd","number":1,"kind":"IMPORTED","label":"Original synthetic import","project":{"schemaVersion":1,"metadata":{"name":"Revision sample","defaultScreenId":"main"},"screens":{"main":{"id":"main","title":"Main","widthDp":640,"heightDp":480,"components":{}}},"variables":{},"externalSources":{},"externalMappings":{},"unsupported":true}}"#
+        );
+        fs::write(&records[2].0, record).unwrap();
+        assert!(read_revision_source(&root).is_ok());
+        let target = t.0.join("review.hmi-review");
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.snapshot();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert!(!root.join("LOCK").exists());
+        assert_eq!(fs::read(&records[2].0).unwrap(), record.as_bytes());
+        assert_eq!(host.snapshot(), before);
     }
 
     #[test]

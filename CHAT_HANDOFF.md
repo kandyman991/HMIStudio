@@ -468,3 +468,7 @@ Reset `docs/CI03_CHECKPOINT.md` to `disabled`, reconciled `roadmap/milestones/RE
 
 
 
+
+## REUSE-03B cumulative review — admission correction candidate (2026-11-27)
+
+Verified a7cdda0 full 21/21 hosted CI ([Desktop](https://github.com/kandyman991/HMIStudio/actions/runs/46043409720), [Tag engine](https://github.com/kandyman991/HMIStudio/actions/runs/46043409677), [handoff](https://github.com/kandyman991/HMIStudio/actions/runs/46043409683)); 85 importer tests per platform, 32 routing/roadmap tests, Windows 28+2 and Linux 31+2 native/real-child tests. Cumulative review identified inconsistent portable/revision semantic refusal before destination locking, portable consent and source overlap/replacement checks. Candidate corrects these; tests added but not locally run. CI-03 disabled; full corrected-head CI required. Continue cumulative review and reconcile final roadmap evidence before integration. PR #36 draft, RUST-05 retained. No milestone acceptance or merge.

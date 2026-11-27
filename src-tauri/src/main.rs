@@ -284,12 +284,14 @@ fn handle_project_action(
         }
         ProjectAction::ImportLegacy => {
             if let Some(source) = pick(app, "Select portable legacy JSON", false)? {
-                host.check_import_source(&source)?;
-                if let Some(target) = pick_review(app, true)? {
-                    if let Some(discard) = confirm_switch(app, &mut host)? {
-                        host.import_review(&source, &target, discard)?;
-                        replaced = true;
-                        message = host.persistence_message();
+                if ask(app, "Import this portable legacy project? The new local review bundle retains the exact source JSON, including private project data. No production authorization is granted. Choose a private destination.") == MessageDialogResult::Yes {
+                    if let Some(target) = pick_review(app, true)? {
+                        host.check_portable_import_paths(&source, &target)?;
+                        if let Some(discard) = confirm_switch(app, &mut host)? {
+                            host.import_review(&source, &target, discard)?;
+                            replaced = true;
+                            message = host.persistence_message();
+                        }
                     }
                 }
             }

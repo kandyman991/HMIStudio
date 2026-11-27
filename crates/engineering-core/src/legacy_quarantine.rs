@@ -355,14 +355,17 @@ pub struct QuarantinedImport {
     base_sha256: String,
 }
 
-/// A validated, still-unpublished package candidate. No caller can replace
+/// A validated, still-unpublished review candidate. No caller can replace
 /// its private evidence or bypass the portable mapping/replay checks.
-pub struct PreparedPackageReview {
+pub struct PreparedReview {
     payload: Payload,
     project: Project,
 }
 
-impl PreparedPackageReview {
+/// Compatibility name for callers preparing a runtime package.
+pub type PreparedPackageReview = PreparedReview;
+
+impl PreparedReview {
     pub fn publish(
         self,
         target: &Path,
@@ -382,7 +385,13 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
-        Self::import_with_source(source, None, None, target, config, fs)
+        Self::prepare_portable(source)?.publish(target, config, fs)
+    }
+
+    /// Validate portable mapping and exact replay before destination I/O.
+    pub fn prepare_portable(source: &[u8]) -> Result<PreparedReview, ImportError> {
+        let (payload, project) = Self::prepare_import(source, None, None)?;
+        Ok(PreparedReview { payload, project })
     }
 
     /// Admit a verified revision snapshot through the same quarantine gate.
@@ -393,8 +402,14 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
+        Self::prepare_revision(source)?.publish(target, config, fs)
+    }
+
+    /// Validate both revision transport and portable mapping before destination I/O.
+    pub fn prepare_revision(source: RevisionSource) -> Result<PreparedReview, ImportError> {
         let project_bytes = source.project_bytes()?.to_vec();
-        Self::import_with_source(&project_bytes, Some(source), None, target, config, fs)
+        let (payload, project) = Self::prepare_import(&project_bytes, Some(source), None)?;
+        Ok(PreparedReview { payload, project })
     }
 
     /// Admit a legacy runtime archive only through complete portable mapping
@@ -421,19 +436,7 @@ impl QuarantinedImport {
         };
         let (payload, project) =
             Self::prepare_import(decoded.project_bytes(), None, Some(evidence))?;
-        Ok(PreparedPackageReview { payload, project })
-    }
-
-    fn import_with_source(
-        source: &[u8],
-        revision_source: Option<RevisionSource>,
-        package_source: Option<PackageSource>,
-        target: &Path,
-        config: SessionConfig,
-        fs: Arc<dyn FileSystem>,
-    ) -> Result<Self, ImportError> {
-        let (payload, project) = Self::prepare_import(source, revision_source, package_source)?;
-        Self::publish_prepared(payload, project, target, config, fs)
+        Ok(PreparedReview { payload, project })
     }
 
     fn prepare_import(

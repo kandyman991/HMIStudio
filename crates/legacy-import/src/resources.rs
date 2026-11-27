@@ -318,7 +318,7 @@ pub(super) fn map(
         let mut metadata = json!({"legacyName":name,"legacyWidthPx":w,"legacyHeightPx":h});
         let size_target = match revision {
             MappingRevision::Original => "sha256",
-            MappingRevision::VerifiedSize => {
+            MappingRevision::VerifiedSize | MappingRevision::PassiveInstruments => {
                 metadata["legacySizeBytes"] = json!(bytes.len());
                 "extensions/legacySizeBytes"
             }

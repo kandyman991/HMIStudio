@@ -212,6 +212,7 @@ fn leaves(v: &Value, p: &str, out: &mut BTreeMap<String, Finding>) -> bool {
     true
 }
 struct Mapping {
+    revision: MappingRevision,
     findings: BTreeMap<String, Finding>,
     ids: BTreeMap<String, String>,
     used: BTreeSet<String>,
@@ -288,13 +289,14 @@ fn fixed(v: f64) -> Value {
 /// initial supported subset is identical across versions. Unsupported features
 /// refuse the entire result, and report only paths/codes, not source values. The report may contain source key names; keep it local.
 pub fn import_portable(input: &[u8]) -> ImportOutcome {
-    import_with_revision(input, MappingRevision::VerifiedSize)
+    import_with_revision(input, MappingRevision::PassiveInstruments)
 }
 
 #[derive(Clone, Copy)]
 enum MappingRevision {
     Original,
     VerifiedSize,
+    PassiveInstruments,
 }
 
 /// Replay a saved review report using its recorded mapping revision.
@@ -319,6 +321,7 @@ pub fn replay_portable(input: &[u8], report: &Value) -> Option<ImportOutcome> {
             MappingRevision::Original
         }
         "0.1.1" => MappingRevision::VerifiedSize,
+        "0.1.2" => MappingRevision::PassiveInstruments,
         _ => return None,
     };
     Some(import_with_revision(input, revision))
@@ -332,6 +335,7 @@ fn import_with_revision(input: &[u8], revision: MappingRevision) -> ImportOutcom
         importer_version: match revision {
             MappingRevision::Original => "0.1.0",
             MappingRevision::VerifiedSize => "0.1.1",
+            MappingRevision::PassiveInstruments => "0.1.2",
         },
         findings: vec![],
         id_map: BTreeMap::new(),
@@ -357,6 +361,7 @@ fn import_with_revision(input: &[u8], revision: MappingRevision) -> ImportOutcom
     };
     let project_id = format!("legacy-project-{}", &report.source_sha256[..24]);
     let mut m = Mapping {
+        revision,
         findings: BTreeMap::new(),
         ids: BTreeMap::new(),
         used: BTreeSet::from([project_id.clone()]),

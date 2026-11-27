@@ -1,5 +1,5 @@
 //! Conservative graphical declaration migration. Unsupported semantics are refused.
-use super::{dim, fixed, path, Mapping};
+use super::{dim, fixed, path, Mapping, MappingRevision};
 use hmi_project_model::expression::{compile, Type, CONTRACT_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -30,6 +30,10 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "rectangle" => "rectangle",
         "ellipse" => "ellipse",
         "numericField" => "numericDisplay",
+        "gauge" if matches!(m.revision, MappingRevision::PassiveInstruments) => "gauge",
+        "levelIndicator" if matches!(m.revision, MappingRevision::PassiveInstruments) => {
+            "progressBar"
+        }
         "indicator" => "indicator",
         "composite" => "instance",
         "line" => "line",
@@ -45,7 +49,7 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     let id = m.id(&path(p, "id"), key, "node");
     mark(m, p, "id", t, "id");
     m.mark(&path(p, "type"), &format!("{t}/element"));
-    if matches!(kind, "numericField" | "indicator" | "button") {
+    if matches!(kind, "numericField" | "indicator" | "button" | "gauge" | "levelIndicator") {
         if let Some(f) = m.findings.get_mut(&path(p, "type")) {
             f.severity = "warning";
             f.code = "component-renderer-parity-pending";
@@ -214,6 +218,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         json!({"type":"component","kind":canonical})
     };
     let mut result = json!({"id":id,"name":name,"element":element,"layout":{"position":{"x":geo[0],"y":geo[1]},"width":fixed(geo[2]),"height":fixed(geo[3]),"visibility":if visible{"visible"}else{"hidden"}},"properties":props});
+    if matches!(kind, "gauge" | "levelIndicator") {
+        passive_instrument(v, &mut result, p, t, kind, m)?;
+    }
     if kind != "composite" {
         if let Some(def) = v.get("componentDefinitionId").filter(|x| !x.is_null()) {
             result["extensions"]["hmiforge.standardDefinition"] = def.clone();
@@ -229,6 +236,95 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         }
     }
     Some(result)
+}
+
+// Only passive screen instruments with an explicit range and one direct
+// numeric binding are admitted. No legacy fault/threshold/quality policy is
+// turned into a canonical limit, and no operator action is introduced.
+fn passive_instrument(
+    v: &Value,
+    n: &mut Value,
+    p: &str,
+    t: &str,
+    kind: &str,
+    m: &mut Mapping,
+) -> Option<()> {
+    let pp = path(p, "properties");
+    let props = v.get("properties")?.as_object()?;
+    let range = |key: &str| {
+        let value = props.get(key)?.as_str()?.parse::<f64>().ok()?;
+        value.is_finite().then_some(value)
+    };
+    let (Some(min), Some(max)) = (range("min"), range("max")) else {
+        return refuse(m, &pp, "instrument-explicit-finite-range-required");
+    };
+    if min >= max || !(max - min).is_finite() {
+        return refuse(m, &pp, "instrument-invalid-range");
+    }
+    n["properties"]["min"] = json!(min);
+    n["properties"]["max"] = json!(max);
+    for key in ["min", "max"] {
+        m.mark(&path(&pp, key), &format!("{t}/properties/{key}"));
+    }
+    if kind == "gauge" {
+        n["properties"]["variant"] = json!("radial");
+    } else {
+        n["properties"]["orientation"] = json!("horizontal");
+    }
+    for (key, value) in props {
+        let sp = path(&pp, key);
+        match key.as_str() {
+            "min" | "max" => {}
+            "orientation" if kind == "levelIndicator" && value == "horizontal" => {
+                m.mark(&sp, &format!("{t}/properties/orientation"));
+            }
+            "label" | "unit" => {
+                let text = value.as_str()?;
+                if text.contains("{{") {
+                    return refuse(m, &sp, "instrument-template-not-mapped");
+                }
+                n["extensions"]["hmiforge.instrumentPresentation"][key] = value.clone();
+                m.mark(
+                    &sp,
+                    &format!("{t}/extensions/hmiforge.instrumentPresentation/{key}"),
+                );
+                if let Some(f) = m.findings.get_mut(&sp) {
+                    f.disposition = "preserved";
+                    f.code = "instrument-presentation-preserved";
+                    f.severity = "warning";
+                    f.message = "Literal presentation retained as inactive evidence; display parity is not established.";
+                }
+            }
+            "fillColor" if kind == "levelIndicator" => {
+                let raw = value.as_str()?;
+                if !color(raw) {
+                    return refuse(m, &sp, "instrument-fill-not-explicit-rgb");
+                }
+                n["properties"]["barColor"] = value.clone();
+                m.mark(&sp, &format!("{t}/properties/barColor"));
+            }
+            _ => return refuse(m, &sp, "instrument-property-not-mapped"),
+        }
+    }
+    let slot = if kind == "gauge" { "value" } else { "level" };
+    if !v
+        .get("bindings")
+        .and_then(Value::as_object)
+        .is_some_and(|b| b.len() == 1 && b.get(slot).is_some_and(Value::is_string))
+    {
+        return refuse(m, &path(p, "bindings"), "instrument-single-numeric-binding-required");
+    }
+    if v.get("expressions")
+        .is_some_and(|e| e.as_object().is_none_or(|o| !o.is_empty()))
+    {
+        return refuse(m, &path(p, "expressions"), "instrument-expression-not-mapped");
+    }
+    if v.get("actions")
+        .is_some_and(|e| e.as_object().is_none_or(|o| !o.is_empty()))
+    {
+        return refuse(m, &path(p, "actions"), "instrument-action-not-mapped");
+    }
+    Some(())
 }
 
 // Source geometry remains available for the design editor; the adaptive layout
@@ -677,7 +773,7 @@ fn target(kind: &str, slot: &str) -> Option<&'static str> {
         (_, "visible") => Some("visible"),
         (_, "opacity") => Some("opacity"),
         ("label" | "button", "text") => Some("text"),
-        ("numericField", "value") => Some("value"),
+        ("numericField" | "gauge", "value") | ("levelIndicator", "level") => Some("value"),
         ("indicator", "state") => Some("active"),
         ("rectangle" | "ellipse", "fillColor") => Some("fill"),
         ("rectangle" | "ellipse", "strokeColor") => Some("strokeColor"),
@@ -704,6 +800,7 @@ struct BindingContext<'a> {
     types: &'a BTreeMap<String, Type>,
     ids: &'a BTreeMap<String, String>,
     writable: &'a BTreeSet<String>,
+    variables: &'a Value,
     expr: &'a mut Vec<Value>,
     ver: u64,
 }
@@ -733,6 +830,27 @@ fn bindings(
             let ty = *ctx.types.get(var)?;
             if kind == "numericField" && ctx.writable.contains(var) {
                 return refuse(m, &sp, "writable-numeric-field-not-mapped");
+            }
+            if matches!(kind, "gauge" | "levelIndicator") {
+                if ty != Type::Number || ctx.writable.contains(var) {
+                    return refuse(m, &sp, "instrument-read-only-numeric-tag-required");
+                }
+                let unit = v["properties"]["unit"].as_str().unwrap_or("");
+                let tag_unit = ctx.variables[var]["engineeringUnit"].as_str().unwrap_or("");
+                if kind == "gauge" {
+                    if !unit.is_empty() && unit != tag_unit {
+                        return refuse(
+                            m,
+                            &format!("{p}/properties/unit"),
+                            "instrument-unit-not-representable",
+                        );
+                    }
+                    n["properties"]["showUnit"] = json!(!tag_unit.is_empty());
+                } else if (!unit.is_empty() && unit != "%")
+                    || (!tag_unit.is_empty() && tag_unit != "%")
+                {
+                    return refuse(m, &sp, "instrument-level-unit-not-representable");
+                }
             }
             if !bound.insert(property) {
                 return None;
@@ -893,6 +1011,11 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
+                    if matches!(m.revision, MappingRevision::PassiveInstruments)
+                        && matches!(e["type"].as_str(), Some("gauge" | "levelIndicator"))
+                    {
+                        return refuse(m, &ep, "nested-instrument-parameter-not-mapped");
+                    }
                     if e["type"] == "dropDown" {
                         return refuse(m, &ep, "nested-dropdown-not-mapped");
                     }
@@ -983,6 +1106,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                             types: &types,
                             ids: &ids,
                             writable: &writable,
+                            variables: &v["variables"],
                             expr: &mut expr,
                             ver,
                         },

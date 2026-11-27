@@ -794,7 +794,7 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
         .unwrap_or_else(|| panic!("{:?}", imported.report));
     let doc = serde_json::to_value(&project).unwrap();
     let props = &doc["components"][0]["root"]["children"][0]["properties"];
-    assert_eq!(imported.report.importer_version, "0.1.1");
+    assert_eq!(imported.report.importer_version, "0.1.2");
     let size = imported
         .report
         .findings
@@ -1478,5 +1478,139 @@ fn every_version_feature_boundary() {
         );
         assert!(a.resource_bytes.is_empty());
         assert!(!a.report.has_complete_mapping());
+    }
+}
+
+fn instrument_fixture(kind: &str) -> Value {
+    let mut f = fixture(10);
+    f["variables"]["label-a"]["type"] = json!("DOUBLE");
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!(kind);
+    if kind == "gauge" {
+        c["properties"] = json!({"min":"-12.5","max":"83.25","label":"Pressure","unit":"bar"});
+        c["bindings"] = json!({"value":"label-a"});
+        f["variables"]["label-a"]["engineeringUnit"] = json!("bar");
+    } else {
+        c["properties"] = json!({"min":"0","max":"100","label":"Level","unit":"%","orientation":"horizontal","fillColor":"#123456"});
+        c["bindings"] = json!({"level":"label-a"});
+    }
+    f
+}
+
+#[test]
+fn passive_instrument_mapping_is_deterministic_and_read_only() {
+    for kind in ["gauge", "levelIndicator"] {
+        let f = instrument_fixture(kind);
+        let bytes = serde_json::to_vec(&f).unwrap();
+        let a = import_portable(&bytes);
+        let b = import_portable(&bytes);
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+        assert_eq!(a.report, b.report);
+        assert_eq!(a.report.importer_version, "0.1.2");
+        let project = a.project.unwrap();
+        assert_eq!(
+            save_project(&project).unwrap(),
+            save_project(&b.project.unwrap()).unwrap()
+        );
+        let doc = serde_json::to_value(&project).unwrap();
+        let n = &doc["screens"][0]["root"]["children"][0];
+        let (target, min, max) = if kind == "gauge" {
+            assert_eq!(n["properties"]["variant"], "radial");
+            assert_eq!(n["properties"]["showUnit"], true);
+            ("gauge", -12.5, 83.25)
+        } else {
+            assert_eq!(n["properties"]["orientation"], "horizontal");
+            assert_eq!(n["properties"]["barColor"], "#123456");
+            ("progressBar", 0.0, 100.0)
+        };
+        assert_eq!(n["element"]["kind"], target);
+        assert_eq!(n["properties"]["min"].as_f64(), Some(min));
+        assert_eq!(n["properties"]["max"].as_f64(), Some(max));
+        assert_eq!(n["bindings"][0]["property"], "value");
+        assert_eq!(n["bindings"][0]["source"]["tag"], doc["tags"][0]["id"]);
+        assert!(n["bindings"][0]["mode"].is_null() || n["bindings"][0]["mode"] == "read");
+        assert_eq!(
+            n["extensions"]["hmiforge.instrumentPresentation"]["label"],
+            f["screens"]["screen/a"]["components"]["label-a"]["properties"]["label"]
+        );
+        let mut expected = BTreeSet::new();
+        paths(&f, "", &mut expected);
+        assert_eq!(
+            expected,
+            a.report.findings.iter().map(|x| x.path.clone()).collect()
+        );
+        let report = serde_json::to_value(&a.report).unwrap();
+        let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
+        assert_eq!(replay.report, a.report);
+        assert_eq!(
+            save_project(&replay.project.unwrap()).unwrap(),
+            save_project(&project).unwrap()
+        );
+        for old in ["0.1.0", "0.1.1"] {
+            let mut historical = report.clone();
+            historical["importerVersion"] = json!(old);
+            assert!(hmi_legacy_import::replay_portable(&bytes, &historical)
+                .unwrap()
+                .project
+                .is_none());
+        }
+    }
+}
+
+#[test]
+fn passive_instrument_refuses_unrepresentable_semantics() {
+    let component = "/screens/screen~1a/components/label-a";
+    for (kind, field, value) in [
+        ("gauge", "properties/min", json!("NaN")),
+        ("gauge", "properties/max", json!("-12.5")),
+        ("gauge", "properties/max", json!("-13")),
+        ("gauge", "properties/min", json!("-1e309")),
+        ("gauge", "properties/highWarning", json!("75")),
+        ("gauge", "properties/highFault", json!("95")),
+        ("gauge", "properties/unit", json!("psi")),
+        ("gauge", "properties/label", json!("{{template}}")),
+        ("gauge", "bindings", json!({"value":"label-a","fault":"label-a"})),
+        ("gauge", "bindings", json!({})),
+        ("gauge", "expressions", json!({"value":"1"})),
+        ("levelIndicator", "properties/orientation", json!("vertical")),
+        ("levelIndicator", "properties/unit", json!("L")),
+        ("levelIndicator", "properties/fillColor", json!("@level.fill")),
+        ("levelIndicator", "bindings", json!({"value":"label-a"})),
+    ] {
+        let mut f = instrument_fixture(kind);
+        let full = format!("{component}/{field}");
+        let (parent, key) = full.rsplit_once('/').unwrap();
+        f.pointer_mut(parent).unwrap()[key] = value;
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        assert!(a.project.is_none(), "{kind} {field}");
+        assert!(a.resource_bytes.is_empty());
+        assert!(!a.report.has_complete_mapping());
+    }
+    for ty in ["BOOL", "STRING"] {
+        let mut f = instrument_fixture("gauge");
+        f["variables"]["label-a"]["type"] = json!(ty);
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        assert!(a.project.is_none());
+        assert!(a.resource_bytes.is_empty());
+    }
+    let mut f = instrument_fixture("gauge");
+    f["variables"]["label-a"]["access"] = json!("READ_WRITE");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+    let mut f = instrument_fixture("levelIndicator");
+    f["variables"]["label-a"]["engineeringUnit"] = json!("L");
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap()).project.is_none());
+}
+
+#[test]
+fn passive_instrument_revision_preserves_predecessor_mapping() {
+    let bytes = serde_json::to_vec(&fixture(1)).unwrap();
+    let current = import_portable(&bytes);
+    let canonical = save_project(current.project.as_ref().unwrap()).unwrap();
+    for version in ["0.1.0", "0.1.1"] {
+        let mut expected = serde_json::to_value(&current.report).unwrap();
+        expected["importerVersion"] = json!(version);
+        let replay = hmi_legacy_import::replay_portable(&bytes, &expected).unwrap();
+        assert_eq!(serde_json::to_value(&replay.report).unwrap(), expected);
+        assert_eq!(save_project(&replay.project.unwrap()).unwrap(), canonical);
     }
 }

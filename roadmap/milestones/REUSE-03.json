@@ -4,7 +4,7 @@
   "track": "Reuse",
   "phase": "in_progress",
   "counts": true,
-  "summary": "Draft PR #36 has validated bounded runtime ZIP decoding and a candidate guarded native runtime package admission with persisted evidence replay.",
+  "summary": "Draft PR #36 has validated native revision and runtime ZIP admission, quarantine and persisted evidence replay; remaining legacy semantic coverage is in progress.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Verify native package admission candidate exact-head hosted CI, independent consent/source integrity/quarantine/recovery/save-copy review; remaining legacy migration semantics and actual production publisher/live admission consumers remain open."
+    "Complete remaining within-v2 legacy semantic mappings and explicit refusal/deferral matrix, preserve historical replay, and reconcile actual production publisher/live admission consumer gates."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
+      "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 46012725497,
+          "id": 46021303006,
           "name": "Desktop CI",
-          "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
+          "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46012725537,
+          "id": 46021302962,
           "name": "Tag engine CI",
-          "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
+          "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46012725495,
+          "id": 46021302996,
           "name": "Engineering handoff snapshot",
-          "head": "79860c85def9a302756c7e65acd77ad9d20fe378",
+          "head": "62c188b325d10ed2be04746146e83155d6ec31cc",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-27T14:33:46Z"
+      "observedAt": "2026-11-27T15:06:36Z"
     }
   ],
   "assignment": {
@@ -295,6 +295,12 @@
       "date": "2026-11-27",
       "type": "handoff",
       "summary": "Exact head 79860c8 passed all 19 hosted jobs and 70 importer tests per platform. Actual original Kotlin writer differential passed 10/10 packages on pinned 92a612d; scoped REUSE-03B.13C transport review closed. Candidate REUSE-03B.13D adds consent-gated native package import and v4 exact archive replay through quarantine, recovery and Save Copy. Existing claim retained; candidate validation and independent review pending.",
+      "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-27",
+      "type": "handoff",
+      "summary": "Independent REUSE-03B.13D review closed at 62c188b: all 19 hosted jobs passed, including Windows 28+2 and Linux 31+2 native tests and deterministic archive replacement refusal on both platforms. Native package consent, source preservation, quarantine and v4 evidence replay validated within documented limits. REUSE-03B.14 semantic coverage starts under retained RUST-05 claim.",
       "record": "docs/LEGACY_IMPORT.md"
     }
   ]

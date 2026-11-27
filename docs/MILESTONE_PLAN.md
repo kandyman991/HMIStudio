@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · Draft PR #36 has validated bounded runtime ZIP decoding and a candidate guarded native runtime package admission with persisted evidence replay.
+**In progress** · Draft PR #36 has validated native revision and runtime ZIP admission, quarantine and persisted evidence replay; remaining legacy semantic coverage is in progress.
 
 **Acceptance criteria**
 
@@ -748,11 +748,11 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Verify native package admission candidate exact-head hosted CI, independent consent/source integrity/quarantine/recovery/save-copy review; remaining legacy migration semantics and actual production publisher/live admission consumers remain open.
+- Complete remaining within-v2 legacy semantic mappings and explicit refusal/deferral matrix, preserve historical replay, and reconcile actual production publisher/live admission consumer gates.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-26T15:55:17Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [79860c8](https://github.com/kandyman991/HMIStudio/commit/79860c85def9a302756c7e65acd77ad9d20fe378) · snapshot 2026-11-27T14:33:46Z · [Desktop CI #46012725497](https://github.com/kandyman991/HMIStudio/actions/runs/46012725497) success, [Tag engine CI #46012725537](https://github.com/kandyman991/HMIStudio/actions/runs/46012725537) success, [Engineering handoff snapshot #46012725495](https://github.com/kandyman991/HMIStudio/actions/runs/46012725495) success
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [62c188b](https://github.com/kandyman991/HMIStudio/commit/62c188b325d10ed2be04746146e83155d6ec31cc) · snapshot 2026-11-27T15:06:36Z · [Desktop CI #46021303006](https://github.com/kandyman991/HMIStudio/actions/runs/46021303006) success, [Tag engine CI #46021302962](https://github.com/kandyman991/HMIStudio/actions/runs/46021302962) success, [Engineering handoff snapshot #46021302996](https://github.com/kandyman991/HMIStudio/actions/runs/46021302996) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -793,6 +793,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-26 · handoff · Exact-head 9b7fac5 Desktop CI failed two Windows native revision tests; Linux and all crate jobs passed. Reproduced Git core.autocrlf conversion of the checksummed synthetic fixture and verified scoped -text checkout preserves exact bytes. Production checksum validation unchanged. Successor CI and native import review required before ZIP decoding. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-26 · handoff · Verified exact-head 12ee69f, including Windows/Linux native revision regressions and real-child tests; closed REUSE-03B.13B review. Candidate bounded runtime ZIP transport decoder handles format 1/2, structural signature status only, and original synthetic Java fixtures. Local 66 importer and 87 core tests, strict importer Clippy/rustdoc and three locked dependency resolutions passed. New dependency advisory gate, exact-head CI and independent decoder review remain required before native ZIP admission. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-27 · handoff · Exact head 79860c8 passed all 19 hosted jobs and 70 importer tests per platform. Actual original Kotlin writer differential passed 10/10 packages on pinned 92a612d; scoped REUSE-03B.13C transport review closed. Candidate REUSE-03B.13D adds consent-gated native package import and v4 exact archive replay through quarantine, recovery and Save Copy. Existing claim retained; candidate validation and independent review pending. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-27 · handoff · Independent REUSE-03B.13D review closed at 62c188b: all 19 hosted jobs passed, including Windows 28+2 and Linux 31+2 native tests and deterministic archive replacement refusal on both platforms. Native package consent, source preservation, quarantine and v4 evidence replay validated within documented limits. REUSE-03B.14 semantic coverage starts under retained RUST-05 claim. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

@@ -114,6 +114,7 @@ jobs:
           cargo install cargo-audit --version 0.23.0 --locked
           cargo audit --file Cargo.lock
           cargo audit --file ../engineering-core/Cargo.lock
+          cargo audit --file ../../src-tauri/Cargo.lock
       - if: matrix.crate == 'crates/project-model'
         run: cargo run --locked --example validate -- fixtures/valid/minimal.hmi.json fixtures/valid/bottling-line.hmi.json
       - run: git diff --exit-code -- Cargo.lock

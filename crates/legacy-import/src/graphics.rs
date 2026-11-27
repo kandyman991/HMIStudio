@@ -1098,7 +1098,8 @@ fn active_input(
                         f.disposition = "preserved";
                         f.severity = "warning";
                         f.code = "input-caption-preserved";
-                        f.message = "Literal input caption retained as inactive presentation evidence.";
+                        f.message =
+                            "Literal input caption retained as inactive presentation evidence.";
                     }
                 }
             }
@@ -1332,7 +1333,10 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                         return refuse(m, &ep, "nested-status-parameter-not-mapped");
                     }
                     if matches!(m.revision, MappingRevision::ActiveInputs)
-                        && matches!(e["type"].as_str(), Some("switch" | "slider" | "numericInput"))
+                        && matches!(
+                            e["type"].as_str(),
+                            Some("switch" | "slider" | "numericInput")
+                        )
                     {
                         return refuse(m, &ep, "nested-active-input-not-mapped");
                     }

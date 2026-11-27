@@ -92,7 +92,12 @@ fn portable_refusal(report: &MigrationReport) -> ImportError {
     if codes.is_empty() {
         return ImportError::PortableRefused("incomplete-migration-report".into());
     }
-    let visible = codes.iter().take(12).copied().collect::<Vec<_>>().join(", ");
+    let visible = codes
+        .iter()
+        .take(12)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(", ");
     ImportError::PortableRefused(format!(
         "{} distinct reason code(s); first 12: {}",
         codes.len(),

@@ -138,7 +138,10 @@ fn refused_import_diagnostics_are_redacted_and_distinct() {
     let future = br#"{"schemaVersion":11,"private-key-sentinel":"secret-value-sentinel"}"#;
     let version = message(QuarantinedImport::prepare_portable(future));
     assert!(version.contains("unsupported-or-missing-version"));
-    assert_eq!(version, message(QuarantinedImport::prepare_portable(future)));
+    assert_eq!(
+        version,
+        message(QuarantinedImport::prepare_portable(future))
+    );
     assert!(!version.contains("private-key-sentinel"));
     assert!(!version.contains("secret-value-sentinel"));
     let package = message(QuarantinedImport::prepare_package(b"not a package"));

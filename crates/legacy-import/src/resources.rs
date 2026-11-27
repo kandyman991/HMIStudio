@@ -320,7 +320,8 @@ pub(super) fn map(
             MappingRevision::Original => "sha256",
             MappingRevision::VerifiedSize
             | MappingRevision::PassiveInstruments
-            | MappingRevision::NumericParameters => {
+            | MappingRevision::NumericParameters
+            | MappingRevision::PassiveStatus => {
                 metadata["legacySizeBytes"] = json!(bytes.len());
                 "extensions/legacySizeBytes"
             }

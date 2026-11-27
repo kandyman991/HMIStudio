@@ -420,3 +420,7 @@ Verified reconciliation `403a4cf` all 19 hosted jobs passed. Read pinned HMI For
 ## REUSE-03B.14B — numeric reusable parameters / review cadence (2026-11-27)
 
 Verified corrected head `7e376cf` all 19 hosted jobs and 73 importer tests per platform. Owner directed milestone-based comprehensive review (D-008 follow-up, AGENTS.md and CI policy), no routine independent review of every draft slice; retain exact-head CI/self-review and earlier review for material risk, full pre-merge review. Policy recorded in draft, not merged. Candidate typed numeric reusable parameter specialization requires common concrete read-only type across direct instances; version 0.1.3 and synthetic regression groups. No local formatting/tests. Next verify exact-head CI and correct failures, then continue remaining semantics. No independent milestone acceptance, installers or merge.
+
+## REUSE-03B.14C — passive sensor/flow state (2026-11-27)
+
+Exact `68dd143` passed 19/19 jobs and 75 importer tests on both platforms. Candidate 14C maps restricted numeric sensor and Boolean flow direct read-only bindings using frozen numericDisplay/indicator, preserves matching engineering unit and directional caption/evidence; no legacy quality/threshold/animation equivalence. Revision 0.1.4 retains prior replay. Three synthetic regression groups; local Cargo/rustfmt unavailable. Verify exact-head CI and correct any failures before next semantic slice. Keep draft PR #36 and RUST-05 claim; comprehensive review at REUSE-03B completion.

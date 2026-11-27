@@ -30,22 +30,10 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "rectangle" => "rectangle",
         "ellipse" => "ellipse",
         "numericField" => "numericDisplay",
-        "gauge"
-            if matches!(
-                m.revision,
-                MappingRevision::PassiveInstruments | MappingRevision::NumericParameters
-            ) =>
-        {
-            "gauge"
-        }
-        "levelIndicator"
-            if matches!(
-                m.revision,
-                MappingRevision::PassiveInstruments | MappingRevision::NumericParameters
-            ) =>
-        {
-            "progressBar"
-        }
+        "gauge" if m.revision.passive_instruments() => "gauge",
+        "levelIndicator" if m.revision.passive_instruments() => "progressBar",
+        "sensor" if matches!(m.revision, MappingRevision::PassiveStatus) => "numericDisplay",
+        "flowIndicator" if matches!(m.revision, MappingRevision::PassiveStatus) => "indicator",
         "indicator" => "indicator",
         "composite" => "instance",
         "line" => "line",
@@ -63,7 +51,13 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     m.mark(&path(p, "type"), &format!("{t}/element"));
     if matches!(
         kind,
-        "numericField" | "indicator" | "button" | "gauge" | "levelIndicator"
+        "numericField"
+            | "indicator"
+            | "button"
+            | "gauge"
+            | "levelIndicator"
+            | "sensor"
+            | "flowIndicator"
     ) {
         if let Some(f) = m.findings.get_mut(&path(p, "type")) {
             f.severity = "warning";
@@ -236,6 +230,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
     if matches!(kind, "gauge" | "levelIndicator") {
         passive_instrument(v, &mut result, p, t, kind, m)?;
     }
+    if matches!(kind, "sensor" | "flowIndicator") {
+        passive_status(v, &mut result, p, t, kind, m)?;
+    }
     if kind != "composite" {
         if let Some(def) = v.get("componentDefinitionId").filter(|x| !x.is_null()) {
             result["extensions"]["hmiforge.standardDefinition"] = def.clone();
@@ -251,6 +248,91 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         }
     }
     Some(result)
+}
+
+// Canonical sensor/flow symbol slot types differ from the legacy catalog.
+// Map only the passive numeric/Boolean state, not the legacy tone, quality
+// lamp, enumeration, threshold or animated-direction rendering contract.
+fn passive_status(
+    v: &Value,
+    n: &mut Value,
+    p: &str,
+    t: &str,
+    kind: &str,
+    m: &mut Mapping,
+) -> Option<()> {
+    let sensor = kind == "sensor";
+    let slot = if sensor { "value" } else { "flow" };
+    if !v
+        .get("bindings")
+        .and_then(Value::as_object)
+        .is_some_and(|b| b.len() == 1 && b.get(slot).is_some_and(Value::is_string))
+    {
+        return refuse(
+            m,
+            &path(p, "bindings"),
+            "status-single-direct-binding-required",
+        );
+    }
+    for key in ["expressions", "actions"] {
+        if v.get(key)
+            .is_some_and(|x| x.as_object().is_none_or(|o| !o.is_empty()))
+        {
+            return refuse(
+                m,
+                &path(p, key),
+                "status-action-or-expression-not-mapped",
+            );
+        }
+    }
+    let pp = path(p, "properties");
+    let mut direction = "right";
+    let mut label = n["name"].as_str()?.to_owned();
+    if let Some(props) = v.get("properties") {
+        for (key, value) in props.as_object()? {
+            let sp = path(&pp, key);
+            let raw = value.as_str()?;
+            match key.as_str() {
+                "label" => {
+                    if raw.contains("{{") {
+                        return refuse(m, &sp, "status-template-not-mapped");
+                    }
+                    label = raw.to_owned();
+                }
+                "direction" if !sensor => {
+                    if !matches!(raw, "right" | "left" | "up" | "down") {
+                        return refuse(m, &sp, "status-direction-not-mapped");
+                    }
+                    direction = raw;
+                }
+                "unit" if sensor => {
+                    if raw.contains("{{") {
+                        return refuse(m, &sp, "status-template-not-mapped");
+                    }
+                }
+                _ => return refuse(m, &sp, "status-property-not-mapped"),
+            }
+            n["extensions"]["hmiforge.statusPresentation"][key] = value.clone();
+            m.mark(
+                &sp,
+                &format!("{t}/extensions/hmiforge.statusPresentation/{key}"),
+            );
+            if let Some(f) = m.findings.get_mut(&sp) {
+                f.disposition = "preserved";
+                f.code = "status-presentation-preserved";
+                f.severity = "warning";
+                f.message = "Source presentation retained as evidence; renderer parity is not established.";
+            }
+        }
+    }
+    if sensor {
+        n["properties"]["prefix"] = json!(label);
+    } else {
+        n["properties"]["label"] = json!(format!("{label} ({direction})"));
+        n["properties"]["shape"] = json!("circle");
+        n["extensions"]["hmiforge.statusPresentation"]["direction"] = json!(direction);
+    }
+    Some(())
 }
 
 // Only passive screen instruments with an explicit range and one direct
@@ -796,8 +878,10 @@ fn target(kind: &str, slot: &str) -> Option<&'static str> {
         (_, "visible") => Some("visible"),
         (_, "opacity") => Some("opacity"),
         ("label" | "button", "text") => Some("text"),
-        ("numericField" | "gauge", "value") | ("levelIndicator", "level") => Some("value"),
-        ("indicator", "state") => Some("active"),
+        ("numericField" | "gauge" | "sensor", "value") | ("levelIndicator", "level") => {
+            Some("value")
+        }
+        ("indicator", "state") | ("flowIndicator", "flow") => Some("active"),
         ("rectangle" | "ellipse", "fillColor") => Some("fill"),
         ("rectangle" | "ellipse", "strokeColor") => Some("strokeColor"),
         _ => None,
@@ -873,6 +957,30 @@ fn bindings(
                     || (!tag_unit.is_empty() && tag_unit != "%")
                 {
                     return refuse(m, &sp, "instrument-level-unit-not-representable");
+                }
+            }
+            if matches!(kind, "sensor" | "flowIndicator") {
+                let expected = if kind == "sensor" {
+                    Type::Number
+                } else {
+                    Type::Bool
+                };
+                if ty != expected || ctx.writable.contains(var) {
+                    return refuse(m, &sp, "status-read-only-tag-type-required");
+                }
+                if kind == "sensor" {
+                    let unit = v["properties"]["unit"].as_str().unwrap_or("");
+                    let tag_unit = ctx.variables[var]["engineeringUnit"].as_str().unwrap_or("");
+                    if !unit.is_empty() && unit != tag_unit {
+                        return refuse(
+                            m,
+                            &format!("{p}/properties/unit"),
+                            "status-unit-not-representable",
+                        );
+                    }
+                    n["properties"]["showUnit"] = json!(!tag_unit.is_empty());
+                } else if ctx.variables[var]["engineeringUnit"].as_str().is_some() {
+                    return refuse(m, &sp, "flow-boolean-unit-not-mapped");
                 }
             }
             if !bound.insert(property) {
@@ -1035,12 +1143,15 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
-                    if matches!(
-                        m.revision,
-                        MappingRevision::PassiveInstruments | MappingRevision::NumericParameters
-                    ) && matches!(e["type"].as_str(), Some("gauge" | "levelIndicator"))
+                    if m.revision.passive_instruments()
+                        && matches!(e["type"].as_str(), Some("gauge" | "levelIndicator"))
                     {
                         return refuse(m, &ep, "nested-instrument-parameter-not-mapped");
+                    }
+                    if matches!(m.revision, MappingRevision::PassiveStatus)
+                        && matches!(e["type"].as_str(), Some("sensor" | "flowIndicator"))
+                    {
+                        return refuse(m, &ep, "nested-status-parameter-not-mapped");
                     }
                     if e["type"] == "dropDown" {
                         return refuse(m, &ep, "nested-dropdown-not-mapped");
@@ -1225,7 +1336,7 @@ fn numeric_parameter_types(
     m: &mut Mapping,
 ) -> Option<BTreeMap<String, &'static str>> {
     let mut result = BTreeMap::new();
-    if !matches!(m.revision, MappingRevision::NumericParameters) {
+    if !m.revision.numeric_parameters() {
         return Some(result);
     }
     let Some(params) = definition.get("parameters") else {
@@ -1383,7 +1494,7 @@ fn parameter_bindings(
                 || !matches!(
                     (prop, ty),
                     ("visible" | "active", Type::Bool) | ("text", Type::Text)
-                ) && !(matches!(m.revision, MappingRevision::NumericParameters)
+                ) && !(m.revision.numeric_parameters()
                     && kind == "numericField"
                     && prop == "value"
                     && ty == Type::Number)

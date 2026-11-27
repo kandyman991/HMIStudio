@@ -794,7 +794,7 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
         .unwrap_or_else(|| panic!("{:?}", imported.report));
     let doc = serde_json::to_value(&project).unwrap();
     let props = &doc["components"][0]["root"]["children"][0]["properties"];
-    assert_eq!(imported.report.importer_version, "0.1.3");
+    assert_eq!(imported.report.importer_version, "0.1.4");
     let size = imported
         .report
         .findings
@@ -1506,7 +1506,7 @@ fn passive_instrument_mapping_is_deterministic_and_read_only() {
         let b = import_portable(&bytes);
         assert!(a.report.has_complete_mapping(), "{:?}", a.report);
         assert_eq!(a.report, b.report);
-        assert_eq!(a.report.importer_version, "0.1.3");
+        assert_eq!(a.report.importer_version, "0.1.4");
         let project = a.project.unwrap();
         assert_eq!(
             save_project(&project).unwrap(),
@@ -1666,7 +1666,7 @@ fn reusable_numeric_parameter_specializes_exact_type_and_replays() {
             doc["tags"][0]["id"]
         );
         let report = serde_json::to_value(&a.report).unwrap();
-        assert_eq!(report["importerVersion"], "0.1.3");
+        assert_eq!(report["importerVersion"], "0.1.4");
         let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
         assert_eq!(replay.report, a.report);
         assert_eq!(
@@ -1718,4 +1718,158 @@ fn reusable_numeric_parameter_refuses_ambiguous_or_writable_wiring() {
     assert!(import_portable(&serde_json::to_vec(&f).unwrap())
         .project
         .is_none());
+}
+
+fn passive_status_fixture(kind: &str, ty: &str) -> Value {
+    let mut f = fixture(10);
+    f["variables"]["label-a"]["type"] = json!(ty);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!(kind);
+    if kind == "sensor" {
+        c["properties"] = json!({"label":"Pressure","unit":"bar"});
+        c["bindings"] = json!({"value":"label-a"});
+        f["variables"]["label-a"]["engineeringUnit"] = json!("bar");
+    } else {
+        c["properties"] = json!({"label":"Flow","direction":"left"});
+        c["bindings"] = json!({"flow":"label-a"});
+    }
+    f
+}
+
+#[test]
+fn passive_status_preserves_read_only_types_and_direction_evidence() {
+    for (kind, ty, canonical, property) in [
+        ("sensor", "INT", "numericDisplay", "value"),
+        ("sensor", "LONG", "numericDisplay", "value"),
+        ("sensor", "FLOAT", "numericDisplay", "value"),
+        ("sensor", "DOUBLE", "numericDisplay", "value"),
+        ("flowIndicator", "BOOL", "indicator", "active"),
+    ] {
+        let f = passive_status_fixture(kind, ty);
+        let bytes = serde_json::to_vec(&f).unwrap();
+        let a = import_portable(&bytes);
+        let b = import_portable(&bytes);
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+        assert_eq!(a.report, b.report);
+        let project = a.project.unwrap();
+        assert_eq!(
+            save_project(&project).unwrap(),
+            save_project(&b.project.unwrap()).unwrap()
+        );
+        let doc = serde_json::to_value(&project).unwrap();
+        let n = &doc["screens"][0]["root"]["children"][0];
+        assert_eq!(n["element"]["kind"], canonical);
+        assert_eq!(n["bindings"][0]["property"], property);
+        assert_eq!(n["bindings"][0]["source"]["tag"], doc["tags"][0]["id"]);
+        assert!(n["bindings"][0]["mode"].is_null() || n["bindings"][0]["mode"] == "read");
+        if kind == "sensor" {
+            assert_eq!(n["properties"]["showUnit"], true);
+            assert_eq!(n["properties"]["prefix"], "Pressure");
+            assert_eq!(doc["units"][0]["symbol"], "bar");
+        } else {
+            assert_eq!(n["properties"]["label"], "Flow (left)");
+            assert_eq!(
+                n["extensions"]["hmiforge.statusPresentation"]["direction"],
+                "left"
+            );
+        }
+        let mut expected = BTreeSet::new();
+        paths(&f, "", &mut expected);
+        assert_eq!(
+            expected,
+            a.report.findings.iter().map(|x| x.path.clone()).collect()
+        );
+        let report = serde_json::to_value(&a.report).unwrap();
+        assert_eq!(report["importerVersion"], "0.1.4");
+        let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
+        assert_eq!(replay.report, a.report);
+        assert_eq!(
+            save_project(&replay.project.unwrap()).unwrap(),
+            save_project(&project).unwrap()
+        );
+        for version in ["0.1.0", "0.1.1", "0.1.2", "0.1.3"] {
+            let mut historical = report.clone();
+            historical["importerVersion"] = json!(version);
+            assert!(hmi_legacy_import::replay_portable(&bytes, &historical)
+                .unwrap()
+                .project
+                .is_none());
+        }
+    }
+}
+
+#[test]
+fn passive_status_refuses_unsafe_or_unrepresented_semantics() {
+    for (kind, ty) in [
+        ("sensor", "BOOL"),
+        ("sensor", "STRING"),
+        ("flowIndicator", "DOUBLE"),
+    ] {
+        let f = passive_status_fixture(kind, ty);
+        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+            .project
+            .is_none());
+    }
+    for (kind, ty, field, value) in [
+        ("sensor", "DOUBLE", "properties/highFault", json!("90")),
+        ("sensor", "DOUBLE", "properties/enumeration", json!("enum")),
+        ("sensor", "DOUBLE", "properties/unit", json!("psi")),
+        ("sensor", "DOUBLE", "properties/label", json!("{{template}}")),
+        (
+            "flowIndicator",
+            "BOOL",
+            "properties/direction",
+            json!("reverse"),
+        ),
+        (
+            "flowIndicator",
+            "BOOL",
+            "bindings",
+            json!({"flow":"label-a","fault":"label-a"}),
+        ),
+        (
+            "flowIndicator",
+            "BOOL",
+            "expressions",
+            json!({"flow":"true"}),
+        ),
+        ("flowIndicator", "BOOL", "bindings", json!({})),
+    ] {
+        let mut f = passive_status_fixture(kind, ty);
+        let full = format!("/screens/screen~1a/components/label-a/{field}");
+        let (parent, key) = full.rsplit_once('/').unwrap();
+        f.pointer_mut(parent).unwrap()[key] = value;
+        let a = import_portable(&serde_json::to_vec(&f).unwrap());
+        assert!(a.project.is_none(), "{kind} {field}");
+        assert!(a.resource_bytes.is_empty());
+        assert!(!a.report.has_complete_mapping());
+    }
+    for (kind, ty) in [("sensor", "DOUBLE"), ("flowIndicator", "BOOL")] {
+        let mut f = passive_status_fixture(kind, ty);
+        f["variables"]["label-a"]["access"] = json!("READ_WRITE");
+        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+            .project
+            .is_none());
+    }
+}
+
+#[test]
+fn passive_status_revision_replays_predecessor_instrument_and_parameter_mappings() {
+    for f in [
+        instrument_fixture("gauge"),
+        instrument_fixture("levelIndicator"),
+        numeric_parameter_fixture("DOUBLE"),
+    ] {
+        let bytes = serde_json::to_vec(&f).unwrap();
+        let a = import_portable(&bytes);
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+        let mut expected = serde_json::to_value(&a.report).unwrap();
+        expected["importerVersion"] = json!("0.1.3");
+        let replay = hmi_legacy_import::replay_portable(&bytes, &expected).unwrap();
+        assert_eq!(serde_json::to_value(&replay.report).unwrap(), expected);
+        assert_eq!(
+            save_project(&a.project.unwrap()).unwrap(),
+            save_project(&replay.project.unwrap()).unwrap()
+        );
+    }
 }

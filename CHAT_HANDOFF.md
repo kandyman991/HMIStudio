@@ -404,3 +404,5 @@ Verified 12ee69f all three workflows passed ([Desktop](https://github.com/kandym
 ## REUSE-03B.13C closure / 13D candidate (2026-11-27)
 
 Verified PR #36 exact head `79860c8` all 19 hosted jobs and 70 importer tests/platform. Original Kotlin writer differential (private runner, pinned source 92a612d, oracle 41055e9, run 46016889677) passed 10/10 including signed identity/escaping, layout v2/v3, startup ordering and LIVE settings. Scope-specific transport review closed. Implemented candidate native package import and v4 exact archive replay; retain RUST-05 reservation. No acceptance or merge of REUSE-03. Next: verify candidate formatter, core regressions, frontend and exact-head native Windows/Linux CI; independently review consent, source overlap, quarantine, recovery/save-copy replay and existing envelope compatibility.
+
+Preflight found a missing visible File menu entry and improved full portable migration refusal before destination locking. Earlier candidate core preflight passed 89 tests and Clippy; local frontend runner Node lacks TypeScript stripping. Re-run core preflight and retain hosted frontend/native gates; no installer generation.

@@ -1021,3 +1021,17 @@ fn package_review_rejects_resealed_invalid_archive_and_foreign_project() {
         .is_err());
     assert!(!target.exists());
 }
+
+#[test]
+fn transport_integrity_is_not_complete_portable_admission() {
+    use hmi_engineering_core::legacy_quarantine::package_transport;
+    let archive =
+        include_bytes!("../../legacy-import/tests/fixtures/runtime-unsupported.synthetic");
+    assert!(package_transport::decode_runtime_package(archive).is_ok());
+    assert!(QuarantinedImport::prepare_package(archive).is_err());
+    let dir = TempDir::new("unsupported-package");
+    let target = dir.join("review.bundle");
+    assert!(QuarantinedImport::import_package(archive, &target, SessionConfig::default(), std_fs())
+        .is_err());
+    assert!(!target.exists());
+}

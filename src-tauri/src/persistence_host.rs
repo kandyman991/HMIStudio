@@ -901,7 +901,7 @@ impl Host {
         self.prepare_review_switch(discard)?;
         let (source, target) = self.check_package_import_paths(source, target)?;
         let bytes = read_revision_record(&source, package_transport::MAX_PACKAGE_BYTES)?;
-        package_transport::decode_runtime_package(&bytes).map_err(err)?;
+        let prepared = QuarantinedImport::prepare_package(&bytes).map_err(err)?;
         if bytes != read_revision_record(&source, package_transport::MAX_PACKAGE_BYTES)? {
             return Err("Legacy runtime package changed during import; retry".into());
         }
@@ -909,8 +909,7 @@ impl Host {
         if safe_file(&review_recovery_path(&target))? {
             return Err("Target has review recovery data; choose a different filename".into());
         }
-        let candidate = QuarantinedImport::import_package(
-            &bytes,
+        let candidate = prepared.publish(
             &target,
             config(&self.untitled),
             Arc::new(GuardedFileSystem),
@@ -1741,6 +1740,21 @@ mod tests {
         assert!(!sidecar_dir(&target).exists());
         assert_eq!(host.snapshot(), before);
         assert_eq!(fs::read(recovery).unwrap(), recovery_bytes);
+        let unsupported =
+            include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsupported.synthetic");
+        fs::write(&source, unsupported).unwrap();
+        assert!(package_transport::decode_runtime_package(unsupported).is_ok());
+        assert!(host.import_package_review(&source, &target, true).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&source).unwrap(), unsupported);
+        File::create(&source)
+            .unwrap()
+            .set_len(package_transport::MAX_PACKAGE_BYTES as u64 + 1)
+            .unwrap();
+        assert!(host.import_package_review(&source, &target, true).is_err());
+        assert!(!sidecar_dir(&target).exists());
         let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic");
         let overlap = app.join("source.hmipkg");
         fs::write(&overlap, archive).unwrap();
@@ -1754,6 +1768,29 @@ mod tests {
         assert_eq!(fs::read(&overlap).unwrap(), archive);
         assert!(!target.exists());
         assert_eq!(host.snapshot(), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_package_import_refuses_link_aliases() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let symlink = t.0.join("link.hmipkg");
+        let hardlink = t.0.join("hardlink.hmipkg");
+        let target = t.0.join("review.hmi-review");
+        let archive = include_bytes!("../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic");
+        fs::write(&source, archive).unwrap();
+        std::os::unix::fs::symlink(&source, &symlink).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.snapshot();
+        assert!(host.import_package_review(&symlink, &target, false).is_err());
+        fs::hard_link(&source, &hardlink).unwrap();
+        assert!(host.import_package_review(&hardlink, &target, false).is_err());
+        assert!(host.import_package_review(&source, &target, false).is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&source).unwrap(), archive);
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
     }
 
     #[test]

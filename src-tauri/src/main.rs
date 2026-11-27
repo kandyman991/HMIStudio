@@ -448,6 +448,10 @@ mod persistence_ipc_tests {
             serde_json::from_str::<ProjectAction>(r#""saveAs""#).unwrap(),
             ProjectAction::SaveAs
         ));
+        assert!(matches!(
+            serde_json::from_str::<ProjectAction>(r#""importLegacyPackage""#).unwrap(),
+            ProjectAction::ImportLegacyPackage
+        ));
         for input in [
             r#"{"action":"open","path":"/tmp/secret.hmi.json"}"#,
             r#"{"action":"saveAs","overwrite":true}"#,

@@ -355,6 +355,24 @@ pub struct QuarantinedImport {
     base_sha256: String,
 }
 
+/// A validated, still-unpublished package candidate. No caller can replace
+/// its private evidence or bypass the portable mapping/replay checks.
+pub struct PreparedPackageReview {
+    payload: Payload,
+    project: Project,
+}
+
+impl PreparedPackageReview {
+    pub fn publish(
+        self,
+        target: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<QuarantinedImport, ImportError> {
+        QuarantinedImport::publish_prepared(self.payload, self.project, target, config, fs)
+    }
+}
+
 impl QuarantinedImport {
     /// Import immutable source bytes, persist the complete review bundle,
     /// and only then return an editable engineering session.
@@ -388,6 +406,12 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
+        Self::prepare_package(archive)?.publish(target, config, fs)
+    }
+
+    /// Validate the complete candidate without filesystem writes, before the
+    /// native caller obtains a destination lock or switches its workspace.
+    pub fn prepare_package(archive: &[u8]) -> Result<PreparedPackageReview, ImportError> {
         let decoded =
             package_transport::decode_runtime_package(archive).map_err(|_| ImportError::Refused)?;
         let evidence = PackageSource {
@@ -395,7 +419,9 @@ impl QuarantinedImport {
             archive: archive.to_vec(),
             archive_sha256: decoded.archive_sha256().to_owned(),
         };
-        Self::import_with_source(decoded.project_bytes(), None, Some(evidence), target, config, fs)
+        let (payload, project) =
+            Self::prepare_import(decoded.project_bytes(), None, Some(evidence))?;
+        Ok(PreparedPackageReview { payload, project })
     }
 
     fn import_with_source(
@@ -406,6 +432,15 @@ impl QuarantinedImport {
         config: SessionConfig,
         fs: Arc<dyn FileSystem>,
     ) -> Result<Self, ImportError> {
+        let (payload, project) = Self::prepare_import(source, revision_source, package_source)?;
+        Self::publish_prepared(payload, project, target, config, fs)
+    }
+
+    fn prepare_import(
+        source: &[u8],
+        revision_source: Option<RevisionSource>,
+        package_source: Option<PackageSource>,
+    ) -> Result<(Payload, Project), ImportError> {
         let outcome = import_portable(source);
         if !outcome.report.has_complete_mapping() {
             return Err(ImportError::Refused);
@@ -424,6 +459,16 @@ impl QuarantinedImport {
             package_source,
         };
         let project = verify_payload(&payload)?;
+        Ok((payload, project))
+    }
+
+    fn publish_prepared(
+        payload: Payload,
+        project: Project,
+        target: &Path,
+        config: SessionConfig,
+        fs: Arc<dyn FileSystem>,
+    ) -> Result<Self, ImportError> {
         let (warnings, base_sha256) = write_new(&payload, target, fs.as_ref())?;
         Ok(Self {
             session: ProjectSession::with_fs(project, config, fs),

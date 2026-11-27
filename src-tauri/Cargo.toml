@@ -11,6 +11,7 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 hmi-engineering-core = { path = "../crates/engineering-core" }
 hmi-project-model = { path = "../crates/project-model" }
+hmi-tag-engine = { path = "../crates/tag-engine" }
 tauri-plugin-dialog = "2"
 
 [dev-dependencies]

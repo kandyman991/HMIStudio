@@ -5,7 +5,7 @@
 //! failed renames deterministically. The trait is intentionally narrow: it
 //! is not, and must never become, a generic filesystem bridge for the UI.
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -14,13 +14,39 @@ use std::sync::Mutex;
 pub trait FileSystem: Send + Sync {
     /// Reads a whole file.
     fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
+    /// Read at most limit + 1 bytes, refusing larger files before allocation.
+    fn read_limited(&self, _path: &Path, _limit: usize) -> io::Result<Vec<u8>> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "no bounded read support",
+        ))
+    }
     /// Exclusively creates `path`, writes `data`, flushes and syncs it to
     /// stable storage before returning.
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()>;
+    /// Exclusively stages a review bundle that contains the exact legacy source.
+    /// Unix implementations must create it with owner-only permissions.
+    fn write_review_synced(&self, _path: &Path, _data: &[u8]) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "no review staging support",
+        ))
+    }
     /// Atomically replaces `to` with `from` (same directory).
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
+    /// Atomically publish a staged file only if the destination is absent.
+    fn link_new(&self, _from: &Path, _to: &Path) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "no exclusive publication support",
+        ))
+    }
     /// Removes a file.
     fn remove_file(&self, path: &Path) -> io::Result<()>;
+    /// Remove the exclusively created staging name after publication.
+    fn unlink_staged(&self, path: &Path) -> io::Result<()> {
+        self.remove_file(path)
+    }
     /// Creates a directory and its parents.
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
     /// Whether a file exists.
@@ -36,19 +62,45 @@ pub trait FileSystem: Send + Sync {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StdFileSystem;
 
+fn write_new_synced(path: &Path, data: &[u8], _owner_only: bool) -> io::Result<()> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    if _owner_only {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    file.write_all(data)?;
+    file.flush()?;
+    file.sync_all()
+}
+
 impl FileSystem for StdFileSystem {
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         std::fs::read(path)
     }
 
+    fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        let file = std::fs::File::open(path)?;
+        if file.metadata()?.len() > limit as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "file too large"));
+        }
+        let mut bytes = Vec::new();
+        file.take((limit as u64).saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > limit {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "file too large"));
+        }
+        Ok(bytes)
+    }
+
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)?;
-        f.write_all(data)?;
-        f.flush()?;
-        f.sync_all()
+        write_new_synced(path, data, false)
+    }
+
+    fn write_review_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
+        write_new_synced(path, data, true)
     }
 
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
@@ -57,6 +109,10 @@ impl FileSystem for StdFileSystem {
         // file on the same volume; it fails (leaving `to` intact) if `to` is
         // read-only or open without FILE_SHARE_DELETE.
         std::fs::rename(from, to)
+    }
+
+    fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
+        std::fs::hard_link(from, to)
     }
 
     fn remove_file(&self, path: &Path) -> io::Result<()> {
@@ -154,6 +210,26 @@ impl FaultyFileSystem {
         *fired = true;
         true
     }
+    fn write_with_faults(&self, path: &Path, data: &[u8], owner_only: bool) -> io::Result<()> {
+        let is_write_fault = matches!(
+            self.fault,
+            Fault::WriteFails | Fault::WriteInterrupted | Fault::WriteTruncatedSilently
+        );
+        if is_write_fault && self.should_fire(path) {
+            match self.fault {
+                Fault::WriteFails => return Err(injected()),
+                Fault::WriteInterrupted => {
+                    write_new_synced(path, &data[..data.len() / 2], owner_only)?;
+                    return Err(injected());
+                }
+                Fault::WriteTruncatedSilently => {
+                    return write_new_synced(path, &data[..data.len() / 2], owner_only);
+                }
+                Fault::RenameFails => {}
+            }
+        }
+        write_new_synced(path, data, owner_only)
+    }
 }
 
 fn injected() -> io::Error {
@@ -165,25 +241,16 @@ impl FileSystem for FaultyFileSystem {
         StdFileSystem.read(path)
     }
 
+    fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        StdFileSystem.read_limited(path, limit)
+    }
+
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
-        let is_write_fault = matches!(
-            self.fault,
-            Fault::WriteFails | Fault::WriteInterrupted | Fault::WriteTruncatedSilently
-        );
-        if is_write_fault && self.should_fire(path) {
-            match self.fault {
-                Fault::WriteFails => return Err(injected()),
-                Fault::WriteInterrupted => {
-                    StdFileSystem.write_synced(path, &data[..data.len() / 2])?;
-                    return Err(injected());
-                }
-                Fault::WriteTruncatedSilently => {
-                    return StdFileSystem.write_synced(path, &data[..data.len() / 2]);
-                }
-                Fault::RenameFails => {}
-            }
-        }
-        StdFileSystem.write_synced(path, data)
+        self.write_with_faults(path, data, false)
+    }
+
+    fn write_review_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
+        self.write_with_faults(path, data, true)
     }
 
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
@@ -191,6 +258,13 @@ impl FileSystem for FaultyFileSystem {
             return Err(injected());
         }
         StdFileSystem.rename(from, to)
+    }
+
+    fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
+        if self.fault == Fault::RenameFails && self.should_fire(to) {
+            return Err(injected());
+        }
+        StdFileSystem.link_new(from, to)
     }
 
     fn remove_file(&self, path: &Path) -> io::Result<()> {

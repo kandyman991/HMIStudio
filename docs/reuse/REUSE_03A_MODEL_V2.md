@@ -127,3 +127,7 @@ Owner authorized freezing schema v2 on successful completion of PR #35 review an
 - Contract 1 reference and measured corpus hashes above were independently checked against the files. No independent JVM rerun was performed in this review slice.
 - Upon verified merge following successful final-head review and required CI, treat the identified v2 schema and its semantic contract as frozen: no silent incompatible changes; use an explicit reviewed version/migration decision for wire or semantic incompatibility. Legacy decoder mapping must target this frozen contract; unsupported fields are reported, never silently dropped or granted runtime capability.
 - Until those gates pass, this is a freeze proposal only. REUSE-03 remains in progress; decoder mapping and downstream runtime parity remain separate.
+
+## Formal freeze — 2026-11-25
+
+PR #35 merged as `b9ae1d5ac102effbcf6f0e2f1cdd8d66fb7facb8` after independent review of `1ddf0b4f7e624b4656ecc37de2e79831186ad6c1`. All 17 hosted jobs passed: Desktop CI 45687575692, Tag engine CI 45687575943, handoff 45687575736. The pinned Kotlin oracle was independently rebuilt and all 12,664 observations matched. Schema v2 SHA-256 `b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738` is formally frozen. Historical candidate statements above are superseded. Runtime and native visual acceptance are not claimed.

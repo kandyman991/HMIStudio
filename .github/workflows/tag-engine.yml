@@ -1,4 +1,5 @@
 name: Tag engine CI
+run-name: "${{ github.event_name == 'pull_request' && format('PR {0} head {1} base {2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha) || github.ref }}"
 on:
   push:
     branches: [main]
@@ -8,6 +9,7 @@ on:
       - 'crates/project-model/**'
       - '.github/workflows/tag-engine.yml'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'crates/tag-engine/**'
       - 'crates/hmi-engine/**'
@@ -23,7 +25,40 @@ defaults:
   run:
     working-directory: crates/tag-engine
 jobs:
+  route:
+    name: Tag engine routing
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      targeted: ${{ steps.plan.outputs.targeted }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select applicable checks
+        id: plan
+        working-directory: .
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          CI_REF: ${{ github.ref }}
+          CI_ACTION: ${{ github.event.action }}
+          CI_PR: ${{ github.event.pull_request.number }}
+          CI_DRAFT: ${{ github.event.pull_request.draft }}
+          CI_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          CI_HEAD_REF: ${{ github.head_ref }}
+          CI_BASE_REF: ${{ github.base_ref }}
+          CI03_TOKEN: ${{ github.token }}
+        run: python3 .github/ci/plan.py
   check:
+    needs: route
+    if: needs.route.outputs.targeted == 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +99,8 @@ jobs:
         run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked
       - run: git diff --exit-code -- Cargo.lock
   audit:
+    needs: route
+    if: needs.route.outputs.targeted == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -76,3 +113,26 @@ jobs:
         run: cargo install cargo-audit --locked --version 0.23.0
       - name: Audit locked dependencies (RustSec)
         run: cargo audit --deny warnings
+  required:
+    name: Tag engine gate
+    needs: [route, check, audit]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce tag engine routing
+        working-directory: .
+        shell: bash
+        env:
+          ROUTE: ${{ needs.route.result }}
+          TARGETED: ${{ needs.route.outputs.targeted }}
+          CHECK: ${{ needs.check.result }}
+          AUDIT: ${{ needs.audit.result }}
+        run: |
+          set -euo pipefail
+          test "$ROUTE" = success
+          case "$TARGETED:$CHECK:$AUDIT" in
+            true:skipped:skipped) echo "CI-03 targeted draft; tag engine checks not run." ;;
+            false:success:success) echo "Tag engine checks and audit passed." ;;
+            *) exit 1 ;;
+          esac

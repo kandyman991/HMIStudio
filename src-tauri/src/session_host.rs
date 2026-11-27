@@ -23,10 +23,40 @@ pub enum WorkspaceRequest {
     },
 }
 
+impl WorkspaceRequest {
+    pub fn check_context(
+        &self,
+        generation: Option<u64>,
+        current_generation: u64,
+        pending_recovery: bool,
+    ) -> Result<(), String> {
+        if matches!(self, Self::Snapshot {} | Self::Validate {}) {
+            return Ok(());
+        }
+        if pending_recovery {
+            return Err("Resolve the untitled recovery before editing".into());
+        }
+        if generation != Some(current_generation) {
+            return Err("Project session changed. Refresh before editing".into());
+        }
+        if matches!(self, Self::Execute { transaction } if transaction.expected_revision.is_none())
+        {
+            return Err("Project revision required for editing".into());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Serialize)]
 pub struct WorkspaceReply {
     response: Response,
     snapshot: ProjectSnapshot,
+}
+
+impl WorkspaceReply {
+    pub fn revision(&self) -> u64 {
+        self.snapshot.revision
+    }
 }
 
 pub fn initial_session() -> ProjectSession {
@@ -39,7 +69,16 @@ pub fn initial_session() -> ProjectSession {
 }
 
 pub fn request(session: &mut ProjectSession, request: WorkspaceRequest) -> WorkspaceReply {
-    let request = match request {
+    let request = protocol_request(request);
+    let (response, _) = dispatch(session, request, &MigrationRegistry::builtin());
+    WorkspaceReply {
+        response,
+        snapshot: session.snapshot(),
+    }
+}
+
+fn protocol_request(request: WorkspaceRequest) -> Request {
+    match request {
         WorkspaceRequest::Snapshot {} => Request::Snapshot {},
         WorkspaceRequest::Validate {} => Request::Validate {},
         WorkspaceRequest::Execute { transaction } => Request::Execute { transaction },
@@ -49,11 +88,17 @@ pub fn request(session: &mut ProjectSession, request: WorkspaceRequest) -> Works
         WorkspaceRequest::Redo { expected_revision } => Request::Redo {
             expected_revision: Some(expected_revision),
         },
-    };
-    let (response, _) = dispatch(session, request, &MigrationRegistry::builtin());
+    }
+}
+
+pub fn review_request(
+    review: &mut hmi_engineering_core::legacy_quarantine::QuarantinedImport,
+    request: WorkspaceRequest,
+) -> WorkspaceReply {
+    let response = review.request(protocol_request(request));
     WorkspaceReply {
         response,
-        snapshot: session.snapshot(),
+        snapshot: review.snapshot(),
     }
 }
 

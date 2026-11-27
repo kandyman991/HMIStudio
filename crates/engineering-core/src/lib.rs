@@ -23,6 +23,7 @@ pub mod command;
 pub mod error;
 pub mod fs;
 pub mod ids;
+pub mod legacy_quarantine;
 pub mod locate;
 pub mod persistence;
 pub mod protocol;

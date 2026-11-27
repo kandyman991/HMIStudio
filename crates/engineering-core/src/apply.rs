@@ -688,6 +688,11 @@ pub(crate) fn apply(p: &mut Project, cmd: &Command, cx: &mut Ctx<'_>) -> Result<
             cx.changes.push(K::Modified, E::Navigation, None);
         }
         Command::SetExtension { key, value } => {
+            if crate::legacy_quarantine::reserved_extension(key) {
+                return Err(crate::error::CommandError::InvalidArgument {
+                    message: "import provenance cannot be edited".into(),
+                });
+            }
             match value {
                 Some(v) => {
                     p.extensions.insert(key.clone(), v.clone());

@@ -1,0 +1,664 @@
+{
+  "standard.motor": {
+    "id": "standard.motor",
+    "displayName": "Standard Motor",
+    "type": "motor",
+    "bindingSlots": {
+      "running": {
+        "role": "status.running",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "start": {
+        "role": "command.start",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      },
+      "stop": {
+        "role": "command.stop",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      },
+      "speedActual": {
+        "role": "speed.actual",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "speedSetpoint": {
+        "role": "speed.setpoint",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {}
+  },
+  "standard.valve": {
+    "id": "standard.valve",
+    "displayName": "Standard Valve",
+    "type": "valve",
+    "bindingSlots": {
+      "open": {
+        "role": "status.open",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "command": {
+        "role": "command.openClose",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {}
+  },
+  "standard.conveyor": {
+    "id": "standard.conveyor",
+    "displayName": "Standard Conveyor",
+    "type": "conveyor",
+    "bindingSlots": {
+      "running": {
+        "role": "status.running",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "start": {
+        "role": "command.start",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      },
+      "stop": {
+        "role": "command.stop",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      },
+      "speedActual": {
+        "role": "speed.actual",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "speedSetpoint": {
+        "role": "speed.setpoint",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {}
+  },
+  "standard.sensor": {
+    "id": "standard.sensor",
+    "displayName": "Standard Sensor",
+    "type": "sensor",
+    "bindingSlots": {
+      "value": {
+        "role": "sensor.value",
+        "acceptedTypes": [],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {}
+  },
+  "standard.numericField": {
+    "id": "standard.numericField",
+    "displayName": "Numeric Field",
+    "type": "numericField",
+    "bindingSlots": {
+      "value": {
+        "role": "value",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "label": "Value"
+    }
+  },
+  "standard.button": {
+    "id": "standard.button",
+    "displayName": "Button",
+    "type": "button",
+    "bindingSlots": {
+      "command": {
+        "role": "command",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "text": "Button"
+    }
+  },
+  "standard.switch": {
+    "id": "standard.switch",
+    "displayName": "Switch",
+    "type": "switch",
+    "bindingSlots": {
+      "value": {
+        "role": "input.value",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "label": "Switch",
+      "onText": "ON",
+      "offText": "OFF"
+    }
+  },
+  "standard.slider": {
+    "id": "standard.slider",
+    "displayName": "Slider",
+    "type": "slider",
+    "bindingSlots": {
+      "value": {
+        "role": "input.value",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "label": "Slider",
+      "min": "0",
+      "max": "100",
+      "step": "1"
+    }
+  },
+  "standard.numericInput": {
+    "id": "standard.numericInput",
+    "displayName": "Numeric entry",
+    "type": "numericInput",
+    "bindingSlots": {
+      "value": {
+        "role": "input.value",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "label": "Value",
+      "min": "0",
+      "max": "100"
+    }
+  },
+  "standard.textInput": {
+    "id": "standard.textInput",
+    "displayName": "Text entry",
+    "type": "textInput",
+    "bindingSlots": {
+      "value": {
+        "role": "input.value",
+        "acceptedTypes": [
+          "STRING"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "label": "Text",
+      "maxLength": "40"
+    }
+  },
+  "standard.dropDown": {
+    "id": "standard.dropDown",
+    "displayName": "Drop-down",
+    "type": "dropDown",
+    "bindingSlots": {
+      "value": {
+        "role": "input.value",
+        "acceptedTypes": [
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": true
+      }
+    },
+    "defaultProperties": {
+      "label": "Mode"
+    }
+  },
+  "standard.label": {
+    "id": "standard.label",
+    "displayName": "Label",
+    "type": "label",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "text": "Label"
+    }
+  },
+  "standard.indicator": {
+    "id": "standard.indicator",
+    "displayName": "Status indicator",
+    "type": "indicator",
+    "bindingSlots": {
+      "state": {
+        "role": "status.state",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "label": "Status",
+      "onText": "ON",
+      "offText": "OFF",
+      "onColor": "#2E7D32",
+      "offColor": "#78909C"
+    }
+  },
+  "standard.pump": {
+    "id": "standard.pump",
+    "displayName": "Standard Pump",
+    "type": "pump",
+    "bindingSlots": {
+      "running": {
+        "role": "status.running",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "flow": {
+        "role": "flow.actual",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "unit": "L/min"
+    }
+  },
+  "standard.tank": {
+    "id": "standard.tank",
+    "displayName": "Process Tank",
+    "type": "tank",
+    "bindingSlots": {
+      "level": {
+        "role": "level.actual",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "min": "0",
+      "max": "100",
+      "unit": "%",
+      "fillColor": "@level.fill"
+    }
+  },
+  "standard.pipe": {
+    "id": "standard.pipe",
+    "displayName": "Process Pipe",
+    "type": "pipe",
+    "bindingSlots": {
+      "flow": {
+        "role": "status.flow",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "orientation": "horizontal",
+      "junction": "straight",
+      "strokeWidth": "8",
+      "fillColor": "@pipe.process"
+    }
+  },
+  "standard.gauge": {
+    "id": "standard.gauge",
+    "displayName": "Process Gauge",
+    "type": "gauge",
+    "bindingSlots": {
+      "value": {
+        "role": "gauge.value",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "label": "Gauge",
+      "min": "0",
+      "max": "100",
+      "unit": "bar",
+      "highWarning": "80",
+      "highFault": "95"
+    }
+  },
+  "standard.levelIndicator": {
+    "id": "standard.levelIndicator",
+    "displayName": "Level / Bar Indicator",
+    "type": "levelIndicator",
+    "bindingSlots": {
+      "level": {
+        "role": "level.actual",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "label": "Level",
+      "min": "0",
+      "max": "100",
+      "unit": "%",
+      "orientation": "vertical",
+      "fillColor": "@level.fill"
+    }
+  },
+  "standard.thermalIndicator": {
+    "id": "standard.thermalIndicator",
+    "displayName": "Thermal Indicator",
+    "type": "thermalIndicator",
+    "bindingSlots": {
+      "active": {
+        "role": "status.active",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "value": {
+        "role": "temperature.actual",
+        "acceptedTypes": [
+          "FLOAT",
+          "DOUBLE",
+          "INT",
+          "LONG"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "label": "Temperature",
+      "mode": "heating",
+      "unit": "°C"
+    }
+  },
+  "standard.flowIndicator": {
+    "id": "standard.flowIndicator",
+    "displayName": "Flow Direction Indicator",
+    "type": "flowIndicator",
+    "bindingSlots": {
+      "flow": {
+        "role": "status.flow",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      },
+      "fault": {
+        "role": "status.fault",
+        "acceptedTypes": [
+          "BOOL"
+        ],
+        "required": false,
+        "writable": false
+      }
+    },
+    "defaultProperties": {
+      "direction": "right",
+      "label": "Flow"
+    }
+  },
+  "standard.rectangle": {
+    "id": "standard.rectangle",
+    "displayName": "Rectangle",
+    "type": "rectangle",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "fillColor": "@fill.default",
+      "strokeColor": "@stroke.default",
+      "strokeWidth": "2",
+      "cornerRadius": "4"
+    }
+  },
+  "standard.ellipse": {
+    "id": "standard.ellipse",
+    "displayName": "Ellipse / Circle",
+    "type": "ellipse",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "fillColor": "@fill.default",
+      "strokeColor": "@stroke.default",
+      "strokeWidth": "2"
+    }
+  },
+  "standard.line": {
+    "id": "standard.line",
+    "displayName": "Line / Polyline",
+    "type": "line",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "strokeColor": "@stroke.default",
+      "strokeWidth": "3",
+      "strokeStyle": "SOLID",
+      "points": "0,50 100,50"
+    }
+  },
+  "standard.arrow": {
+    "id": "standard.arrow",
+    "displayName": "Arrow",
+    "type": "arrow",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "strokeColor": "@stroke.default",
+      "fillColor": "@stroke.default",
+      "strokeWidth": "3",
+      "direction": "right"
+    }
+  },
+  "standard.polygon": {
+    "id": "standard.polygon",
+    "displayName": "Polygon",
+    "type": "polygon",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "fillColor": "@fill.default",
+      "strokeColor": "@stroke.default",
+      "strokeWidth": "2",
+      "points": "50,5 95,90 5,90"
+    }
+  },
+  "standard.image": {
+    "id": "standard.image",
+    "displayName": "Image",
+    "type": "image",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "fit": "CONTAIN"
+    }
+  },
+  "standard.svgImage": {
+    "id": "standard.svgImage",
+    "displayName": "SVG Graphic",
+    "type": "svgImage",
+    "bindingSlots": {},
+    "defaultProperties": {
+      "fit": "CONTAIN"
+    }
+  }
+}

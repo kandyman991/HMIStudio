@@ -1,10 +1,14 @@
 //! Native persistence boundary. The webview never supplies a filesystem path.
 use hmi_engineering_core::{
     fs::{FileSystem, StdFileSystem},
+    legacy_quarantine::{
+        package_transport, requires_review, review_recovery_identity, review_recovery_path,
+        revision_transport, QuarantinedImport, RevisionSource, MAX_LEGACY_SOURCE_BYTES,
+    },
     persistence::sidecar_dir,
-    AutosaveOutcome, ProjectSession, SaveOptions, SessionConfig,
+    AutosaveOutcome, ProjectSession, ProjectSnapshot, SaveOptions, SessionConfig,
 };
-use hmi_project_model::{load_project, MigrationRegistry};
+use hmi_project_model::{load_project, model::Project, MigrationRegistry};
 use std::{
     fs::{self, File, OpenOptions},
     io,
@@ -60,13 +64,17 @@ fn safe_ancestors(path: &Path) -> Result<()> {
 }
 
 fn safe_file(path: &Path) -> Result<bool> {
+    safe_regular_file(path, false)
+}
+
+fn safe_regular_file(path: &Path, _allow_hard_links: bool) -> Result<bool> {
     safe_ancestors(path)?;
     match metadata(path)? {
         Some(m) if m.is_file() => {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::MetadataExt;
-                if m.nlink() != 1 {
+                if !_allow_hard_links && m.nlink() != 1 {
                     return Err(format!("Hard links are not supported: {}", path.display()));
                 }
             }
@@ -108,6 +116,112 @@ fn safe_sidecar(path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn is_review_name(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with(".hmi-review")
+}
+
+// Never create a destination or sidecar within a legacy revision store,
+// including later save-copy after reopening without the original source path.
+fn reject_legacy_store_destination(path: &Path) -> Result<()> {
+    for ancestor in path.ancestors().skip(1) {
+        let legacy_name = ancestor
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.to_ascii_lowercase().ends_with(".hmistudio"));
+        // Also recognize a renamed legacy store by its storage layout,
+        // without blocking unrelated folders containing bundle.json alone.
+        let legacy_layout = metadata(&ancestor.join("bundle.json"))?.is_some()
+            && metadata(&ancestor.join("HEAD"))?.is_some()
+            && metadata(&ancestor.join("revisions"))?.is_some();
+        if legacy_name || legacy_layout {
+            return Err("Choose a destination outside the legacy revision store".into());
+        }
+    }
+    Ok(())
+}
+
+fn read_revision_record(path: &Path, max: usize) -> Result<Vec<u8>> {
+    if !safe_file(path)? {
+        return Err("Required legacy revision record is missing".into());
+    }
+    let bytes = StdFileSystem.read_limited(path, max).map_err(err)?;
+    if !safe_file(path)? {
+        return Err("Legacy revision record changed during import".into());
+    }
+    Ok(bytes)
+}
+
+fn revision_directory(path: &Path) -> Result<PathBuf> {
+    safe_dir(path)?;
+    if metadata(path)?.is_none() {
+        return Err("Legacy revision directory does not exist".into());
+    }
+    let root = path.canonicalize().map_err(err)?;
+    safe_dir(&root)?;
+    if !root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.to_ascii_lowercase().ends_with(".hmistudio"))
+    {
+        return Err("Select a .hmistudio revision directory".into());
+    }
+    Ok(root)
+}
+
+fn read_revision_source(root: &Path) -> Result<RevisionSource> {
+    read_revision_source_with(root, read_revision_record)
+}
+
+fn read_revision_source_with(
+    root: &Path,
+    mut read: impl FnMut(&Path, usize) -> Result<Vec<u8>>,
+) -> Result<RevisionSource> {
+    use revision_transport::{
+        decode_current_revision, select_current_revision, MAX_DESCRIPTOR_BYTES, MAX_HEAD_BYTES,
+        MAX_REVISION_BYTES,
+    };
+    let descriptor_path = root.join("bundle.json");
+    let head_path = root.join("HEAD");
+    let descriptor = read(&descriptor_path, MAX_DESCRIPTOR_BYTES)?;
+    let head = read(&head_path, MAX_HEAD_BYTES)?;
+    let selected = select_current_revision(&descriptor, &head)
+        .map_err(|error| format!("Legacy revision refused ({error:?}): {error}"))?;
+    let revision_path = root.join(selected.revision_relative_path());
+    let revision = read(&revision_path, MAX_REVISION_BYTES)?;
+    decode_current_revision(&selected, &revision)
+        .map_err(|error| format!("Legacy revision refused ({error:?}): {error}"))?;
+    // Re-read the immutable record and published pointer, refusing detectable
+    // concurrent replacement. Do not acquire or create the legacy LOCK.
+    if revision != read(&revision_path, MAX_REVISION_BYTES)?
+        || !selected.matches_source(
+            &read(&descriptor_path, MAX_DESCRIPTOR_BYTES)?,
+            &read(&head_path, MAX_HEAD_BYTES)?,
+        )
+        || revision_directory(root)? != root
+    {
+        return Err(
+            "Legacy revision store changed during import; close its writer and retry".into(),
+        );
+    }
+    RevisionSource::from_records(&descriptor, &head, &revision).map_err(err)
+}
+
+fn normalize_review(path: &Path) -> Result<PathBuf> {
+    safe_regular_file(path, true)?;
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("Invalid review bundle filename")?;
+    if name.contains(':') || !is_review_name(name) {
+        return Err("Select an .hmi-review bundle".into());
+    }
+    let parent = path.parent().ok_or("Missing bundle directory")?;
+    let target = parent.canonicalize().map_err(err)?.join(name);
+    safe_regular_file(&target, true)?;
+    reject_legacy_store_destination(&target)?;
+    Ok(target)
+}
+
 fn normalize_project(path: &Path) -> Result<PathBuf> {
     safe_file(path)?;
     let name = path
@@ -121,6 +235,7 @@ fn normalize_project(path: &Path) -> Result<PathBuf> {
     let parent = parent.canonicalize().map_err(err)?;
     let target = parent.join(name);
     safe_file(&target)?;
+    reject_legacy_store_destination(&target)?;
     safe_sidecar(&sidecar_dir(&target))?;
     Ok(target)
 }
@@ -154,14 +269,50 @@ impl FileSystem for GuardedFileSystem {
         safe_file(path).map_err(io::Error::other)?;
         StdFileSystem.read(path)
     }
+    fn read_limited(&self, path: &Path, limit: usize) -> io::Result<Vec<u8>> {
+        // A crash may leave both names from exclusive review publication.
+        // Opening this immutable envelope checks its full contents and never
+        // writes through either name. All mutating paths still use safe_file.
+        let review = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(is_review_name);
+        safe_regular_file(path, review).map_err(io::Error::other)?;
+        StdFileSystem.read_limited(path, limit)
+    }
     fn write_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
         safe_file(path).map_err(io::Error::other)?;
         StdFileSystem.write_synced(path, data)
+    }
+    fn write_review_synced(&self, path: &Path, data: &[u8]) -> io::Result<()> {
+        safe_file(path).map_err(io::Error::other)?;
+        StdFileSystem.write_review_synced(path, data)
     }
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
         safe_file(from).map_err(io::Error::other)?;
         safe_file(to).map_err(io::Error::other)?;
         StdFileSystem.rename(from, to)
+    }
+    fn link_new(&self, from: &Path, to: &Path) -> io::Result<()> {
+        safe_file(from).map_err(io::Error::other)?;
+        if safe_file(to).map_err(io::Error::other)? {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "bundle exists",
+            ));
+        }
+        StdFileSystem.link_new(from, to)
+    }
+    fn unlink_staged(&self, path: &Path) -> io::Result<()> {
+        // Exclusive publication temporarily gives the staged inode two links.
+        safe_ancestors(path).map_err(io::Error::other)?;
+        if !metadata(path)
+            .map_err(io::Error::other)?
+            .is_some_and(|m| m.is_file())
+        {
+            return Err(io::Error::other("invalid staged file"));
+        }
+        StdFileSystem.remove_file(path)
     }
     fn remove_file(&self, path: &Path) -> io::Result<()> {
         safe_file(path).map_err(io::Error::other)?;
@@ -194,14 +345,37 @@ fn config(dir: &Path) -> SessionConfig {
     }
 }
 
+enum ActiveProject {
+    Ordinary(ProjectSession),
+    Review {
+        bundle: Box<QuarantinedImport>,
+        recovery_retained: bool,
+    },
+}
+
+/// Borrowed from the active native session. Production consumers must take
+/// this type and apply their own authorization before performing live work.
+#[cfg_attr(not(test), allow(dead_code))] // No production consumer yet.
+pub struct ProductionCandidate<'a> {
+    project: &'a Project,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+impl ProductionCandidate<'_> {
+    pub fn project(&self) -> &Project {
+        self.project
+    }
+}
+
 pub struct Host {
-    pub session: ProjectSession,
+    active: ActiveProject,
+    runtime: crate::runtime_host::RuntimeHost,
     pub generation: u64,
     untitled: PathBuf,
     _instance_lock: File,
     project_lock: Option<File>,
     pub pending_untitled: bool,
-    pub autosave_message: String,
+    autosave_message: String,
 }
 
 impl Host {
@@ -224,7 +398,14 @@ impl Host {
         .map_err(err)?
         .project;
         Ok(Self {
-            session: ProjectSession::with_fs(project, config(dir), Arc::new(GuardedFileSystem)),
+            active: ActiveProject::Ordinary(ProjectSession::with_fs(
+                project,
+                config(dir),
+                Arc::new(GuardedFileSystem),
+            )),
+            runtime: crate::runtime_host::RuntimeHost::new(
+                std::env::var_os("HMI_STUDIO_SIM_ENGINE").map(PathBuf::from),
+            ),
             generation: 0,
             untitled: dir.to_path_buf(),
             _instance_lock: instance_lock,
@@ -234,11 +415,185 @@ impl Host {
         })
     }
 
+    pub fn is_review(&self) -> bool {
+        matches!(self.active, ActiveProject::Review { .. })
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        match &self.active {
+            ActiveProject::Ordinary(session) => session.is_dirty(),
+            ActiveProject::Review { bundle, .. } => bundle.is_dirty(),
+        }
+    }
+
+    pub fn path(&self) -> Option<&Path> {
+        match &self.active {
+            ActiveProject::Ordinary(session) => session.path(),
+            ActiveProject::Review { bundle, .. } => Some(bundle.path()),
+        }
+    }
+
+    pub fn snapshot(&self) -> ProjectSnapshot {
+        match &self.active {
+            ActiveProject::Ordinary(session) => session.snapshot(),
+            ActiveProject::Review { bundle, .. } => bundle.snapshot(),
+        }
+    }
+
+    pub fn persistence_message(&self) -> String {
+        match &self.active {
+            ActiveProject::Ordinary(_) => self.autosave_message.clone(),
+            ActiveProject::Review {
+                bundle,
+                recovery_retained,
+            } => {
+                let mut message = review_message(bundle);
+                message.push_str(". ");
+                if !bundle.recovery_current()
+                    && !self.autosave_message.starts_with("Autosave failed:")
+                {
+                    message.push_str(if bundle.is_dirty() {
+                        "Review recovery snapshot pending"
+                    } else {
+                        "Obsolete review recovery cleanup pending"
+                    });
+                } else {
+                    message.push_str(&self.autosave_message);
+                }
+                if *recovery_retained {
+                    message.push_str(". Previous recovery retained");
+                }
+                message
+            }
+        }
+    }
+
+    pub fn request(
+        &mut self,
+        request: crate::session_host::WorkspaceRequest,
+        generation: Option<u64>,
+    ) -> Result<crate::session_host::WorkspaceReply> {
+        request.check_context(generation, self.generation, self.pending_untitled)?;
+        let reply = match &mut self.active {
+            ActiveProject::Ordinary(session) => crate::session_host::request(session, request),
+            ActiveProject::Review { bundle, .. } => {
+                crate::session_host::review_request(bundle, request)
+            }
+        };
+        self.runtime.invalidate_on_edit(reply.revision());
+        Ok(reply)
+    }
+
+    pub fn simulate(
+        &mut self,
+        generation: u64,
+        request: crate::runtime_host::RuntimeRequest,
+        confirm: impl FnOnce() -> bool,
+    ) -> Result<Option<crate::runtime_host::RuntimeReply>> {
+        use crate::runtime_host::RuntimeRequest;
+        self.check_generation(generation)?;
+        if self.pending_untitled {
+            return Err("Resolve untitled recovery before starting simulation".into());
+        }
+        if let RuntimeRequest::Start { revision } = request {
+            let snapshot = self.snapshot();
+            if revision != snapshot.revision {
+                return Err("Project changed. Refresh before starting simulation".into());
+            }
+            return self.runtime.start(&snapshot).map(Some);
+        }
+        self.runtime.run(request, confirm)
+    }
+
+    /// Translate native state, not error-message wording, into IPC outcomes.
+    pub fn simulation_outcome(
+        &mut self,
+        generation: u64,
+        request: crate::runtime_host::RuntimeRequest,
+        confirm: impl FnOnce() -> bool,
+    ) -> crate::runtime_host::RuntimeOutcome {
+        use crate::runtime_host::{RuntimeOutcome, RuntimeRequest};
+        if let Err(message) = self.check_generation(generation) {
+            return RuntimeOutcome::Lost { message };
+        }
+        if self.pending_untitled {
+            return RuntimeOutcome::Lost {
+                message: "Resolve untitled recovery before starting simulation".into(),
+            };
+        }
+        if let RuntimeRequest::Start { revision } = &request {
+            if *revision != self.snapshot().revision {
+                return RuntimeOutcome::Lost {
+                    message: "Project changed. Refresh before starting simulation".into(),
+                };
+            }
+            // A previous start may have succeeded even if its IPC reply was lost.
+            match self.runtime.refresh(None) {
+                Ok(Some(simulation)) => return RuntimeOutcome::Active { simulation },
+                Err(message) => return RuntimeOutcome::Lost { message },
+                Ok(None) => {}
+            }
+        }
+        let session = request.session();
+        match self.simulate(generation, request, confirm) {
+            Ok(Some(simulation)) => RuntimeOutcome::Active { simulation },
+            Ok(None) => RuntimeOutcome::Stopped,
+            Err(message) => match self.runtime.refresh(session) {
+                Ok(Some(simulation)) => RuntimeOutcome::Rejected {
+                    message,
+                    simulation: Some(simulation),
+                },
+                Ok(None) if session.is_none() => RuntimeOutcome::Rejected {
+                    message,
+                    simulation: None,
+                },
+                Ok(None) => RuntimeOutcome::Lost { message },
+                Err(error) => RuntimeOutcome::Lost {
+                    message: format!("Simulation session lost: {error}"),
+                },
+            },
+        }
+    }
+
+    pub fn stop_simulation(&mut self) {
+        self.runtime.stop();
+    }
+
+    pub fn check_generation(&self, generation: u64) -> Result<()> {
+        if generation != self.generation {
+            return Err("Project session changed. Refresh before continuing".into());
+        }
+        Ok(())
+    }
+
+    /// Import-specific screening before a future production or live consumer
+    /// may obtain the borrowed project. No actual consumer exists yet.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn production_candidate(&self) -> Result<ProductionCandidate<'_>> {
+        let ActiveProject::Ordinary(session) = &self.active else {
+            return Err("Production/live admission blocked: review required".into());
+        };
+        if self.pending_untitled || requires_review(session.project()) {
+            return Err("Production/live admission blocked: review or recovery required".into());
+        }
+        if session.report().has_errors() {
+            return Err("Production/live admission blocked: invalid project".into());
+        }
+        Ok(ProductionCandidate {
+            project: session.project(),
+        })
+    }
+
     fn preflight(&self) -> Result<()> {
-        safe_sidecar(&self.untitled)?;
-        if let Some(path) = self.session.path() {
-            safe_file(path)?;
-            safe_sidecar(&sidecar_dir(path))?;
+        if let ActiveProject::Ordinary(session) = &self.active {
+            safe_sidecar(&self.untitled)?;
+            if let Some(path) = session.path() {
+                safe_file(path)?;
+                safe_sidecar(&sidecar_dir(path))?;
+            }
+        } else if let ActiveProject::Review { bundle, .. } = &self.active {
+            safe_regular_file(bundle.path(), true)?;
+            safe_sidecar(&sidecar_dir(bundle.path()))?;
         }
         Ok(())
     }
@@ -257,8 +612,8 @@ impl Host {
         if opened.session.project().has_v2_features() && opened.report.has_errors() {
             return Err("Invalid v2 project; original data preserved".into());
         }
-        self.session = opened.session;
-        self.generation += 1;
+        self.active = ActiveProject::Ordinary(opened.session);
+        self.project_replaced();
         self.pending_untitled = false;
         Ok(())
     }
@@ -285,7 +640,7 @@ impl Host {
             return Err("Resolve untitled recovery first".into());
         }
         let path = normalize_project(path)?;
-        if self.session.path() == Some(path.as_path()) {
+        if self.path() == Some(path.as_path()) {
             return Err("This project is already open".into());
         }
         let dir = sidecar_dir(&path);
@@ -294,7 +649,7 @@ impl Host {
         let Some(recover) = decide(has_recovery)? else {
             return Ok(false);
         };
-        if self.session.is_dirty() && !discard_current {
+        if self.is_dirty() && !discard_current {
             return Err("Unsaved changes".into());
         }
         let opened = if recover {
@@ -321,17 +676,21 @@ impl Host {
         }
         // The old writer lock is still held. Remove its recovery only after
         // the new project has been fully parsed and explicitly accepted.
-        remove_recovery(&self.active_recovery()?)?;
-        self.session = opened.session;
-        self.generation += 1;
+        let recovery_retained = self.clear_active_recovery().is_err();
+        self.active = ActiveProject::Ordinary(opened.session);
+        self.project_replaced();
         self.project_lock = Some(guard);
-        self.autosave_message = "Autosave ready".into();
+        self.autosave_message = if recovery_retained {
+            "Autosave ready. Previous recovery retained".into()
+        } else {
+            "Autosave ready".into()
+        };
         Ok(true)
     }
 
     pub fn new_project(&mut self, discard: bool) -> Result<()> {
         self.preflight()?;
-        if self.pending_untitled || (self.session.is_dirty() && !discard) {
+        if self.pending_untitled || (self.is_dirty() && !discard) {
             return Err("Resolve unsaved changes or recovery first".into());
         }
         let project = load_project(include_str!(
@@ -339,13 +698,298 @@ impl Host {
         ))
         .map_err(err)?
         .project;
-        remove_recovery(&self.active_recovery()?)?;
-        self.session =
-            ProjectSession::with_fs(project, config(&self.untitled), Arc::new(GuardedFileSystem));
-        self.generation += 1;
+        safe_sidecar(&self.untitled)?;
+        let pending_untitled = self.path().is_some() && safe_file(&self.untitled.join(RECOVERY))?;
+        self.clear_active_recovery()?;
+        self.active = ActiveProject::Ordinary(ProjectSession::with_fs(
+            project,
+            config(&self.untitled),
+            Arc::new(GuardedFileSystem),
+        ));
+        self.pending_untitled = pending_untitled;
+        self.project_replaced();
         self.project_lock = None;
         self.autosave_message = "Autosave ready".into();
         Ok(())
+    }
+
+    fn prepare_review_switch(&self, discard: bool) -> Result<()> {
+        self.preflight()?;
+        if self.pending_untitled || (self.is_dirty() && !discard) {
+            return Err("Resolve unsaved changes or recovery first".into());
+        }
+        Ok(())
+    }
+
+    fn activate_review(&mut self, candidate: QuarantinedImport, guard: File) {
+        // The bundle has already been published/verified; never report it
+        // rolled back if cleaning the previous recovery slot fails.
+        let recovery_retained = self.clear_active_recovery().is_err()
+            || matches!(
+                self.active,
+                ActiveProject::Review {
+                    recovery_retained: true,
+                    ..
+                }
+            );
+        self.active = ActiveProject::Review {
+            bundle: Box::new(candidate),
+            recovery_retained,
+        };
+        self.project_lock = Some(guard);
+        self.autosave_message = if self.is_dirty() {
+            "Review recovery snapshot restored".into()
+        } else {
+            "Review autosave ready".into()
+        };
+        self.project_replaced();
+    }
+
+    fn project_replaced(&mut self) {
+        self.stop_simulation();
+        self.generation += 1;
+    }
+
+    /// Shared file-source admission for portable JSON and runtime packages.
+    fn check_import_file_paths(&self, source: &Path, target: &Path) -> Result<(PathBuf, PathBuf)> {
+        self.preflight()?;
+        if !safe_file(source)? {
+            return Err("Legacy source does not exist".into());
+        }
+        let source = source.canonicalize().map_err(err)?;
+        if !safe_file(&source)? {
+            return Err("Legacy source changed during selection".into());
+        }
+        let untitled = self.untitled.canonicalize().map_err(err)?;
+        let overlaps_active = self.path().is_some_and(|path| {
+            path.canonicalize()
+                .is_ok_and(|p| source == p || source.starts_with(sidecar_dir(&p)))
+                || sidecar_dir(path)
+                    .canonicalize()
+                    .is_ok_and(|p| source.starts_with(p))
+        });
+        if overlaps_active || source.starts_with(untitled) {
+            return Err("Selected source overlaps active workspace storage".into());
+        }
+        let target = normalize_review(target)?;
+        if source == target
+            || source.starts_with(sidecar_dir(&target))
+            || sidecar_dir(&target)
+                .canonicalize()
+                .is_ok_and(|p| source.starts_with(p))
+            || safe_regular_file(&target, true)?
+        {
+            return Err("Choose a new review bundle outside the selected source storage".into());
+        }
+        Ok((source, target))
+    }
+
+    /// Check portable source and destination before save/discard confirmation.
+    pub fn check_portable_import_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        self.check_import_file_paths(source, target)
+    }
+
+    pub fn import_review(&mut self, source: &Path, target: &Path, discard: bool) -> Result<()> {
+        self.import_review_with(source, target, discard, read_revision_record)
+    }
+
+    fn import_review_with(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+        mut read: impl FnMut(&Path, usize) -> Result<Vec<u8>>,
+    ) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        let (source, target) = self.check_portable_import_paths(source, target)?;
+        let bytes = read(&source, MAX_LEGACY_SOURCE_BYTES)?;
+        let prepared = QuarantinedImport::prepare_portable(&bytes).map_err(err)?;
+        if bytes != read(&source, MAX_LEGACY_SOURCE_BYTES)? {
+            return Err("Portable legacy source changed during import; retry".into());
+        }
+        let guard = lock_dir(&sidecar_dir(&target))?;
+        if safe_file(&review_recovery_path(&target))? {
+            return Err("Target has review recovery data; choose a different filename".into());
+        }
+        let candidate = prepared
+            .publish(&target, config(&self.untitled), Arc::new(GuardedFileSystem))
+            .map_err(err)?;
+        self.activate_review(candidate, guard);
+        Ok(())
+    }
+
+    /// Preflight before prompting to save/discard the active workspace.
+    /// No filesystem writes; repeated immediately before admission.
+    pub fn check_revision_import_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        self.preflight()?;
+        let root = revision_directory(source)?;
+        // Switching away can retire the active sidecar. Never allow that
+        // operation to modify any part of the selected source directory.
+        let active_in_source = self.path().is_some_and(|path| {
+            path.starts_with(&root)
+                || sidecar_dir(path).starts_with(&root)
+                || path.canonicalize().is_ok_and(|p| p.starts_with(&root))
+        });
+        if active_in_source
+            || self.untitled.starts_with(&root)
+            || self
+                .untitled
+                .canonicalize()
+                .is_ok_and(|p| p.starts_with(&root))
+        {
+            return Err("Active workspace storage overlaps the selected legacy source".into());
+        }
+        let target = normalize_review(target)?;
+        if target.starts_with(&root)
+            || sidecar_dir(&target).starts_with(&root)
+            || root.starts_with(sidecar_dir(&target))
+        {
+            return Err("Choose a destination outside the selected source directory".into());
+        }
+        if safe_regular_file(&target, true)? {
+            return Err("Choose a new review bundle filename".into());
+        }
+        Ok((root, target))
+    }
+
+    /// Native-only revision admission. The UI obtains the directory, target,
+    /// and explicit private evidence retention consent from native dialogs.
+    pub fn import_revision_review(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+    ) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        let (root, target) = self.check_revision_import_paths(source, target)?;
+        // Validate the source before creating any destination lock directory.
+        let evidence = read_revision_source(&root)?;
+        let prepared = QuarantinedImport::prepare_revision(evidence).map_err(err)?;
+        let guard = lock_dir(&sidecar_dir(&target))?;
+        if safe_file(&review_recovery_path(&target))? {
+            return Err("Target has review recovery data; choose a different filename".into());
+        }
+        let candidate = prepared
+            .publish(&target, config(&self.untitled), Arc::new(GuardedFileSystem))
+            .map_err(err)?;
+        self.activate_review(candidate, guard);
+        Ok(())
+    }
+
+    /// Native-only package selection preflight, repeated before admission.
+    pub fn check_package_import_paths(
+        &self,
+        source: &Path,
+        target: &Path,
+    ) -> Result<(PathBuf, PathBuf)> {
+        let (source, target) = self.check_import_file_paths(source, target)?;
+        if !source
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("hmipkg"))
+        {
+            return Err("Select an existing .hmipkg runtime package".into());
+        }
+        Ok((source, target))
+    }
+
+    pub fn import_package_review(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+    ) -> Result<()> {
+        self.import_package_review_with(source, target, discard, read_revision_record)
+    }
+
+    fn import_package_review_with(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+        mut read: impl FnMut(&Path, usize) -> Result<Vec<u8>>,
+    ) -> Result<()> {
+        self.prepare_review_switch(discard)?;
+        let (source, target) = self.check_package_import_paths(source, target)?;
+        let bytes = read(&source, package_transport::MAX_PACKAGE_BYTES)?;
+        let prepared = QuarantinedImport::prepare_package(&bytes).map_err(err)?;
+        if bytes != read(&source, package_transport::MAX_PACKAGE_BYTES)? {
+            return Err("Legacy runtime package changed during import; retry".into());
+        }
+        let guard = lock_dir(&sidecar_dir(&target))?;
+        if safe_file(&review_recovery_path(&target))? {
+            return Err("Target has review recovery data; choose a different filename".into());
+        }
+        let candidate = prepared
+            .publish(&target, config(&self.untitled), Arc::new(GuardedFileSystem))
+            .map_err(err)?;
+        self.activate_review(candidate, guard);
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub fn open_review(&mut self, path: &Path, discard: bool) -> Result<()> {
+        self.open_review_with(path, discard, |pending| {
+            if pending {
+                return Err("Review recovery decision required".into());
+            }
+            Ok(Some(false))
+        })
+        .map(|_| ())
+    }
+
+    pub fn open_review_with(
+        &mut self,
+        path: &Path,
+        discard: bool,
+        decide: impl FnOnce(bool) -> Result<Option<bool>>,
+    ) -> Result<bool> {
+        self.prepare_review_switch(discard)?;
+        let path = normalize_review(path)?;
+        if self.path() == Some(path.as_path()) {
+            return Err("This review bundle is already open".into());
+        }
+        if !safe_regular_file(&path, true)? {
+            return Err("Review bundle does not exist".into());
+        }
+        let guard = lock_dir(&sidecar_dir(&path))?;
+        let recovery = review_recovery_path(&path);
+        let identity = review_recovery_identity(&path, &GuardedFileSystem).map_err(err)?;
+        let pending = identity.is_some();
+        let Some(recover) = decide(pending)? else {
+            return Ok(false);
+        };
+        let fs = Arc::new(GuardedFileSystem);
+        let candidate = if recover {
+            QuarantinedImport::recover(&path, config(&self.untitled), fs)
+        } else {
+            QuarantinedImport::reopen(&path, config(&self.untitled), fs)
+        }
+        .map_err(err)?;
+        // The confirmation may have been open while an external writer
+        // replaced the snapshot. Do not recover or discard different bytes.
+        if review_recovery_identity(&path, &GuardedFileSystem).map_err(err)? != identity {
+            return Err(
+                "Review recovery changed during confirmation; reopen to decide again".into(),
+            );
+        }
+        let mut discard_sync_failed = false;
+        if pending && !recover {
+            remove_recovery(&recovery)?;
+            discard_sync_failed = StdFileSystem.sync_dir(&sidecar_dir(&path)).is_err();
+        }
+        self.activate_review(candidate, guard);
+        if discard_sync_failed {
+            self.autosave_message = "Review recovery discarded; directory sync failed".into();
+        }
+        Ok(true)
     }
 
     pub fn save(&mut self) -> Result<()> {
@@ -353,7 +997,10 @@ impl Host {
         if self.pending_untitled {
             return Err("Resolve untitled recovery first".into());
         }
-        let outcome = self.session.save(SaveOptions::default()).map_err(err)?;
+        let ActiveProject::Ordinary(session) = &mut self.active else {
+            return Err("Review bundles are immutable; save a new review copy".into());
+        };
+        let outcome = session.save(SaveOptions::default()).map_err(err)?;
         self.autosave_message = save_message(&outcome.warnings);
         Ok(())
     }
@@ -363,8 +1010,27 @@ impl Host {
         if self.pending_untitled {
             return Err("Resolve untitled recovery first".into());
         }
+        let session = match &mut self.active {
+            ActiveProject::Ordinary(session) => session,
+            ActiveProject::Review { bundle, .. } => {
+                let target = normalize_review(path)?;
+                if safe_regular_file(&target, true)? {
+                    return Err("Choose a new review bundle filename".into());
+                }
+                let guard = lock_dir(&sidecar_dir(&target))?;
+                if safe_file(&review_recovery_path(&target))? {
+                    return Err(
+                        "Target has review recovery data; choose a different filename".into(),
+                    );
+                }
+                bundle.save_copy(&target).map_err(err)?;
+                self.project_lock = Some(guard);
+                self.autosave_message = "Review autosave ready".into();
+                return Ok(());
+            }
+        };
         let path = normalize_project(path)?;
-        if self.session.path() == Some(path.as_path()) {
+        if session.path() == Some(path.as_path()) {
             return self.save();
         }
         // Do not overwrite an unrelated project or its recovery. A native
@@ -377,8 +1043,7 @@ impl Host {
         if safe_file(&dir.join(RECOVERY))? {
             return Err("Target has recovery data; choose a different filename".into());
         }
-        let outcome = self
-            .session
+        let outcome = session
             .save_as(&path, SaveOptions::default())
             .map_err(err)?;
         self.project_lock = Some(guard);
@@ -390,10 +1055,12 @@ impl Host {
         if self.pending_untitled {
             return;
         }
-        self.autosave_message = match self
-            .preflight()
-            .and_then(|_| self.session.autosave().map_err(err))
-        {
+        let preflight = self.preflight();
+        let result = preflight.and_then(|_| match &mut self.active {
+            ActiveProject::Ordinary(session) => session.autosave().map_err(err),
+            ActiveProject::Review { bundle, .. } => bundle.autosave().map_err(err),
+        });
+        self.autosave_message = match result {
             Ok(AutosaveOutcome::Clean) => "No unsaved edits to recover".into(),
             Ok(_) => "Recovery snapshot current".into(),
             Err(e) => format!("Autosave failed: {e}"),
@@ -402,15 +1069,44 @@ impl Host {
 
     // Discard only the active project's recovery after explicit confirmation.
     // Call only after a successful candidate open or immediately before exit.
-    pub fn active_recovery(&self) -> Result<PathBuf> {
+    pub fn clear_active_recovery(&mut self) -> Result<()> {
         self.preflight()?;
-        Ok(self
-            .session
+        if let ActiveProject::Review { bundle, .. } = &mut self.active {
+            return bundle.discard_recovery().map_err(err);
+        }
+        remove_recovery(&self.active_recovery()?)
+    }
+
+    fn active_recovery(&self) -> Result<PathBuf> {
+        let ActiveProject::Ordinary(session) = &self.active else {
+            return Err("Review workspaces have no ordinary recovery slot".into());
+        };
+        self.preflight()?;
+        Ok(session
             .path()
             .map(sidecar_dir)
             .unwrap_or_else(|| self.untitled.clone())
             .join(RECOVERY))
     }
+}
+
+fn review_message(review: &QuarantinedImport) -> String {
+    let mut message = if review.is_dirty() {
+        "Review required — unsaved edits; save a new review copy".to_string()
+    } else {
+        "Review required — production/live blocked; review bundle saved".to_string()
+    };
+    if review.has_revision_source() {
+        message.push_str(". Selected legacy revision evidence retained locally");
+    }
+    if review.has_package_source() {
+        message.push_str(". Exact legacy runtime package evidence retained locally");
+    }
+    if !review.warnings().is_empty() {
+        message.push_str(". ");
+        message.push_str(&review.warnings().join(". "));
+    }
+    message
 }
 
 fn save_message(warnings: &[String]) -> String {
@@ -445,6 +1141,24 @@ pub fn recovery_project(envelope: &Path) -> Result<PathBuf> {
 mod tests {
     use super::*;
     use hmi_engineering_core::{Command, Transaction};
+    const LEGACY_SOURCE: &[u8] = br#"{"schemaVersion":1,"metadata":{"name":"Synthetic","defaultScreenId":"screen/a","targetProfiles":[]},"screens":{"screen/a":{"id":"screen/a","title":"Main","widthDp":640,"heightDp":480,"components":{"label-a":{"id":"label-a","type":"label","properties":{"text":"Synthetic"}}}}},"variables":{},"externalSources":{},"externalMappings":{}}"#;
+
+    impl Host {
+        fn ordinary(&self) -> &ProjectSession {
+            let ActiveProject::Ordinary(session) = &self.active else {
+                panic!("ordinary session expected")
+            };
+            session
+        }
+
+        fn ordinary_mut(&mut self) -> &mut ProjectSession {
+            let ActiveProject::Ordinary(session) = &mut self.active else {
+                panic!("ordinary session expected")
+            };
+            session
+        }
+    }
+
     struct Temp(PathBuf);
     impl Temp {
         fn new() -> Self {
@@ -465,8 +1179,8 @@ mod tests {
         }
     }
     fn edit(host: &mut Host, name: &str) {
-        let screen = host.session.project().screens[0].id.clone();
-        host.session
+        let screen = host.ordinary().project().screens[0].id.clone();
+        host.ordinary_mut()
             .execute(Transaction::single(Command::RenameScreen {
                 screen,
                 name: name.into(),
@@ -474,12 +1188,1097 @@ mod tests {
             .unwrap();
     }
 
+    fn simulation_legacy_source() -> Vec<u8> {
+        use serde_json::json;
+
+        let mut legacy: serde_json::Value = serde_json::from_slice(LEGACY_SOURCE).unwrap();
+        legacy["schemaVersion"] = json!(9);
+        legacy["variables"] = json!({
+            "count":{"id":"count","path":"Count","type":"LONG","access":"SETPOINT"},
+            "pulse":{"id":"pulse","path":"Pulse","type":"BOOL","access":"COMMAND"},
+            "input":{"id":"input","path":"Input","type":"BOOL","access":"READ_ONLY"}
+        });
+        legacy["externalSources"] = json!({
+            "physical":{"id":"physical","driver":"s7","configuration":{
+                "host":"example.invalid","port":"102","rack":"0","slot":"1","pollIntervalMs":"200","timeoutMs":"2000"
+            },"commissioningAllowed":true}
+        });
+        legacy["externalMappings"] = json!({
+            "write":{"id":"write","internalVariableId":"count","sourceId":"physical","externalAddress":"DB1.DINT0",
+                "access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"SETPOINT","min":0,"max":100,"step":2,"confirm":true}},
+            "pulse":{"id":"pulse","internalVariableId":"pulse","sourceId":"physical","externalAddress":"DB1.X4.0",
+                "access":"READ_WRITE","writeConfirmed":true,"command":{"kind":"MOMENTARY","pulseMs":1000}},
+            "input":{"id":"input","internalVariableId":"input","sourceId":"physical","externalAddress":"DB1.X5.0","access":"READ"}
+        });
+        serde_json::to_vec(&legacy).unwrap()
+    }
+
+    #[test]
+    fn simulation_fixture_imports_as_quarantined_canonical_project() {
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        fs::write(&source, simulation_legacy_source()).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.import_review(&source, &review, false).unwrap();
+        let project = host.snapshot().project;
+        assert_eq!(project.tags.len(), 3);
+        assert_eq!(project.connections.len(), 1);
+        assert_eq!(project.v2.industrial.tags.len(), 2);
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    #[ignore = "requires freshly built hmi-engine selected by hosted CI"]
+    fn native_project_simulation_reports_child_loss_and_restarts() {
+        use crate::runtime_host::{RuntimeHost, RuntimeOutcome, RuntimeRequest as Request};
+        use std::process::Command;
+        use std::time::{Duration, Instant};
+
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        fs::write(&source, simulation_legacy_source()).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.runtime = RuntimeHost::new(Some(PathBuf::from(
+            std::env::var_os("HMI_ENGINE_TEST_BIN").expect("CI must provide a fresh engine"),
+        )));
+        host.import_review(&source, &review, false).unwrap();
+        let generation = host.generation;
+        let revision = host.snapshot().revision;
+        let start = || Request::Start { revision };
+        let RuntimeOutcome::Active { simulation: first } =
+            host.simulation_outcome(generation, start(), || false)
+        else {
+            panic!("simulation did not start");
+        };
+        let session = first.session;
+        assert!(matches!(
+            host.simulation_outcome(generation, start(), || false),
+            RuntimeOutcome::Active { simulation } if simulation.session == session
+        ));
+        let count = first
+            .points
+            .iter()
+            .find(|point| point.name == "Count")
+            .unwrap()
+            .id
+            .clone();
+        let write = |value: &str| Request::Write {
+            session,
+            tag: count.clone(),
+            value: value.into(),
+        };
+        for (value, confirmed) in [("101", true), ("24", false)] {
+            assert!(matches!(
+                host.simulation_outcome(generation, write(value), || confirmed),
+                RuntimeOutcome::Rejected {
+                    simulation: Some(reply),
+                    ..
+                } if reply.session == session
+            ));
+        }
+        assert!(matches!(
+            host.simulation_outcome(generation, write("24"), || true),
+            RuntimeOutcome::Active { .. }
+        ));
+        let read = || Request::Read { session };
+        let deadline = Instant::now() + Duration::from_secs(4);
+        loop {
+            let RuntimeOutcome::Active { simulation } =
+                host.simulation_outcome(generation, read(), || false)
+            else {
+                panic!("simulation lost before forced exit");
+            };
+            if simulation
+                .points
+                .iter()
+                .any(|p| p.id == count && p.value.as_deref() == Some("24"))
+            {
+                break;
+            }
+            assert!(Instant::now() < deadline, "write not observed");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        // Kill only the direct, test-owned real engine, without using the
+        // supervisor's normal shutdown path.
+        let pid = host.runtime.child_process_id().to_string();
+        #[cfg(windows)]
+        let status = Command::new("taskkill")
+            .args(["/PID", &pid, "/F"])
+            .status()
+            .unwrap();
+        #[cfg(unix)]
+        let status = Command::new("kill").args(["-KILL", &pid]).status().unwrap();
+        assert!(status.success());
+        let deadline = Instant::now() + Duration::from_secs(4);
+        loop {
+            match host.simulation_outcome(generation, read(), || false) {
+                RuntimeOutcome::Lost { .. } => break,
+                RuntimeOutcome::Active { .. } => {}
+                _ => panic!("engine exit was not classified as session loss"),
+            }
+            assert!(Instant::now() < deadline, "engine exit not detected");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(matches!(
+            host.simulation_outcome(generation, write("24"), || true),
+            RuntimeOutcome::Lost { .. }
+        ));
+        let RuntimeOutcome::Active { simulation: second } =
+            host.simulation_outcome(generation, start(), || false)
+        else {
+            panic!("fresh simulation did not start");
+        };
+        assert_ne!(second.session, session);
+        assert!(second
+            .points
+            .iter()
+            .any(|p| p.id == count && p.value.as_deref() == Some("0")));
+        assert!(matches!(
+            host.simulation_outcome(generation, read(), || false),
+            RuntimeOutcome::Lost { .. }
+        ));
+        assert!(matches!(
+            host.simulation_outcome(
+                generation,
+                Request::Read {
+                    session: second.session
+                },
+                || false,
+            ),
+            RuntimeOutcome::Active { .. }
+        ));
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    #[ignore = "requires freshly built hmi-engine selected by hosted CI"]
+    fn native_project_simulation_respects_quarantine_and_session_lifecycle() {
+        use crate::runtime_host::{RuntimeHost, RuntimeReply, RuntimeRequest as Request};
+        use crate::session_host::WorkspaceRequest;
+        use std::time::{Duration, Instant};
+
+        let t = Temp::new();
+        let source = t.0.join("simulation.json");
+        let review = t.0.join("simulation.hmi-review");
+        let original = simulation_legacy_source();
+        fs::write(&source, &original).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.runtime = RuntimeHost::new(Some(PathBuf::from(
+            std::env::var_os("HMI_ENGINE_TEST_BIN").expect("CI must provide a fresh engine"),
+        )));
+        host.import_review(&source, &review, false).unwrap();
+        let before = host.snapshot();
+        let generation = host.generation;
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        let start = || Request::Start {
+            revision: before.revision,
+        };
+        let first = host
+            .simulate(generation, start(), || false)
+            .unwrap()
+            .unwrap();
+        let id = |name: &str| {
+            first
+                .points
+                .iter()
+                .find(|p| p.name == name)
+                .unwrap()
+                .id
+                .clone()
+        };
+        let count = id("Count");
+        let pulse = id("Pulse");
+        let input = id("Input");
+        let session = first.session;
+        let read = || Request::Read { session };
+        let write = |tag: &str, value: &str| Request::Write {
+            session,
+            tag: tag.into(),
+            value: value.into(),
+        };
+        let value = |reply: &RuntimeReply, id: &str| {
+            reply
+                .points
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .value
+                .clone()
+        };
+        let wait_for = |host: &mut Host, id: &str, expected: &str| {
+            let deadline = Instant::now() + Duration::from_secs(4);
+            loop {
+                let reply = host
+                    .simulate(generation, read(), || false)
+                    .unwrap()
+                    .unwrap();
+                if value(&reply, id).as_deref() == Some(expected) {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "expected {expected} for {id}");
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        };
+        assert_eq!(value(&first, &count).as_deref(), Some("0"));
+        assert!(host
+            .simulate(generation, write(&input, "true"), || true)
+            .is_err());
+        assert!(host
+            .simulate(generation, write(&count, "101"), || true)
+            .is_err());
+        assert!(host
+            .simulate(generation, write(&count, "25"), || true)
+            .is_err());
+        assert!(host
+            .simulate(generation, write(&count, "24"), || false)
+            .is_err());
+        host.simulate(generation, write(&count, "24"), || true)
+            .unwrap();
+        wait_for(&mut host, &count, "24");
+        assert!(host
+            .simulate(generation, write(&pulse, "true"), || true)
+            .is_err());
+        host.simulate(
+            generation,
+            Request::Pulse {
+                session,
+                tag: pulse.clone(),
+            },
+            || true,
+        )
+        .unwrap();
+        wait_for(&mut host, &pulse, "true");
+        wait_for(&mut host, &pulse, "false");
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&source).unwrap(), original);
+        assert!(host.production_candidate().is_err());
+        assert!(host.simulate(generation, start(), || true).is_err());
+
+        // Failed switching leaves the original runtime available. Committed
+        // edits and successful switches retire it, including same-project reopen.
+        assert!(host
+            .open_review(&t.0.join("absent.hmi-review"), false)
+            .is_err());
+        wait_for(&mut host, &count, "24");
+        host.request(
+            WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Edited".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(generation),
+        )
+        .unwrap();
+        assert!(host.simulate(generation, read(), || true).is_err());
+        assert!(host.simulate(generation, start(), || true).is_err());
+        let second = host
+            .simulate(
+                generation,
+                Request::Start {
+                    revision: host.snapshot().revision,
+                },
+                || false,
+            )
+            .unwrap()
+            .unwrap();
+        assert_ne!(second.session, session);
+        assert_eq!(value(&second, &count).as_deref(), Some("0"));
+        assert!(host
+            .simulate(generation, write(&count, "24"), || true)
+            .is_err());
+        host.new_project(true).unwrap();
+        assert!(host
+            .simulate(
+                generation,
+                Request::Read {
+                    session: second.session
+                },
+                || true
+            )
+            .is_err());
+        assert!(host
+            .simulate(
+                host.generation,
+                Request::Read {
+                    session: second.session
+                },
+                || true
+            )
+            .is_err());
+        host.open_review(&review, false).unwrap();
+        let reopened = host
+            .simulate(host.generation, start(), || false)
+            .unwrap()
+            .unwrap();
+        assert_ne!(reopened.session, second.session);
+        assert_eq!(value(&reopened, &count).as_deref(), Some("0"));
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    fn native_review_lifecycle_blocks_plain_persistence_and_production() {
+        use crate::session_host::WorkspaceRequest;
+
+        let t = Temp::new();
+        let source = t.0.join("legacy.json");
+        let target = t.0.join("legacy.hmi-review");
+        let copy = t.0.join("edited.hmi-review");
+        let original = LEGACY_SOURCE;
+        fs::write(&source, original).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        assert_eq!(
+            host.production_candidate().unwrap().project(),
+            host.ordinary().project()
+        );
+        let previous_generation = host.generation;
+        host.import_review(&source, &target, false).unwrap();
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        assert_eq!(fs::read(&source).unwrap(), original);
+        let before = host.snapshot();
+        let screen = before.project.screens[0].id.clone();
+        let rename = Transaction::single(Command::RenameScreen {
+            screen,
+            name: "Reviewed edit".into(),
+        });
+        assert!(host.check_generation(previous_generation).is_err());
+        assert!(host
+            .request(
+                WorkspaceRequest::Execute {
+                    transaction: rename.clone().at_revision(before.revision),
+                },
+                Some(previous_generation)
+            )
+            .is_err());
+        assert!(host
+            .request(
+                WorkspaceRequest::Execute {
+                    transaction: rename.clone(),
+                },
+                Some(host.generation)
+            )
+            .is_err());
+        let _ = host
+            .request(
+                WorkspaceRequest::Execute {
+                    transaction: Transaction::single(Command::SetExtension {
+                        key: "hmistudio.importQuarantine".into(),
+                        value: None,
+                    })
+                    .at_revision(before.revision),
+                },
+                Some(host.generation),
+            )
+            .unwrap();
+        assert_eq!(host.snapshot(), before);
+        let _ = host
+            .request(
+                WorkspaceRequest::Execute {
+                    transaction: rename.at_revision(before.revision),
+                },
+                Some(host.generation),
+            )
+            .unwrap();
+        assert!(host.is_dirty());
+        assert!(host.new_project(false).is_err());
+        assert!(host.save().is_err());
+        assert!(host.save_as(&source).is_err());
+        assert!(host.save_as(&t.0.join("plain.hmi.json")).is_err());
+        assert!(host.production_candidate().is_err());
+        host.autosave();
+        assert!(!host.untitled.join(RECOVERY).exists());
+        assert!(host
+            .persistence_message()
+            .contains("Recovery snapshot current"));
+        assert!(review_recovery_path(&target).exists());
+        host.save_as(&copy).unwrap();
+        assert!(!host.is_dirty());
+        host.new_project(false).unwrap();
+        assert!(host.production_candidate().is_ok());
+        host.open_review(&copy, false).unwrap();
+        assert_eq!(host.snapshot().project.screens[0].name, "Reviewed edit");
+        assert!(host.production_candidate().is_err());
+        let stripped = t.0.join("stripped.hmi.json");
+        let mut project = host.snapshot().project;
+        project.extensions.clear();
+        fs::write(
+            &stripped,
+            hmi_project_model::save_project(&project).unwrap(),
+        )
+        .unwrap();
+        assert!(host
+            .open_with(&stripped, false, |_| Ok(Some(false)))
+            .is_err());
+        assert!(host.is_review());
+        assert_eq!(fs::read(&source).unwrap(), original);
+    }
+
+    // Original synthetic revision store; checksums generated by the core
+    // dependency's test fixture generator are not needed at runtime.
+    fn synthetic_revision_store(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+        fs::create_dir_all(root.join("revisions")).unwrap();
+        let marker = br#"{"format":"hmistudio-project-bundle","formatVersion":1}"#.to_vec();
+        // Precomputed checksums over these original synthetic JSON strings.
+        let head =
+            include_bytes!("../../crates/legacy-import/tests/fixtures/revision-head.synthetic")
+                .to_vec();
+        let revision =
+            include_bytes!("../../crates/legacy-import/tests/fixtures/revision-record.synthetic")
+                .to_vec();
+        let records = vec![
+            (root.join("bundle.json"), marker),
+            (root.join("HEAD"), head),
+            (root.join("revisions/0000000001-1234abcd.json"), revision),
+        ];
+        for (path, bytes) in &records {
+            fs::write(path, bytes).unwrap();
+        }
+        records
+    }
+
+    #[test]
+    fn native_revision_import_recovery_save_copy_and_source_immutability() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        let app = t.0.join("app");
+        let path = t.0.join("review.hmi-review");
+        let copy = t.0.join("copy.hmi-review");
+        let mut host = Host::new(&app).unwrap();
+        host.import_revision_review(&root, &path, false).unwrap();
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        assert!(host.persistence_message().contains("revision evidence"));
+        assert!(!root.join("LOCK").exists());
+        assert!(host.save_as(&root.join("bad.hmi-review")).is_err());
+        assert!(!root.join("bad.hmi-review.studio").exists());
+        let before = host.snapshot();
+        host.request(
+            crate::session_host::WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Revision crash edit".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        drop(host);
+        let mut host = Host::new(&app).unwrap();
+        host.open_review_with(&path, false, |pending| {
+            assert!(pending);
+            Ok(Some(true))
+        })
+        .unwrap();
+        assert!(host.is_dirty());
+        assert_eq!(
+            host.snapshot().project.screens[0].name,
+            "Revision crash edit"
+        );
+        assert!(host.production_candidate().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(host.persistence_message().contains("revision evidence"));
+        assert!(!review_recovery_path(&path).exists());
+        for (path, bytes) in records {
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+        assert!(!root.join("LOCK").exists());
+    }
+
+    #[test]
+    fn native_package_import_recovery_save_copy_and_source_immutability() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let archive = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-signed-java.synthetic"
+        );
+        fs::write(&source, archive).unwrap();
+        let app = t.0.join("app");
+        let path = t.0.join("review.hmi-review");
+        let copy = t.0.join("copy.hmi-review");
+        let mut host = Host::new(&app).unwrap();
+        host.import_package_review(&source, &path, false).unwrap();
+        assert!(host.is_review());
+        assert!(host.production_candidate().is_err());
+        assert!(host.persistence_message().contains("package evidence"));
+        assert!(host.save_as(&source).is_err());
+        let before = host.snapshot();
+        host.request(
+            crate::session_host::WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Package crash edit".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        drop(host);
+        let mut host = Host::new(&app).unwrap();
+        host.open_review_with(&path, false, |pending| {
+            assert!(pending);
+            Ok(Some(true))
+        })
+        .unwrap();
+        assert!(host.is_dirty());
+        assert_eq!(
+            host.snapshot().project.screens[0].name,
+            "Package crash edit"
+        );
+        assert!(host.production_candidate().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(host.persistence_message().contains("package evidence"));
+        assert!(!review_recovery_path(&path).exists());
+        assert_eq!(fs::read(&source).unwrap(), archive);
+    }
+
+    #[test]
+    fn native_package_import_refuses_invalid_or_overlapping_source() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let target = t.0.join("review.hmi-review");
+        let app = t.0.join("app");
+        let mut host = Host::new(&app).unwrap();
+        edit(&mut host, "Active edit");
+        host.autosave();
+        let before = host.snapshot();
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        fs::write(&source, b"not a package").unwrap();
+        let error = host
+            .import_package_review(&source, &target, true)
+            .unwrap_err();
+        assert!(error.contains("InvalidArchive"));
+        assert!(!error.contains("not a package"));
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(recovery).unwrap(), recovery_bytes);
+        let unsupported = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsupported.synthetic"
+        );
+        fs::write(&source, unsupported).unwrap();
+        assert!(package_transport::decode_runtime_package(unsupported).is_ok());
+        let error = host
+            .import_package_review(&source, &target, true)
+            .unwrap_err();
+        assert!(error.contains("Portable legacy import refused"));
+        assert!(error.contains("unsupported-or-invalid-field"));
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&source).unwrap(), unsupported);
+        File::create(&source)
+            .unwrap()
+            .set_len(package_transport::MAX_PACKAGE_BYTES as u64 + 1)
+            .unwrap();
+        assert!(host.import_package_review(&source, &target, true).is_err());
+        assert!(!sidecar_dir(&target).exists());
+        let archive = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic"
+        );
+        let overlap = app.join("source.hmipkg");
+        fs::write(&overlap, archive).unwrap();
+        assert!(host.import_package_review(&overlap, &target, true).is_err());
+        assert_eq!(fs::read(&overlap).unwrap(), archive);
+        let sidecar = sidecar_dir(&target);
+        fs::create_dir_all(&sidecar).unwrap();
+        let overlap = sidecar.join("source.hmipkg");
+        fs::write(&overlap, archive).unwrap();
+        assert!(host.import_package_review(&overlap, &target, true).is_err());
+        assert_eq!(fs::read(&overlap).unwrap(), archive);
+        assert!(!target.exists());
+        assert_eq!(host.snapshot(), before);
+    }
+
+    #[test]
+    fn native_package_import_refuses_detected_source_replacement() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let target = t.0.join("review.hmi-review");
+        let first = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-signed-java.synthetic"
+        );
+        let replacement = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic"
+        );
+        assert_ne!(first.as_slice(), replacement.as_slice());
+        fs::write(&source, first).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Active edit");
+        host.autosave();
+        let before = host.snapshot();
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        let generation = host.generation;
+        let mut reads = 0;
+        let result = host.import_package_review_with(&source, &target, true, |path, limit| {
+            let bytes = read_revision_record(path, limit)?;
+            reads += 1;
+            if reads == 1 {
+                fs::write(path, replacement).map_err(err)?;
+            }
+            Ok(bytes)
+        });
+        assert!(result.unwrap_err().contains("changed during import"));
+        assert_eq!(reads, 2);
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(host.generation, generation);
+        assert_eq!(fs::read(&recovery).unwrap(), recovery_bytes);
+        assert_eq!(fs::read(&source).unwrap(), replacement);
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_package_import_refuses_link_aliases() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let symlink = t.0.join("link.hmipkg");
+        let hardlink = t.0.join("hardlink.hmipkg");
+        let target = t.0.join("review.hmi-review");
+        let archive = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic"
+        );
+        fs::write(&source, archive).unwrap();
+        std::os::unix::fs::symlink(&source, &symlink).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.snapshot();
+        assert!(host
+            .import_package_review(&symlink, &target, false)
+            .is_err());
+        fs::hard_link(&source, &hardlink).unwrap();
+        assert!(host
+            .import_package_review(&hardlink, &target, false)
+            .is_err());
+        assert!(host.import_package_review(&source, &target, false).is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&source).unwrap(), archive);
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+    }
+
+    #[test]
+    fn native_revision_import_refuses_damage_or_source_destination_without_switching() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Active edit");
+        host.autosave();
+        let before = host.snapshot();
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        let target = t.0.join("review.hmi-review");
+        assert!(host
+            .import_revision_review(&root, &root.join("bad.hmi-review"), true)
+            .is_err());
+        assert!(!root.join("bad.hmi-review.studio").exists());
+        fs::write(root.join("HEAD"), b"bad").unwrap();
+        assert!(host.import_revision_review(&root, &target, true).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(recovery).unwrap(), recovery_bytes);
+        assert!(!root.join("LOCK").exists());
+        fs::write(&records[1].0, &records[1].1).unwrap();
+        fs::remove_file(&records[2].0).unwrap();
+        assert!(host.import_revision_review(&root, &target, true).is_err());
+        assert!(!target.exists());
+        assert_eq!(host.snapshot(), before);
+    }
+
+    #[test]
+    fn native_revision_reader_refuses_detected_head_or_revision_replacement() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        for index in [1, 2] {
+            let records = synthetic_revision_store(&root);
+            let revision_path = &records[2].0;
+            let mut changed = false;
+            let result = read_revision_source_with(&root, |path, limit| {
+                let bytes = read_revision_record(path, limit)?;
+                // Replace a record immediately after the first revision read.
+                if !changed && path == revision_path {
+                    changed = true;
+                    let original = &records[index].1;
+                    let mut replacement = original.clone();
+                    replacement.push(b' ');
+                    fs::write(&records[index].0, replacement).unwrap();
+                }
+                Ok(bytes)
+            });
+            assert!(changed);
+            assert!(result.is_err());
+            assert!(!root.join("LOCK").exists());
+        }
+    }
+
+    #[test]
+    fn native_revision_destination_rejects_renamed_store_and_ordinary_save() {
+        let t = Temp::new();
+        let root = t.0.join("renamed-store");
+        let records = synthetic_revision_store(&root);
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        assert!(host.save_as(&root.join("new.hmi.json")).is_err());
+        assert!(!root.join("new.hmi.json.studio").exists());
+        assert!(normalize_review(&root.join("new.hmi-review")).is_err());
+        for (path, bytes) in records {
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_revision_import_refuses_links_in_source_records_and_directories() {
+        use std::os::unix::fs::symlink;
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        let target = t.0.join("review.hmi-review");
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.snapshot();
+        let outside = t.0.join("outside.json");
+        fs::write(&outside, &records[2].1).unwrap();
+        fs::remove_file(&records[2].0).unwrap();
+        symlink(&outside, &records[2].0).unwrap();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        fs::remove_file(&records[2].0).unwrap();
+        fs::hard_link(&outside, &records[2].0).unwrap();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        fs::remove_file(&records[2].0).unwrap();
+        fs::write(&records[2].0, &records[2].1).unwrap();
+        let alias = t.0.join("alias.hmistudio");
+        symlink(&root, &alias).unwrap();
+        assert!(host.import_revision_review(&alias, &target, false).is_err());
+        let outside_dir = t.0.join("outside-revisions");
+        fs::rename(root.join("revisions"), &outside_dir).unwrap();
+        symlink(&outside_dir, root.join("revisions")).unwrap();
+        assert!(host.import_revision_review(&root, &target, false).is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(host.snapshot(), before);
+    }
+
+    #[test]
+    fn native_review_recovery_survives_restart_cancel_and_save_copy() {
+        use crate::session_host::WorkspaceRequest;
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        let copy = t.0.join("copy.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        let original = fs::read(&path).unwrap();
+        let before = host.snapshot();
+        host.request(
+            WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Crash edit".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        let slot = review_recovery_path(&path);
+        assert!(slot.exists());
+        let mut other = Host::new(&t.0.join("other-app")).unwrap();
+        assert!(other
+            .open_review_with(&path, false, |_| Ok(Some(true)))
+            .is_err());
+        drop(host);
+        let mut host = Host::new(&app).unwrap();
+        let before = host.snapshot();
+        assert!(!host
+            .open_review_with(&path, false, |pending| {
+                assert!(pending);
+                Ok(None)
+            })
+            .unwrap());
+        assert_eq!(host.snapshot(), before);
+        assert!(slot.exists());
+        assert!(host
+            .open_review_with(&path, false, |pending| {
+                assert!(pending);
+                Ok(Some(true))
+            })
+            .unwrap());
+        assert!(host.is_review() && host.is_dirty());
+        assert!(host.production_candidate().is_err());
+        assert_eq!(host.snapshot().project.screens[0].name, "Crash edit");
+        assert!(host.save().is_err());
+        host.save_as(&copy).unwrap();
+        assert!(!slot.exists());
+        assert!(!host.is_dirty());
+        assert_eq!(fs::read(&source).unwrap(), LEGACY_SOURCE);
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert!(host.production_candidate().is_err());
+        host.new_project(false).unwrap();
+        host.open_review(&copy, false).unwrap();
+        assert_eq!(host.snapshot().project.screens[0].name, "Crash edit");
+    }
+
+    #[test]
+    fn native_review_recovery_corrupt_slot_is_preserved_until_explicit_discard() {
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        drop(host);
+        let slot = review_recovery_path(&path);
+        fs::write(&slot, b"corrupt").unwrap();
+        let mut host = Host::new(&app).unwrap();
+        let before = host.snapshot();
+        assert!(host
+            .open_review_with(&path, false, |_| Ok(Some(true)))
+            .is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&slot).unwrap(), b"corrupt");
+        assert!(host
+            .open_review_with(&path, false, |_| Ok(Some(false)))
+            .unwrap());
+        assert!(!slot.exists());
+        assert!(host.is_review() && !host.is_dirty());
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    fn native_review_recovery_changed_during_confirmation_is_preserved() {
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        drop(host);
+        let slot = review_recovery_path(&path);
+        fs::write(&slot, b"old recovery").unwrap();
+        let mut host = Host::new(&app).unwrap();
+        let before = host.snapshot();
+        assert!(host
+            .open_review_with(&path, false, |pending| {
+                assert!(pending);
+                fs::write(&slot, b"replacement recovery").unwrap();
+                Ok(Some(false))
+            })
+            .is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(fs::read(&slot).unwrap(), b"replacement recovery");
+    }
+
+    #[test]
+    fn native_review_undo_reports_pending_cleanup_and_retains_changed_base_recovery() {
+        use crate::session_host::WorkspaceRequest;
+        let t = Temp::new();
+        let app = t.0.join("app");
+        let source = t.0.join("legacy.json");
+        let path = t.0.join("review.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        host.import_review(&source, &path, false).unwrap();
+        let before = host.snapshot();
+        host.request(
+            WorkspaceRequest::Execute {
+                transaction: Transaction::single(Command::RenameScreen {
+                    screen: before.project.screens[0].id.clone(),
+                    name: "Pending".into(),
+                })
+                .at_revision(before.revision),
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        host.autosave();
+        let slot = review_recovery_path(&path);
+        let recovery = fs::read(&slot).unwrap();
+        let mut base = fs::read(&path).unwrap();
+        base.push(b'\n');
+        fs::write(&path, &base).unwrap();
+        host.request(
+            WorkspaceRequest::Undo {
+                expected_revision: host.snapshot().revision,
+            },
+            Some(host.generation),
+        )
+        .unwrap();
+        assert!(!host.is_dirty());
+        assert!(!host.snapshot().status.autosave_current);
+        assert!(host.persistence_message().contains("cleanup pending"));
+        host.autosave();
+        assert!(host.persistence_message().contains("Autosave failed"));
+        assert!(!host.snapshot().status.autosave_current);
+        assert_eq!(fs::read(&slot).unwrap(), recovery);
+        assert!(host.production_candidate().is_err());
+    }
+
+    #[test]
+    fn refused_import_keeps_dirty_session_and_recovery_intact() {
+        let t = Temp::new();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Pending edit");
+        host.autosave();
+        let recovery = host.active_recovery().unwrap();
+        let bytes = fs::read(&recovery).unwrap();
+        let source = t.0.join("refused.json");
+        fs::write(&source, b"{}").unwrap();
+        let target = t.0.join("refused.hmi-review");
+        let before = host.snapshot();
+        let generation = host.generation;
+        let error = host.import_review(&source, &target, true).unwrap_err();
+        assert!(error.contains("unsupported-or-missing-version"));
+        assert!(host.import_review(&recovery, &target, true).is_err());
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(host.generation, generation);
+        assert_eq!(fs::read(recovery).unwrap(), bytes);
+        assert_eq!(fs::read(source).unwrap(), b"{}");
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+    }
+
+    #[test]
+    fn native_portable_import_refuses_source_overlap_and_replacement() {
+        let t = Temp::new();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Pending edit");
+        host.autosave();
+        let before = host.snapshot();
+        let generation = host.generation;
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        let target = t.0.join("review.hmi-review");
+        let overlapping_target = t.0.join("overlap.hmi-review");
+        let sidecar = sidecar_dir(&overlapping_target);
+        fs::create_dir(&sidecar).unwrap();
+        let overlapping_source = sidecar.join("source.json");
+        fs::write(&overlapping_source, LEGACY_SOURCE).unwrap();
+        assert!(host
+            .import_review(&overlapping_source, &overlapping_target, true)
+            .is_err());
+        assert!(!sidecar.join("writer.lock").exists());
+        assert_eq!(fs::read(&overlapping_source).unwrap(), LEGACY_SOURCE);
+
+        let source = t.0.join("legacy.json");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut changed = false;
+        let result = host.import_review_with(&source, &target, true, |path, limit| {
+            let bytes = read_revision_record(path, limit)?;
+            if !changed {
+                changed = true;
+                fs::write(path, b"{}").unwrap();
+            }
+            Ok(bytes)
+        });
+        assert!(changed);
+        assert!(result.is_err());
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert_eq!(fs::read(&source).unwrap(), b"{}");
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(host.generation, generation);
+        assert_eq!(fs::read(&recovery).unwrap(), recovery_bytes);
+    }
+
+    #[test]
+    fn native_revision_semantic_refusal_creates_no_destination_sidecar() {
+        let t = Temp::new();
+        let root = t.0.join("legacy.hmistudio");
+        let records = synthetic_revision_store(&root);
+        // Valid transport checksum; the embedded project has an unsupported field.
+        let record = concat!(
+            "2f2351b2db7b51f2b8b725df5d0aaa6016af176a6e3d385d0eb6a6da61db0db4\n",
+            r#"{"formatVersion":1,"id":"0000000001-1234abcd","number":1,"kind":"IMPORTED","label":"Original synthetic import","project":{"schemaVersion":1,"metadata":{"name":"Revision sample","defaultScreenId":"main"},"screens":{"main":{"id":"main","title":"Main","widthDp":640,"heightDp":480,"components":{}}},"variables":{},"externalSources":{},"externalMappings":{},"unsupported":true}}"#
+        );
+        fs::write(&records[2].0, record).unwrap();
+        assert!(read_revision_source(&root).is_ok());
+        let target = t.0.join("review.hmi-review");
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        let before = host.snapshot();
+        let error = host
+            .import_revision_review(&root, &target, false)
+            .unwrap_err();
+        assert!(error.contains("Portable legacy import refused"));
+        assert!(error.contains("unsupported-or-invalid-field"));
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
+        assert!(!root.join("LOCK").exists());
+        assert_eq!(fs::read(&records[2].0).unwrap(), record.as_bytes());
+        assert_eq!(host.snapshot(), before);
+    }
+
+    #[test]
+    fn published_review_reopens_after_interrupted_staging_cleanup() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.json");
+        let target = t.0.join("review.hmi-review");
+        let staged = t.0.join(".review.hmi-review.crash.tmp");
+        let copy = t.0.join("copy.hmi-review");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        {
+            let mut host = Host::new(&t.0.join("app")).unwrap();
+            host.import_review(&source, &target, false).unwrap();
+        }
+        let bytes = fs::read(&target).unwrap();
+        fs::hard_link(&target, &staged).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        assert!(host.open_review(&staged, false).is_err());
+        host.open_review(&target, false).unwrap();
+        assert!(host.production_candidate().is_err());
+        assert!(host.save_as(&target).is_err());
+        host.save_as(&copy).unwrap();
+        assert_eq!(fs::read(target).unwrap(), bytes);
+        assert_eq!(fs::read(staged).unwrap(), bytes);
+        assert_eq!(fs::read(source).unwrap(), LEGACY_SOURCE);
+    }
+
+    #[test]
+    fn new_workspace_protects_an_untitled_slot_retained_during_review() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.json");
+        let app = t.0.join("app");
+        fs::write(&source, LEGACY_SOURCE).unwrap();
+        let mut host = Host::new(&app).unwrap();
+        edit(&mut host, "Retained edit");
+        host.autosave();
+        let recovery = app.join(RECOVERY);
+        let bytes = fs::read(&recovery).unwrap();
+        host.import_review(&source, &t.0.join("review.hmi-review"), true)
+            .unwrap();
+        fs::write(&recovery, &bytes).unwrap(); // Model a cleanup failure after publication.
+        host.new_project(false).unwrap();
+        assert!(host.pending_untitled);
+        assert!(host.production_candidate().is_err());
+        host.autosave();
+        assert_eq!(fs::read(recovery).unwrap(), bytes);
+        host.recover_untitled().unwrap();
+        assert_eq!(host.snapshot().project.screens[0].name, "Retained edit");
+    }
+
     #[test]
     fn v2_project_opens_edits_saves_and_recovers_without_losing_declarations() {
         let t = Temp::new();
         let path = t.0.join("v2.hmi.json");
         let mut host = Host::new(&t.0.join("app")).unwrap();
-        let mut project = host.session.project().clone();
+        let mut project = host.ordinary().project().clone();
         project.v2.industrial.security.auto_logout_seconds = Some(30);
         project
             .extensions
@@ -491,9 +2290,11 @@ mod tests {
             "op":"insertV2Component","parent":"n-root","id":"n-line",
             "contract":{"kind":"line","start":{"x":0,"y":0},"end":{"x":12,"y":5},"strokeColor":"#000000","strokeWidth":1}
         })).unwrap();
-        host.session.execute(Transaction::single(command)).unwrap();
+        host.ordinary_mut()
+            .execute(Transaction::single(command))
+            .unwrap();
         host.save().unwrap();
-        let saved = host.session.project().clone();
+        let saved = host.ordinary().project().clone();
         assert_eq!(saved.v2.industrial, project.v2.industrial);
         assert_eq!(saved.extensions, project.extensions);
         edit(&mut host, "Recovered v2");
@@ -503,15 +2304,18 @@ mod tests {
         assert!(reopened
             .open_with(&path, false, |_| Ok(Some(true)))
             .unwrap());
-        assert_eq!(reopened.session.project().v2, saved.v2);
-        assert_eq!(reopened.session.project().extensions, saved.extensions);
-        assert_eq!(reopened.session.project().screens[0].name, "Recovered v2");
+        assert_eq!(reopened.ordinary().project().v2, saved.v2);
+        assert_eq!(reopened.ordinary().project().extensions, saved.extensions);
+        assert_eq!(
+            reopened.ordinary().project().screens[0].name,
+            "Recovered v2"
+        );
         reopened.save().unwrap();
         assert_eq!(
             hmi_project_model::load_project(&fs::read_to_string(&path).unwrap())
                 .unwrap()
                 .project,
-            *reopened.session.project()
+            *reopened.ordinary().project()
         );
     }
 
@@ -523,7 +2327,7 @@ mod tests {
         assert!(Host::new(&t.0.join("app-a")).is_err());
         edit(&mut a, "Saved");
         a.save_as(&path).unwrap();
-        assert!(!a.session.is_dirty());
+        assert!(!a.is_dirty());
         edit(&mut a, "Recover me");
         a.autosave();
         let mut b = Host::new(&t.0.join("app-b")).unwrap();
@@ -537,12 +2341,12 @@ mod tests {
             })
             .is_err());
         b.open_with(&path, false, |_| Ok(Some(true))).unwrap();
-        assert!(b.session.is_dirty());
-        assert_eq!(b.session.project().screens[0].name, "Recover me");
+        assert!(b.is_dirty());
+        assert_eq!(b.ordinary().project().screens[0].name, "Recover me");
         fs::write(&path, b"external changes").unwrap();
         assert!(b.save().is_err());
         assert_eq!(fs::read(&path).unwrap(), b"external changes");
-        assert!(b.session.is_dirty());
+        assert!(b.is_dirty());
     }
 
     #[test]
@@ -555,18 +2359,18 @@ mod tests {
         a.autosave();
         let envelope = a.active_recovery().unwrap();
         assert!(envelope.exists());
-        a.session.undo(None).unwrap();
-        assert!(!a.session.is_dirty());
+        a.ordinary_mut().undo(None).unwrap();
+        assert!(!a.is_dirty());
         a.autosave();
         assert!(!envelope.exists());
-        a.session.redo(None).unwrap();
-        assert!(a.session.is_dirty());
+        a.ordinary_mut().redo(None).unwrap();
+        assert!(a.is_dirty());
         a.autosave();
         assert!(envelope.exists());
         drop(a);
         let mut b = Host::new(&t.0.join("app")).unwrap();
         assert!(b.open_with(&path, false, |_| Ok(Some(true))).unwrap());
-        assert_eq!(b.session.project().screens[0].name, "Unsaved edit");
+        assert_eq!(b.ordinary().project().screens[0].name, "Unsaved edit");
     }
 
     #[test]
@@ -584,7 +2388,7 @@ mod tests {
         let bad = t.0.join("bad.hmi.json");
         fs::write(&bad, b"invalid").unwrap();
         assert!(b.open_with(&bad, true, |_| Ok(Some(false))).is_err());
-        assert_eq!(b.session.project().screens[0].name, "Untitled");
+        assert_eq!(b.ordinary().project().screens[0].name, "Untitled");
         assert!(b.save_as(&bad).is_err());
         assert_eq!(fs::read(&bad).unwrap(), b"invalid");
     }
@@ -601,17 +2405,17 @@ mod tests {
         a.autosave();
         assert!(!a.open_with(&path, true, |_| Ok(None)).unwrap());
         assert_eq!(a.generation, 0);
-        assert!(a.session.is_dirty());
+        assert!(a.is_dirty());
         assert!(a.active_recovery().unwrap().exists());
         assert!(a.open_with(&path, false, |_| Ok(Some(false))).is_err());
         assert!(a.new_project(false).is_err());
         a.new_project(true).unwrap();
         assert_eq!(a.generation, 1);
-        assert!(!a.session.is_dirty());
+        assert!(!a.is_dirty());
         assert!(!a.active_recovery().unwrap().exists());
         assert!(a.open_with(&path, false, |_| Ok(Some(false))).unwrap());
         assert_eq!(a.generation, 2);
-        assert_eq!(a.session.path().unwrap(), path.canonicalize().unwrap());
+        assert_eq!(a.path().unwrap(), path.canonicalize().unwrap());
     }
 
     #[test]

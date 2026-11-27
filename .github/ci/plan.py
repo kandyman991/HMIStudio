@@ -1,8 +1,11 @@
-"""Conservative change routing. No network access or untrusted shell interpolation."""
+"""Conservative change routing and read-only CI-03 checkpoint verification."""
 import json
 import os
 from pathlib import Path
 import subprocess
+import re
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 FLAGS = ("frontend", "native", "package", "crates")
 
@@ -58,16 +61,227 @@ def changed_paths(base, head, event):
     except subprocess.CalledProcessError:
         return None
 
+
+# Narrow pilot only: new policy/lock/schema/consumer/unknown paths force CI-02.
+CI03_REPO = "kandyman991/HMIStudio"
+CI03_BRANCH = "feat/reuse-03b-legacy-import"
+CI03_PIN = "docs/CI03_CHECKPOINT.md"
+CI03_PATHS = {
+    CI03_PIN, "CHAT_HANDOFF.md", "docs/LEGACY_IMPORT.md",
+    "crates/legacy-import/src/graphics.rs",
+    "crates/legacy-import/src/lib.rs",
+    "crates/legacy-import/src/resources.rs",
+    "crates/legacy-import/src/primitives.rs",
+    "crates/legacy-import/tests/portable.rs",
+}
+CI03_TRAILER = "CI-03: importer-only"
+FULL_CRATES = ("engineering-core", "project-model", "tag-engine", "hmi-engine", "legacy-import")
+FULL_OS = ("ubuntu-24.04", "windows-latest")
+FULL_DESKTOP = {"changes", "frontend", "Required CI"} | {
+    f"crates ({os_name}, crates/{crate})" for os_name in FULL_OS for crate in FULL_CRATES
+} | {"desktop (ubuntu-24.04, deb)", "desktop (windows-latest, msi)"}
+FULL_TAG = {"Tag engine routing", "Tag engine gate", "audit"} | {
+    f"check ({os_name})" for os_name in FULL_OS
+}
+CI03_REPO_ID = 1469988677
+
+
+def ci03_event(env):
+    return (
+        env.get("CI_EVENT") == "pull_request"
+        and env.get("CI_ACTION") == "synchronize"
+        and env.get("CI_PR") == "36"
+        and env.get("CI_DRAFT") == "true"
+        and env.get("GITHUB_REPOSITORY") == CI03_REPO
+        and env.get("CI_HEAD_REPO") == CI03_REPO
+        and env.get("CI_HEAD_REF") == CI03_BRANCH
+        and env.get("CI_BASE_REF") == "main"
+    )
+
+
+def ci03_pin(text, base):
+    parts = text.strip().split()
+    if len(parts) != 2 or not all(re.fullmatch(r"[0-9a-f]{40}", p) for p in parts):
+        return None
+    return parts[0] if parts[1] == base else None
+
+
+def ci03_paths(paths):
+    return bool(paths) and set(paths) <= CI03_PATHS
+
+
+def ci03_intent(messages):
+    return bool(messages) and all(
+        m.strip().splitlines()[-1:] == [CI03_TRAILER] for m in messages
+    )
+
+
+def ci03_api(path, token):
+    # Fixed public GitHub API origin. Read-only token, bounded replies/time.
+    req = Request(
+        "https://api.github.com/repos/" + CI03_REPO + path,
+        headers={
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    with urlopen(req, timeout=8) as response:
+        raw = response.read(4 * 1024 * 1024 + 1)
+    if len(raw) > 4 * 1024 * 1024:
+        raise ValueError("CI checkpoint API response too large")
+    return json.loads(raw)
+
+
+def ci03_reject(reason, workflow=None):
+    # Fixed reason codes only: never print tokens, raw API payloads or exceptions.
+    print(json.dumps({"ci03_reason": reason, "workflow": workflow}))
+    return False
+
+
+def checkpoint_pr(run, head, base, current_head):
+    # Associated PR metadata can follow the live PR rather than the historical
+    # run. Bind execution to head_sha and association to the same PR and base.
+    # A concurrent further head change safely falls back to full validation.
+    return (
+        run.get("event") == "pull_request"
+        and run.get("head_sha") == head
+        and run.get("head_branch") == CI03_BRANCH
+        and any(
+            p.get("number") == 36
+            and p.get("base", {}).get("ref") == "main"
+            and p.get("base", {}).get("sha") == base
+            and p.get("base", {}).get("repo", {}).get("id") == CI03_REPO_ID
+            and p.get("head", {}).get("ref") == CI03_BRANCH
+            and p.get("head", {}).get("sha") in (head, current_head)
+            and p.get("head", {}).get("repo", {}).get("id") == CI03_REPO_ID
+            for p in (run.get("pull_requests") or [])
+        )
+    )
+
+
+def checkpoint_title(head, base):
+    # Both validation workflows capture the triggering event in run-name.
+    return f"PR 36 head {head} base {base}"
+
+
+def full_checkpoint(head, base, token, current_head):
+    if not token:
+        return ci03_reject("checkpoint-token-missing")
+    expected = {
+        "Desktop CI": (".github/workflows/ci.yml", FULL_DESKTOP, True),
+        "Tag engine CI": (".github/workflows/tag-engine.yml", FULL_TAG, True),
+        # Read-only metadata snapshot, not base-dependent validation.
+        "Engineering handoff snapshot": (".github/workflows/handoff.yml", {"snapshot"}, False),
+    }
+    query = urlencode({"head_sha": head, "status": "success", "per_page": 50})
+    runs = ci03_api("/actions/runs?" + query, token)["workflow_runs"]
+    for name, (workflow_path, required, needs_event_title) in expected.items():
+        # GitHub Actions sets both run["name"] and run["display_title"] to
+        # run-name when defined. Bind workflow identity via exact path (and
+        # workflow name for runs without run-name), then enforce event title.
+        candidates = [
+            run for run in runs
+            if run.get("path") == workflow_path
+            and (needs_event_title or run.get("name") == name)
+            and run.get("head_sha") == head
+            and run.get("head_branch") == CI03_BRANCH
+            and run.get("status") == "completed"
+            and run.get("conclusion") == "success"
+        ]
+        if not candidates:
+            return ci03_reject("checkpoint-successful-run-missing", name)
+        candidates = [
+            run for run in candidates
+            if checkpoint_pr(run, head, base, current_head)
+        ]
+        if not candidates:
+            return ci03_reject("checkpoint-pr-association-mismatch", name)
+        if needs_event_title:
+            title = checkpoint_title(head, base)
+            candidates = [
+                run for run in candidates
+                if run.get("display_title") == title
+                and run.get("name") in (name, title)
+            ]
+            if not candidates:
+                return ci03_reject("checkpoint-event-head-base-mismatch", name)
+        verified = False
+        for run in candidates[:3]:
+            run_id, attempt = run.get("id"), run.get("run_attempt")
+            if type(run_id) is not int or type(attempt) is not int or attempt < 1:
+                continue
+            jobs = ci03_api(f"/actions/runs/{run_id}/jobs?per_page=100", token)
+            # Verify individual completed jobs from this run/head/attempt.
+            # A skipped, paginated-away or mixed-attempt job never qualifies.
+            if jobs["total_count"] != len(jobs["jobs"]):
+                continue
+            successful = {
+                j["name"] for j in jobs["jobs"]
+                if j.get("status") == "completed"
+                and j.get("conclusion") == "success"
+                and j.get("run_id") == run_id
+                and j.get("head_sha") == head
+                and j.get("run_attempt") == attempt
+            }
+            if required <= successful:
+                verified = True
+                break
+        if not verified:
+            return ci03_reject("checkpoint-required-jobs-unverified", name)
+    return True
+
+
+def ci03_targeted(env):
+    if not ci03_event(env):
+        return ci03_reject("event-outside-pilot")
+    stage = "checkpoint-pin-unavailable"
+    try:
+        base, head = env["CI_BASE"], env["CI_HEAD"]
+        checkpoint = ci03_pin(Path(CI03_PIN).read_text(encoding="utf-8"), base)
+        if checkpoint is None:
+            return ci03_reject("checkpoint-pin-disabled-invalid-or-base-changed")
+        if checkpoint == head:
+            return ci03_reject("checkpoint-is-current-head")
+        stage = "checkpoint-base-ancestry-unverified"
+        git("merge-base", "--is-ancestor", base, checkpoint)
+        stage = "checkpoint-head-ancestry-unverified"
+        git("merge-base", "--is-ancestor", checkpoint, head)
+        stage = "checkpoint-history-unavailable"
+        if git("rev-list", "--merges", f"{checkpoint}..{head}").strip():
+            return ci03_reject("checkpoint-history-has-merge")
+        paths = changed_paths(checkpoint, head, "push")
+        if not ci03_paths(paths):
+            return ci03_reject("checkpoint-diff-outside-allowlist-or-unavailable")
+        messages = git("log", "--format=%B%x00", f"{checkpoint}..{head}").decode()
+        if not ci03_intent([m for m in messages.split("\0") if m.strip()]):
+            return ci03_reject("checkpoint-commit-trailer-missing")
+        stage = "checkpoint-api-evidence-unavailable"
+        return full_checkpoint(checkpoint, base, env.get("CI03_TOKEN", ""), head)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.CalledProcessError):
+        # Unavailable evidence is never permission to skip checks.
+        return ci03_reject(stage)
+
+
 def main():
     event = os.environ["CI_EVENT"]
     head = os.environ["CI_HEAD"]
     force = event == "workflow_dispatch" or os.environ.get("CI_REF", "").startswith("refs/tags/")
     paths = None if force else changed_paths(os.environ.get("CI_BASE", ""), head, event)
+    targeted = (ci03_reject("full-validation-forced-or-main-diff-unavailable")
+                if paths is None else ci03_targeted(os.environ))
     flags = classify(paths or [], force=force or paths is None)
+    if targeted:
+        flags = dict.fromkeys(FLAGS, False)
+        flags["crates"] = True
     crates = sorted(str(p.parent) for p in Path("crates").glob("*/Cargo.toml") if p.is_file())
     if flags["crates"] and not crates:
         raise RuntimeError("Crate validation requested but no manifests found")
-    if not flags["crates"]:
+    if targeted:
+        if "crates/legacy-import" not in crates:
+            raise RuntimeError("CI-03 importer manifest missing")
+        crates = ["crates/legacy-import"]
+    elif not flags["crates"]:
         crates = []
     if Path("handoff/state.json").exists():
         json.loads(Path("handoff/state.json").read_text(encoding="utf-8"))
@@ -75,7 +289,9 @@ def main():
         for key, value in flags.items():
             print(f"{key}={str(value).lower()}", file=out)
         print("crate_dirs=" + json.dumps(crates, separators=(",", ":")), file=out)
-    print(json.dumps({"full_fallback": paths is None, "changed_count": None if paths is None else len(paths), "checks": flags, "crate_dirs": crates}))
+        print("crate_os=" + json.dumps(["ubuntu-24.04"] if targeted else list(FULL_OS), separators=(",", ":")), file=out)
+        print("targeted=" + str(targeted).lower(), file=out)
+    print(json.dumps({"ci03_targeted": targeted, "full_fallback": paths is None, "changed_count": None if paths is None else len(paths), "checks": flags, "crate_dirs": crates}))
 
 if __name__ == "__main__":
     main()

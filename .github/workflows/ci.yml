@@ -1,9 +1,11 @@
 name: Desktop CI
+run-name: "${{ github.event_name == 'pull_request' && format('PR {0} head {1} base {2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha) || github.ref }}"
 on:
   push:
     branches: [main]
     tags: ['v*']
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,6 +14,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   changes:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -20,6 +25,8 @@ jobs:
       package: ${{ steps.plan.outputs.package }}
       crates: ${{ steps.plan.outputs.crates }}
       crate_dirs: ${{ steps.plan.outputs.crate_dirs }}
+      crate_os: ${{ steps.plan.outputs.crate_os }}
+      targeted: ${{ steps.plan.outputs.targeted }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,6 +42,13 @@ jobs:
           CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
           CI_REF: ${{ github.ref }}
+          CI_ACTION: ${{ github.event.action }}
+          CI_PR: ${{ github.event.pull_request.number }}
+          CI_DRAFT: ${{ github.event.pull_request.draft }}
+          CI_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          CI_HEAD_REF: ${{ github.head_ref }}
+          CI_BASE_REF: ${{ github.base_ref }}
+          CI03_TOKEN: ${{ github.token }}
         run: python3 .github/ci/plan.py
   frontend:
     needs: changes
@@ -59,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        os: ${{ fromJSON(needs.changes.outputs.crate_os) }}
         crate: ${{ fromJSON(needs.changes.outputs.crate_dirs) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.crate == 'crates/hmi-engine' && 45 || 25 }}
@@ -107,6 +121,13 @@ jobs:
         run: |
           cargo install cargo-audit --version 0.23.0 --locked
           cargo audit --file Cargo.lock
+      - name: Legacy import advisory gate (no ignored advisories)
+        if: matrix.crate == 'crates/legacy-import' && runner.os == 'Linux' && needs.changes.outputs.targeted == 'false'
+        run: |
+          cargo install cargo-audit --version 0.23.0 --locked
+          cargo audit --file Cargo.lock
+          cargo audit --file ../engineering-core/Cargo.lock
+          cargo audit --file ../../src-tauri/Cargo.lock
       - if: matrix.crate == 'crates/project-model'
         run: cargo run --locked --example validate -- fixtures/valid/minimal.hmi.json fixtures/valid/bottling-line.hmi.json
       - run: git diff --exit-code -- Cargo.lock
@@ -140,7 +161,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: src-tauri
+          workspaces: |
+            src-tauri
+            crates/hmi-engine
           key: native-${{ needs.changes.outputs.package }}
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           cache-bin: 'false'
@@ -149,12 +172,22 @@ jobs:
       - run: npm run tauri -- icon assets/icon.svg
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Native project simulation with real isolated child
+        shell: pwsh
+        run: |
+          cargo build --locked --manifest-path crates/hmi-engine/Cargo.toml --bin hmi-engine
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $name = if ($IsWindows) { 'hmi-engine.exe' } else { 'hmi-engine' }
+          $env:HMI_ENGINE_TEST_BIN = (Resolve-Path "crates/hmi-engine/target/debug/$name").Path
+          cargo test --locked --manifest-path src-tauri/Cargo.toml native_project_simulation -- --ignored
+      # Owner-directed deferral for the REUSE-03B review draft. Ready-for-review
+      # and every other PR, release and manual build retain normal packaging.
       - name: Build installer when required
-        if: needs.changes.outputs.package == 'true'
+        if: needs.changes.outputs.package == 'true' && !(github.event_name == 'pull_request' && github.event.pull_request.number == 36 && github.event.pull_request.draft)
         run: npm run tauri -- build --bundles ${{ matrix.bundle }} -- --locked
       - run: git diff --exit-code -- package-lock.json src-tauri/Cargo.lock
       - uses: actions/upload-artifact@v4
-        if: needs.changes.outputs.package == 'true'
+        if: needs.changes.outputs.package == 'true' && !(github.event_name == 'pull_request' && github.event.pull_request.number == 36 && github.event.pull_request.draft)
         with:
           name: hmi-studio-${{ matrix.os }}
           path: src-tauri/target/release/bundle/**/*.${{ matrix.bundle }}
@@ -177,6 +210,9 @@ jobs:
           WANT_CRATES: ${{ needs.changes.outputs.crates }}
           WANT_NATIVE: ${{ needs.changes.outputs.native }}
           WANT_PACKAGE: ${{ needs.changes.outputs.package }}
+          TARGETED: ${{ needs.changes.outputs.targeted }}
+          CRATE_DIRS: ${{ needs.changes.outputs.crate_dirs }}
+          CRATE_OS: ${{ needs.changes.outputs.crate_os }}
         shell: bash
         run: |
           set -euo pipefail
@@ -191,4 +227,14 @@ jobs:
           check "$WANT_CRATES" "$CRATES" crates
           check "$WANT_NATIVE" "$DESKTOP" desktop
           case "$WANT_PACKAGE:$WANT_NATIVE" in true:true|false:true|false:false) ;; *) exit 1 ;; esac
-          echo "All applicable checks passed; intentionally skipped jobs are not test passes."
+          case "$TARGETED" in
+            true)
+              test "$WANT_FRONTEND:$WANT_NATIVE:$WANT_PACKAGE:$WANT_CRATES" = false:false:false:true
+              test "$CRATE_DIRS" = '["crates/legacy-import"]'
+              test "$CRATE_OS" = '["ubuntu-24.04"]'
+              echo "CI-03 targeted draft checks only; not full milestone validation."
+              ;;
+            false) echo "CI-02 applicable checks passed." ;;
+            *) exit 1 ;;
+          esac
+          echo "Intentionally skipped jobs are not test passes."

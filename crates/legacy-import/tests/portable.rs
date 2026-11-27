@@ -2055,3 +2055,532 @@ fn active_input_revision_preserves_predecessor_passive_replay() {
         );
     }
 }
+
+fn assert_refused(f: &Value, expected_code: Option<&str>, context: &str) {
+    let a = import_portable(&serde_json::to_vec(f).unwrap());
+    assert!(a.project.is_none(), "{context}: unexpectedly admitted");
+    assert!(a.resource_bytes.is_empty(), "{context}: leaked resources");
+    if let Some(code) = expected_code {
+        assert!(
+            a.report
+                .findings
+                .iter()
+                .any(|x| x.disposition == "refused" && x.code == code),
+            "{context}: expected code {code}, got {:?}",
+            a.report
+                .findings
+                .iter()
+                .filter(|x| x.disposition == "refused")
+                .map(|x| (&x.path, x.code))
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn refusal_matrix_metadata_variables_layout_and_navigation() {
+    let mut f = fixture(10);
+    f["metadata"]["targetProfiles"] = json!(["panel-10"]);
+    assert_refused(&f, None, "nonempty targetProfiles");
+
+    let mut f = fixture(10);
+    f["variables"]["label-a"]["simulationValue"] = json!({"valueType":"long","value":7});
+    assert_refused(&f, None, "non-null simulationValue");
+
+    let mut f = fixture(10);
+    f["variables"]["label-a"]["access"] = json!("READ_WRITE");
+    assert_refused(&f, Some("unmapped-writable-variable"), "unmapped writable");
+
+    let mut f = fixture(10);
+    f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!("button");
+    f["screens"]["screen/a"]["components"]["label-a"]["actions"] =
+        json!({"press":{"action":"open.popup","screenId":"screen/a","modal":true}});
+    assert_refused(&f, Some("action-kind-not-representable"), "open.popup");
+
+    for dir in ["ADAPTIVE", "GRID"] {
+        let mut f = fixture(10);
+        f["screens"]["screen/a"]["components"]["label-b"] =
+            json!({"id":"label-b","type":"label","properties":{"text":"B"}});
+        f["screens"]["screen/a"]["layout"] = json!({
+            "root": {
+                "node": "stack",
+                "id": "outer",
+                "direction": "COLUMN",
+                "children": [{
+                    "node": "stack",
+                    "id": "inner",
+                    "direction": dir,
+                    "columns": if dir == "GRID" { 2 } else { 0 },
+                    "children": [
+                        {"node":"component","componentId":"label-a"},
+                        {"node":"component","componentId":"label-b"}
+                    ]
+                }]
+            }
+        });
+        assert_refused(
+            &f,
+            Some("nested-local-adaptive-direction-not-representable"),
+            dir,
+        );
+    }
+
+    for (field, value) in [("alignH", "CENTER"), ("alignV", "MIDDLE")] {
+        let mut f = fixture(10);
+        f["screens"]["screen/a"]["layout"] = json!({
+            "root": {
+                "node": "stack",
+                "id": "outer",
+                "direction": "COLUMN",
+                "children": [{"node":"component","componentId":"label-a",field:value}]
+            }
+        });
+        assert_refused(&f, Some("slot-alignment-not-mapped"), field);
+    }
+
+    for (kind, props) in [
+        (
+            "line",
+            json!({"points":"0,50 100,50","strokeColor":"#123456","strokeWidth":"2","strokeStyle":"SOLID"}),
+        ),
+        (
+            "arrow",
+            json!({"direction":"right","strokeColor":"#123456","fillColor":"#123456","strokeWidth":"2"}),
+        ),
+        (
+            "polygon",
+            json!({"points":"0,0 100,0 50,100","strokeColor":"#123456","fillColor":"#FFFFFF","strokeWidth":"2","strokeStyle":"SOLID"}),
+        ),
+    ] {
+        let mut f = fixture(10);
+        f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!(kind);
+        f["screens"]["screen/a"]["components"]["label-a"]["properties"] = props;
+        f["screens"]["screen/a"]["layout"] = json!({
+            "root": {
+                "node": "stack",
+                "id": "outer",
+                "direction": "COLUMN",
+                "children": [{"node":"component","componentId":"label-a"}]
+            }
+        });
+        assert_refused(
+            &f,
+            Some("relative-primitive-layout-not-representable"),
+            kind,
+        );
+    }
+
+    let mut f = fixture(10);
+    f["variables"]["flag"] = json!({"id":"flag","path":"Flag","type":"BOOL","access":"READ_ONLY"});
+    f["screens"]["screen/a"]["layout"] = json!({
+        "root": {
+            "node": "stack",
+            "id": "outer",
+            "direction": "COLUMN",
+            "children": [{"node":"component","componentId":"label-a"}]
+        }
+    });
+    f["screens"]["screen/a"]["components"]["label-a"]["visible"] = json!(false);
+    assert_refused(
+        &f,
+        Some("adaptive-hidden-layout-not-mapped"),
+        "adaptive static hidden",
+    );
+    f["screens"]["screen/a"]["components"]["label-a"]["visible"] = json!(true);
+    f["screens"]["screen/a"]["components"]["label-a"]["bindings"] = json!({"visible":"flag"});
+    assert_refused(
+        &f,
+        Some("adaptive-hidden-layout-not-mapped"),
+        "adaptive bound visible",
+    );
+}
+
+#[test]
+fn refusal_matrix_reusable_parameters_and_nested_contracts() {
+    for ty in ["TEXT", "NUMBER", "COLOR"] {
+        let mut f = fixture(10);
+        f["componentDefinitions"]["def"] = json!({
+            "id": "def",
+            "displayName": "Def",
+            "type": "composite",
+            "parameters": {"p": {"type": ty}},
+            "composition": {"elements": {"part": {"id":"part","type":"label","properties":{"text":"Hi"}}}}
+        });
+        assert_refused(&f, Some("reusable-parameter-type-not-mapped"), ty);
+    }
+
+    let mut f = fixture(10);
+    f["componentDefinitions"]["def"] = json!({
+        "id": "def",
+        "displayName": "Def",
+        "type": "composite",
+        "parameters": {"p": {"type": "BOOL_VARIABLE", "writable": true}},
+        "composition": {"elements": {"part": {"id":"part","type":"label","properties":{"text":"Hi"}}}}
+    });
+    assert_refused(
+        &f,
+        Some("writable-reusable-parameter-not-mapped"),
+        "writable reusable param",
+    );
+
+    for (key, value) in [("default", json!("x")), ("overridable", json!(false))] {
+        let mut f = fixture(10);
+        f["componentDefinitions"]["def"] = json!({
+            "id": "def",
+            "displayName": "Def",
+            "type": "composite",
+            "parameters": {"p": {"type": "TEXT_VARIABLE", key: value}},
+            "composition": {"elements": {"part": {"id":"part","type":"label","properties":{"text":"Hi"}}}}
+        });
+        assert_refused(&f, Some("reusable-parameter-policy-not-mapped"), key);
+    }
+
+    for kind in ["label", "button"] {
+        let mut f = fixture(10);
+        f["screens"]["screen/a"]["components"]["label-a"]["type"] = json!(kind);
+        f["screens"]["screen/a"]["components"]["label-a"]["properties"]["text"] =
+            json!("Value {{p}}");
+        assert_refused(&f, Some("parameter-template-not-mapped"), kind);
+    }
+
+    let mut f = fixture(10);
+    f["componentDefinitions"]["def"] = json!({
+        "id": "def",
+        "displayName": "Def",
+        "type": "composite",
+        "parameters": {"p": {"type": "BOOL_VARIABLE"}},
+        "composition": {
+            "elements": {
+                "part": {
+                    "id": "part",
+                    "type": "label",
+                    "properties": {"text": "Hi"},
+                    "expressions": {"visible": "p"}
+                }
+            }
+        }
+    });
+    assert_refused(
+        &f,
+        Some("reusable-parameter-expression-not-mapped"),
+        "reusable expression",
+    );
+
+    let mut f = fixture(10);
+    f["componentDefinitions"]["inner"] = json!({
+        "id": "inner",
+        "displayName": "Inner",
+        "type": "composite",
+        "parameters": {"p": {"type": "BOOL_VARIABLE"}},
+        "composition": {"elements": {"part": {"id":"part","type":"label","properties":{"text":"Hi"},"bindings":{"visible":"p"}}}}
+    });
+    f["componentDefinitions"]["outer"] = json!({
+        "id": "outer",
+        "displayName": "Outer",
+        "type": "composite",
+        "parameters": {"q": {"type": "BOOL_VARIABLE"}},
+        "composition": {
+            "elements": {
+                "nested": {
+                    "id": "nested",
+                    "type": "composite",
+                    "componentDefinitionId": "inner",
+                    "bindings": {"p": "q"}
+                }
+            }
+        }
+    });
+    assert_refused(
+        &f,
+        Some("reusable-binding-type-not-mapped"),
+        "nested parameter forwarding",
+    );
+
+    for (kind, expected) in [
+        ("switch", "nested-active-input-not-mapped"),
+        ("slider", "nested-active-input-not-mapped"),
+        ("numericInput", "nested-active-input-not-mapped"),
+        ("dropDown", "nested-dropdown-not-mapped"),
+        ("motor", "nested-industrial-symbol-not-mapped"),
+    ] {
+        let mut f = fixture(10);
+        f["componentDefinitions"]["def"] = json!({
+            "id": "def",
+            "displayName": "Def",
+            "type": "composite",
+            "composition": {"elements": {"part": {"id":"part","type":kind,"properties":{}}}}
+        });
+        assert_refused(&f, Some(expected), kind);
+    }
+
+    let mut f = fixture(10);
+    f["componentDefinitions"]["fp"] = json!({
+        "id": "fp",
+        "displayName": "FP",
+        "type": "composite",
+        "kind": "FACEPLATE",
+        "composition": {"elements": {"part": {"id":"part","type":"label","properties":{"text":"Hi"}}}}
+    });
+    f["componentDefinitions"]["host"] = json!({
+        "id": "host",
+        "displayName": "Host",
+        "type": "composite",
+        "composition": {"elements": {"nested": {"id":"nested","type":"composite","componentDefinitionId":"fp"}}}
+    });
+    assert_refused(
+        &f,
+        Some("faceplate-direct-placement"),
+        "nested faceplate placement",
+    );
+}
+
+#[test]
+fn refusal_matrix_bindings_enums_primitives_themes_and_resources() {
+    use sha2::{Digest, Sha256};
+
+    let mut f = fixture(10);
+    f["enumerations"]["modes"] =
+        json!({"id":"modes","name":"Modes","entries":[{"value":0,"text":"Off"}]});
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["enumeration"] = json!("modes");
+    assert_refused(&f, None, "component-specific enum on label");
+
+    for slot in ["blink", "rotation"] {
+        let mut f = fixture(10);
+        f["variables"]["flag"] =
+            json!({"id":"flag","path":"Flag","type":"BOOL","access":"READ_ONLY"});
+        f["screens"]["screen/a"]["components"]["label-a"]["bindings"] = json!({slot: "flag"});
+        assert_refused(&f, Some("unsupported-binding-slot"), slot);
+    }
+
+    let mut f = fixture(10);
+    f["theme"] = json!({"id":"t","name":"T","tokens":{"accent":"#123456"}});
+    f["enumerations"]["modes"] = json!({
+        "id": "modes",
+        "name": "Modes",
+        "entries": [{"value":0,"text":"Off","color":"@accent"}]
+    });
+    assert_refused(&f, Some("theme-color-not-mapped"), "enum token color");
+
+    let mut f = fixture(10);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("line");
+    c["properties"] = json!({"points":"0,0 50,50 100,0","strokeColor":"#123456","strokeWidth":"2","strokeStyle":"SOLID"});
+    assert_refused(&f, Some("polyline-not-representable"), "polyline");
+
+    let mut f = fixture(10);
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("arrow");
+    c["properties"] = json!({"direction":"right","rotation":"45","strokeColor":"#123456","fillColor":"#123456","strokeWidth":"2"});
+    assert_refused(&f, None, "rotated arrow");
+
+    let mut f = fixture(10);
+    f["theme"] = json!({"id":"t","name":"T","tokens":{"accent":"#123456"}});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("line");
+    c["properties"] = json!({"points":"0,50 100,50","strokeColor":"@accent","strokeWidth":"2","strokeStyle":"SOLID"});
+    assert_refused(&f, None, "primitive theme token");
+
+    let mut f = fixture(10);
+    f["theme"] = json!({"id":"t","name":"T","tokens":{"accent":"#123456"}});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("rectangle");
+    c["properties"] = json!({"fillColor":"@missing","strokeColor":"#FFFFFF","strokeWidth":"2","cornerRadius":"0"});
+    assert_refused(
+        &f,
+        Some("unknown-explicit-theme-token"),
+        "unknown theme token",
+    );
+
+    let mut f = fixture(10);
+    f["theme"] = json!({"id":"t","name":"T","tokens":{"alpha":"#80123456"}});
+    assert_refused(&f, Some("unsupported-theme-color"), "alpha theme token");
+
+    for (theme, comp_props, ctx) in [
+        (
+            json!({"id":"t","name":"T","componentDefaults":{"label":{"id":"dl","opacity":0.8}}}),
+            json!({"text":"Hi"}),
+            "non-shape componentDefaults",
+        ),
+        (
+            json!({"id":"t","name":"T","componentDefaults":{"ellipse":{"id":"de","cornerRadiusDp":4}}}),
+            json!({"text":"Hi"}),
+            "ellipse cornerRadiusDp",
+        ),
+        (
+            json!({"id":"t","name":"T","styles":{"s":{"id":"s","opacity":0.8}}}),
+            json!({"text":"Hi","styleId":"s"}),
+            "non-shape styleId",
+        ),
+        (
+            json!({"id":"t","name":"T","typography":{"body":{"sizeSp":14}}}),
+            json!({"text":"Hi"}),
+            "theme typography",
+        ),
+        (
+            json!({"id":"t","name":"T","equipmentStates":{"running":"#00FF00"}}),
+            json!({"text":"Hi"}),
+            "theme equipmentStates",
+        ),
+    ] {
+        let mut f = fixture(10);
+        f["theme"] = theme;
+        f["screens"]["screen/a"]["components"]["label-a"]["properties"] = comp_props;
+        assert_refused(&f, None, ctx);
+    }
+
+    let mut f = fixture(10);
+    let raw = b"RIFF\x00\x00\x00\x00WEBP";
+    f["assets"]["w"] = json!({
+        "id": "w",
+        "name": "WebP",
+        "kind": "WEBP",
+        "sha256": format!("{:x}", Sha256::digest(raw)),
+        "sizeBytes": raw.len(),
+        "widthPx": 1,
+        "heightPx": 1,
+        "data": "UklGRgAAAABXRUJQ"
+    });
+    assert_refused(
+        &f,
+        Some("unsupported-asset-kind-or-id"),
+        "unsupported WEBP asset",
+    );
+
+    for (svg, ctx) in [
+        (
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><script>alert(1)</script></svg>"##,
+            "SVG script",
+        ),
+        (
+            r##"<!DOCTYPE svg><svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect x="0" y="0" width="2" height="2" fill="#112233"/></svg>"##,
+            "SVG doctype",
+        ),
+        (
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><circle cx="1" cy="1" r="1" fill="#112233"/></svg>"##,
+            "SVG unsupported circle",
+        ),
+    ] {
+        let mut f = fixture(10);
+        f["assets"]["v"] = json!({
+            "id": "v",
+            "name": "Bad SVG",
+            "kind": "SVG",
+            "sha256": format!("{:x}", Sha256::digest(svg.as_bytes())),
+            "sizeBytes": svg.len(),
+            "widthPx": 2,
+            "heightPx": 2,
+            "data": svg
+        });
+        assert_refused(&f, None, ctx);
+    }
+}
+
+#[test]
+fn refusal_matrix_commands_symbols_and_input_boundaries() {
+    for ty in ["LONG", "DOUBLE"] {
+        let mut f = industrial_fixture();
+        f["schemaVersion"] = json!(10);
+        f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"opcua","configuration":{"endpoint":"opc.tcp://example.invalid:4840","securityPolicy":"None","securityMode":"None"}});
+        f["externalMappings"]["map-a"]["externalAddress"] = json!("ns=2;i=100");
+        f["externalMappings"]["map-b"]["externalAddress"] = json!("ns=2;i=101");
+        f["variables"]["label-a"]["type"] = json!(ty);
+        f["externalMappings"]["map-a"]["command"] = json!({"kind":"SETPOINT","min":0,"max":100});
+        let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+        c["type"] = json!("button");
+        c["actions"] = json!({"press":{"action":"value.step","variableId":"label-a","by":1,"min":0,"max":100}});
+        assert_refused(&f, None, &format!("value.step on {ty}"));
+    }
+
+    let mut f = industrial_fixture();
+    f["schemaVersion"] = json!(10);
+    f["externalMappings"]["map-a"]["command"] =
+        json!({"kind":"SETPOINT","min":0,"max":100,"step":5});
+    let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+    c["type"] = json!("button");
+    c["actions"] = json!({"press":{"action":"value.set","variableId":"label-a","value":{"valueType":"long","value":10}}});
+    assert_refused(&f, None, "value.set on stepped setpoint");
+
+    let mut f = active_input_fixture("slider");
+    f["externalMappings"]["map-a"]["command"] =
+        json!({"kind":"SETPOINT","min":0,"max":202,"step":1});
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["max"] = json!("202");
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["step"] = json!("1");
+    assert_refused(
+        &f,
+        Some("slider-command-grid-mismatch"),
+        "slider > 201 intervals",
+    );
+
+    let mut f = active_input_fixture("slider");
+    f["externalMappings"]["map-a"]["command"] =
+        json!({"kind":"SETPOINT","min":0,"max":16777218,"step":8388609});
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["max"] = json!("16777218");
+    f["screens"]["screen/a"]["components"]["label-a"]["properties"]["step"] = json!("8388609");
+    assert_refused(
+        &f,
+        Some("slider-command-grid-mismatch"),
+        "slider > float32 exact range",
+    );
+
+    let mut f = active_input_fixture("slider");
+    f["variables"]["label-a"]["engineeringUnit"] = json!("%");
+    assert_refused(&f, Some("slider-unit-not-mapped"), "slider unit");
+
+    let mut f = active_input_fixture("switch");
+    f["variables"]["label-a"]["engineeringUnit"] = json!("flag");
+    assert_refused(&f, Some("switch-unit-not-mapped"), "switch unit");
+
+    let mut f = active_input_fixture("numericInput");
+    f["externalSources"]["src/a"] = json!({"id":"src/a","driver":"opcua","configuration":{"endpoint":"opc.tcp://example.invalid:4840","securityPolicy":"None","securityMode":"None"}});
+    f["externalMappings"]["map-a"]["externalAddress"] = json!("ns=2;i=100");
+    f["externalMappings"]["map-b"]["externalAddress"] = json!("ns=2;i=101");
+    f["variables"]["label-a"]["type"] = json!("DOUBLE");
+    assert_refused(
+        &f,
+        Some("input-integer-setpoint-required"),
+        "numericInput DOUBLE",
+    );
+
+    let mut f = active_input_fixture("numericInput");
+    f["externalMappings"]["map-a"]["command"]["step"] = json!(5);
+    assert_refused(
+        &f,
+        Some("numeric-input-command-step-not-mapped"),
+        "numericInput stepped command",
+    );
+
+    for ty in ["BOOL", "STRING"] {
+        let mut f = passive_status_fixture("sensor", "DOUBLE");
+        f["variables"]["label-a"]["type"] = json!(ty);
+        f["variables"]["label-a"]["engineeringUnit"] = Value::Null;
+        f["screens"]["screen/a"]["components"]["label-a"]["properties"]
+            .as_object_mut()
+            .unwrap()
+            .remove("unit");
+        assert_refused(&f, Some("status-read-only-tag-type-required"), ty);
+    }
+
+    let mut f = passive_status_fixture("flowIndicator", "BOOL");
+    f["variables"]["label-a"]["engineeringUnit"] = json!("L/s");
+    assert_refused(&f, Some("flow-boolean-unit-not-mapped"), "flow unit");
+
+    for (kind, extra_slot) in [
+        ("pump", "start"),
+        ("valve", "command"),
+        ("conveyor", "speed"),
+    ] {
+        let mut f = fixture(10);
+        f["variables"]["label-a"]["type"] = json!("BOOL");
+        f["variables"]["fault"] =
+            json!({"id":"fault","path":"Fault","type":"BOOL","access":"READ_ONLY"});
+        let c = &mut f["screens"]["screen/a"]["components"]["label-a"];
+        c["type"] = json!(kind);
+        c["properties"] = json!({});
+        c["bindings"] = if kind == "valve" {
+            json!({"open":"label-a","closed":"fault",extra_slot:"fault"})
+        } else {
+            json!({"running":"label-a","fault":"fault",extra_slot:"fault"})
+        };
+        assert_refused(&f, Some("industrial-symbol-slot-mismatch"), kind);
+    }
+}

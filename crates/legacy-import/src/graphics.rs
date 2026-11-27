@@ -1695,17 +1695,19 @@ fn parameter_bindings(
     if let Some(b) = v.get("bindings") {
         for (k, x) in b.as_object()? {
             let sp = path(&path(p, "bindings"), k);
+            if kind == "composite" {
+                return refuse(m, &sp, "reusable-binding-type-not-mapped");
+            }
             let name = x.as_str()?;
             let ty = *types.get(name)?;
             let prop = target(kind, k)?;
-            if kind == "composite"
-                || !matches!(
-                    (prop, ty),
-                    ("visible" | "active", Type::Bool) | ("text", Type::Text)
-                ) && !(m.revision.numeric_parameters()
-                    && kind == "numericField"
-                    && prop == "value"
-                    && ty == Type::Number)
+            if !matches!(
+                (prop, ty),
+                ("visible" | "active", Type::Bool) | ("text", Type::Text)
+            ) && !(m.revision.numeric_parameters()
+                && kind == "numericField"
+                && prop == "value"
+                && ty == Type::Number)
             {
                 return refuse(m, &sp, "reusable-binding-type-not-mapped");
             }

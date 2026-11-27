@@ -108,13 +108,13 @@ class PlanTests(unittest.TestCase):
         pr = dict(number=36,
                   base=dict(ref="main", sha=base, repo=dict(id=CI03_REPO_ID)),
                   head=dict(ref=branch, sha=current, repo=dict(id=CI03_REPO_ID)))
-        runs = [dict(id=i, name=n, path=".github/workflows/" + path,
+        title = checkpoint_title(head, base)
+        runs = [dict(id=i, name=title if i < 3 else n, path=".github/workflows/" + path,
                      head_sha=head, head_branch=branch, pull_requests=[pr],
-                     display_title=checkpoint_title(head, base),
+                     display_title=title if i < 3 else "REUSE-03B: portable legacy importer foundation",
                      run_attempt=1, event="pull_request",
                      status="completed", conclusion="success")
                 for i, (n, path) in enumerate(zip(names, paths), 1)]
-        runs[2]["display_title"] = "Read-only handoff"
         def jobs(required, run_id):
             return {"total_count": len(required), "jobs": [
                 dict(name=name, conclusion="success", status="completed",
@@ -150,18 +150,20 @@ class PlanTests(unittest.TestCase):
             self.assertFalse(full_checkpoint(head, base, "token", current))
 
     def test_ci03_historical_event_evidence_is_required(self):
+        expected_names = ("Desktop CI", "Tag engine CI")
         for index in (0, 1):
-            for bad_title in ("", "PR title", checkpoint_title("a" * 40, "d" * 40),
-                              checkpoint_title("c" * 40, "b" * 40)):
-                head, base, current, runs, complete = self.checkpoint_fixture()
-                runs[index]["display_title"] = bad_title
-                with (
-                    patch("plan.ci03_api", side_effect=complete),
-                    patch("plan.ci03_reject", return_value=False) as reason,
-                ):
-                    self.assertFalse(full_checkpoint(head, base, "token", current))
-                    reason.assert_called_once_with("checkpoint-event-head-base-mismatch",
-                                                   runs[index]["name"])
+            for field in ("display_title", "name"):
+                for bad_value in ("", "PR title", checkpoint_title("a" * 40, "d" * 40),
+                                  checkpoint_title("c" * 40, "b" * 40)):
+                    head, base, current, runs, complete = self.checkpoint_fixture()
+                    runs[index][field] = bad_value
+                    with (
+                        patch("plan.ci03_api", side_effect=complete),
+                        patch("plan.ci03_reject", return_value=False) as reason,
+                    ):
+                        self.assertFalse(full_checkpoint(head, base, "token", current))
+                        reason.assert_called_once_with("checkpoint-event-head-base-mismatch",
+                                                       expected_names[index])
 
     def test_ci03_job_evidence_is_bound_to_attempt_and_head(self):
         for field, wrong in (("run_id", 9), ("run_attempt", 2),

@@ -323,6 +323,10 @@ impl MappingRevision {
     fn passive_status(self) -> bool {
         matches!(self, Self::PassiveStatus | Self::ActiveInputs)
     }
+
+    fn active_inputs(self) -> bool {
+        matches!(self, Self::ActiveInputs)
+    }
 }
 
 /// Replay a saved review report using its recorded mapping revision.

@@ -177,12 +177,15 @@ def full_checkpoint(head, base, token, current_head):
     query = urlencode({"head_sha": head, "status": "success", "per_page": 50})
     runs = ci03_api("/actions/runs?" + query, token)["workflow_runs"]
     for name, (workflow_path, required, needs_event_title) in expected.items():
+        # GitHub Actions sets both run["name"] and run["display_title"] to
+        # run-name when defined. Bind workflow identity via exact path (and
+        # workflow name for runs without run-name), then enforce event title.
         candidates = [
             run for run in runs
-            if run.get("name") == name
+            if run.get("path") == workflow_path
+            and (needs_event_title or run.get("name") == name)
             and run.get("head_sha") == head
             and run.get("head_branch") == CI03_BRANCH
-            and run.get("path") == workflow_path
             and run.get("status") == "completed"
             and run.get("conclusion") == "success"
         ]
@@ -195,9 +198,11 @@ def full_checkpoint(head, base, token, current_head):
         if not candidates:
             return ci03_reject("checkpoint-pr-association-mismatch", name)
         if needs_event_title:
+            title = checkpoint_title(head, base)
             candidates = [
                 run for run in candidates
-                if run.get("display_title") == checkpoint_title(head, base)
+                if run.get("display_title") == title
+                and run.get("name") in (name, title)
             ]
             if not candidates:
                 return ci03_reject("checkpoint-event-head-base-mismatch", name)

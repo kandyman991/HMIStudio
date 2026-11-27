@@ -1,5 +1,5 @@
 //! Conservative graphical declaration migration. Unsupported semantics are refused.
-use super::{dim, fixed, path, Mapping, MappingRevision};
+use super::{dim, fixed, path, Mapping};
 use hmi_project_model::expression::{compile, Type, CONTRACT_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -35,9 +35,9 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "sensor" if m.revision.passive_status() => "numericDisplay",
         "flowIndicator" if m.revision.passive_status() => "indicator",
         "indicator" => "indicator",
-        "switch" if matches!(m.revision, MappingRevision::ActiveInputs) => "switch",
-        "slider" if matches!(m.revision, MappingRevision::ActiveInputs) => "slider",
-        "numericInput" if matches!(m.revision, MappingRevision::ActiveInputs) => "numericInput",
+        "switch" if m.revision.active_inputs() => "switch",
+        "slider" if m.revision.active_inputs() => "slider",
+        "numericInput" if m.revision.active_inputs() => "numericInput",
         "composite" => "instance",
         "line" => "line",
         "arrow" => "arrow",
@@ -1332,7 +1332,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     {
                         return refuse(m, &ep, "nested-status-parameter-not-mapped");
                     }
-                    if matches!(m.revision, MappingRevision::ActiveInputs)
+                    if m.revision.active_inputs()
                         && matches!(
                             e["type"].as_str(),
                             Some("switch" | "slider" | "numericInput")
@@ -1421,7 +1421,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     c["type"].as_str(),
                     Some("switch" | "slider" | "numericInput")
                 ) {
-                    if !matches!(m.revision, MappingRevision::ActiveInputs) {
+                    if !m.revision.active_inputs() {
                         return refuse(m, &cp, "component-kind-not-mapped");
                     }
                     active_input(

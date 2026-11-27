@@ -673,7 +673,7 @@ fn security(v: &Value, m: &mut Mapping, ver: u64) -> Option<(Value, Vec<Value>, 
                 let default_operate = json!("operate");
                 if required.is_none() && v.get("security").is_some_and(|s| !s.is_null()) {
                     let mut writes = x["type"] == "dropDown"
-                        || (matches!(m.revision, super::MappingRevision::ActiveInputs)
+                        || (m.revision.active_inputs()
                             && matches!(
                                 x["type"].as_str(),
                                 Some("switch" | "slider" | "numericInput")

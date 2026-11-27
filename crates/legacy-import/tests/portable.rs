@@ -794,7 +794,7 @@ fn png_resource_transfer_is_atomic_and_integrity_checked() {
         .unwrap_or_else(|| panic!("{:?}", imported.report));
     let doc = serde_json::to_value(&project).unwrap();
     let props = &doc["components"][0]["root"]["children"][0]["properties"];
-    assert_eq!(imported.report.importer_version, "0.1.2");
+    assert_eq!(imported.report.importer_version, "0.1.3");
     let size = imported
         .report
         .findings
@@ -1506,7 +1506,7 @@ fn passive_instrument_mapping_is_deterministic_and_read_only() {
         let b = import_portable(&bytes);
         assert!(a.report.has_complete_mapping(), "{:?}", a.report);
         assert_eq!(a.report, b.report);
-        assert_eq!(a.report.importer_version, "0.1.2");
+        assert_eq!(a.report.importer_version, "0.1.3");
         let project = a.project.unwrap();
         assert_eq!(
             save_project(&project).unwrap(),
@@ -1629,4 +1629,85 @@ fn passive_instrument_revision_preserves_predecessor_mapping() {
         assert_eq!(serde_json::to_value(&replay.report).unwrap(), expected);
         assert_eq!(save_project(&replay.project.unwrap()).unwrap(), canonical);
     }
+}
+
+fn numeric_parameter_fixture(ty: &str) -> Value {
+    let mut f = fixture(6);
+    f["variables"]["label-a"]["type"] = json!(ty);
+    f["componentDefinitions"] = json!({"def":{"id":"def","displayName":"Read-only numeric composite","type":"composite","parameters":{"reading":{"type":"NUMBER_VARIABLE"}},"composition":{"elements":{"part":{"id":"part","type":"numericField","properties":{"decimals":"2"},"bindings":{"value":"reading"}}}}}});
+    f["screens"]["screen/a"]["components"]["label-a"] = json!({"id":"label-a","type":"composite","componentDefinitionId":"def","bindings":{"reading":"label-a"}});
+    f
+}
+
+#[test]
+fn reusable_numeric_parameter_specializes_exact_type_and_replays() {
+    for (legacy, canonical) in [
+        ("INT", "int32"),
+        ("LONG", "int64"),
+        ("FLOAT", "float32"),
+        ("DOUBLE", "float64"),
+    ] {
+        let f = numeric_parameter_fixture(legacy);
+        let bytes = serde_json::to_vec(&f).unwrap();
+        let a = import_portable(&bytes);
+        assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+        let project = a.project.unwrap();
+        let doc = serde_json::to_value(&project).unwrap();
+        assert_eq!(doc["components"][0]["parameters"][0]["type"]["dataType"], canonical);
+        assert_eq!(
+            doc["components"][0]["root"]["children"][0]["bindings"][0]["source"]["tagParameter"],
+            "reading"
+        );
+        assert_eq!(
+            doc["screens"][0]["root"]["children"][0]["element"]["parameters"]["reading"],
+            doc["tags"][0]["id"]
+        );
+        let report = serde_json::to_value(&a.report).unwrap();
+        assert_eq!(report["importerVersion"], "0.1.3");
+        let replay = hmi_legacy_import::replay_portable(&bytes, &report).unwrap();
+        assert_eq!(replay.report, a.report);
+        assert_eq!(
+            save_project(&replay.project.unwrap()).unwrap(),
+            save_project(&project).unwrap()
+        );
+        let mut old = report;
+        old["importerVersion"] = json!("0.1.2");
+        assert!(hmi_legacy_import::replay_portable(&bytes, &old)
+            .unwrap()
+            .project
+            .is_none());
+    }
+}
+
+#[test]
+fn reusable_numeric_parameter_refuses_ambiguous_or_writable_wiring() {
+    for ty in ["BOOL", "STRING"] {
+        let f = numeric_parameter_fixture(ty);
+        assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+            .project
+            .is_none());
+    }
+    let mut f = numeric_parameter_fixture("DOUBLE");
+    f["variables"]["other"] = json!({"id":"other","path":"Other","type":"FLOAT","access":"READ_ONLY"});
+    f["screens"]["screen/a"]["components"]["other"] = json!({"id":"other","type":"composite","componentDefinitionId":"def","zIndex":1,"bindings":{"reading":"other"}});
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.report.findings.iter().any(|f| f.code == "numeric-parameter-mixed-types"));
+    f["variables"]["other"]["type"] = json!("DOUBLE");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.report.has_complete_mapping(), "{:?}", a.report);
+    f["variables"]["other"]["access"] = json!("READ_WRITE");
+    let a = import_portable(&serde_json::to_vec(&f).unwrap());
+    assert!(a.project.is_none());
+    assert!(a.resource_bytes.is_empty());
+    let mut f = numeric_parameter_fixture("DOUBLE");
+    f["componentDefinitions"]["def"]["parameters"]["reading"]["writable"] = json!(true);
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
+    let mut f = numeric_parameter_fixture("DOUBLE");
+    f["screens"]["screen/a"]["components"]["label-a"]["bindings"] = json!({});
+    assert!(import_portable(&serde_json::to_vec(&f).unwrap())
+        .project
+        .is_none());
 }

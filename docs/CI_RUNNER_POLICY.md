@@ -18,3 +18,7 @@ Public successor policy, not the legacy private repository's runner contract. CI
 ## Review depth (owner-approved, 2026-11-25)
 
 Use the AGENTS.md scope-based review policy: lightweight independent consistency review for evidence/documentation-only changes, full technical review for executable or control-changing changes and mixed/uncertain scope. Both require exact-head Required CI and Engineering handoff success and applicable dedicated checks. The reviewer verifies classification, evidence and authorization; no change to CI routing, installer triggers, security gates or acceptance criteria follows from a lighter review.
+
+### Review cadence within draft milestone PRs (D-008 follow-up, 2026-11-27)
+
+Routine draft slices need self-review, applicable tests and exact-head successful checks, not a new comprehensive independent review per slice. Batch independent technical review at the major milestone boundary before merge, with earlier risk-triggered review as defined in AGENTS.md. Existing independent pre-merge review, dependency audits, Required CI, handoff, installer and acceptance gates are unchanged. No workflow routing change.

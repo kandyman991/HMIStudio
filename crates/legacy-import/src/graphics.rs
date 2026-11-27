@@ -30,8 +30,8 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "rectangle" => "rectangle",
         "ellipse" => "ellipse",
         "numericField" => "numericDisplay",
-        "gauge" if matches!(m.revision, MappingRevision::PassiveInstruments) => "gauge",
-        "levelIndicator" if matches!(m.revision, MappingRevision::PassiveInstruments) => {
+        "gauge" if matches!(m.revision, MappingRevision::PassiveInstruments | MappingRevision::NumericParameters) => "gauge",
+        "levelIndicator" if matches!(m.revision, MappingRevision::PassiveInstruments | MappingRevision::NumericParameters) => {
             "progressBar"
         }
         "indicator" => "indicator",
@@ -998,7 +998,8 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                 &path(&p, "displayName"),
                 &path(&t, "name"),
             )?;
-            let (params, param_types) = parameters(x, &p, &t, m)?;
+            let numeric_types = numeric_parameter_types(v, k, x, &p, m)?;
+            let (params, param_types) = parameters(x, &p, &t, m, &numeric_types)?;
             let c = x.get("composition")?;
             let cp = path(&p, "composition");
             let mut root = json!({"id":m.id(&path(&cp,"@generated-root"),&format!("legacy-definition-root-{}",definitions.len()),"root"),"element":{"type":"absolute"},"layout":{"width":fixed(dim(c.get("widthDp"),360.)?),"height":fixed(dim(c.get("heightDp"),200.)?)},"children":[]});
@@ -1022,7 +1023,7 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
-                    if matches!(m.revision, MappingRevision::PassiveInstruments)
+                    if matches!(m.revision, MappingRevision::PassiveInstruments | MappingRevision::NumericParameters)
                         && matches!(e["type"].as_str(), Some("gauge" | "levelIndicator"))
                     {
                         return refuse(m, &ep, "nested-instrument-parameter-not-mapped");
@@ -1199,11 +1200,81 @@ fn resolve_instance(
     Some(())
 }
 
+// The legacy NUMBER_VARIABLE union has no exact frozen-v2 equivalent.
+// Specialize only from all direct screen instances, with an explicit type
+// and read-only access. Unused or nested definitions cannot establish a type.
+fn numeric_parameter_types(
+    project: &Value,
+    key: &str,
+    definition: &Value,
+    p: &str,
+    m: &mut Mapping,
+) -> Option<BTreeMap<String, &'static str>> {
+    let mut result = BTreeMap::new();
+    if !matches!(m.revision, MappingRevision::NumericParameters) {
+        return Some(result);
+    }
+    let Some(params) = definition.get("parameters") else {
+        return Some(result);
+    };
+    for (name, param) in params.as_object()? {
+        if param["type"] != "NUMBER_VARIABLE" {
+            continue;
+        }
+        let sp = path(&path(p, "parameters"), name);
+        let mut resolved = None;
+        for screen in project["screens"].as_object()?.values() {
+            if let Some(components) = screen.get("components") {
+                for instance in components.as_object()?.values() {
+                    if instance["type"] != "composite" || instance["componentDefinitionId"] != key {
+                        continue;
+                    }
+                    let Some(var) = instance["bindings"][name].as_str() else {
+                        return refuse(m, &sp, "numeric-parameter-binding-required");
+                    };
+                    let source = &project["variables"][var];
+                    let dt = match source["type"].as_str() {
+                        Some("INT") => "int32",
+                        Some("LONG") => "int64",
+                        Some("FLOAT") => "float32",
+                        Some("DOUBLE") => "float64",
+                        _ => return refuse(m, &sp, "numeric-parameter-type-mismatch"),
+                    };
+                    if source.get("access").is_some_and(|a| a != "READ_ONLY") {
+                        return refuse(m, &sp, "numeric-parameter-writable-tag");
+                    }
+                    if resolved.is_some_and(|prior| prior != dt) {
+                        return refuse(m, &sp, "numeric-parameter-mixed-types");
+                    }
+                    resolved = Some(dt);
+                }
+            }
+        }
+        if let Some(definitions) = project.get("componentDefinitions") {
+            for other in definitions.as_object()?.values() {
+                if let Some(elements) = other["composition"]["elements"].as_object() {
+                    if elements.values().any(|e| {
+                        e["type"] == "composite" && e["componentDefinitionId"] == key
+                    }) {
+                        return refuse(m, &sp, "nested-numeric-parameter-not-mapped");
+                    }
+                }
+            }
+        }
+        let Some(dt) = resolved else {
+            return refuse(m, &sp, "numeric-parameter-no-concrete-instance");
+        };
+        result.insert(name.clone(), dt);
+    }
+    Some(result)
+}
+
 fn parameters(
     x: &Value,
     p: &str,
     t: &str,
     m: &mut Mapping,
+    numeric_types: &BTreeMap<String, &'static str>,
 ) -> Option<(Vec<Value>, BTreeMap<String, Type>)> {
     let mut params = Vec::new();
     let mut types = BTreeMap::new();
@@ -1218,6 +1289,9 @@ fn parameters(
             let (ty, dt) = match x.get("type")?.as_str()? {
                 "BOOL_VARIABLE" => (Type::Bool, "bool"),
                 "TEXT_VARIABLE" => (Type::Text, "string"),
+                "NUMBER_VARIABLE" if numeric_types.contains_key(k) => {
+                    (Type::Number, *numeric_types.get(k)?)
+                }
                 _ => return refuse(m, &path(&sp, "type"), "reusable-parameter-type-not-mapped"),
             };
             if x.get("writable")
@@ -1250,6 +1324,13 @@ fn parameters(
                         json!(m.text(d, &path(&sp, "description"), &path(&tp, "description"))?);
                 } else {
                     mark(m, &sp, "description", &tp, "description");
+                }
+            }
+            if ty == Type::Number {
+                if let Some(f) = m.findings.get_mut(&path(&sp, "type")) {
+                    f.code = "numeric-parameter-specialized";
+                    f.severity = "warning";
+                    f.message = "Legacy numeric union specialized to the common concrete type of all direct instances.";
                 }
             }
             types.insert(k.clone(), ty);
@@ -1287,7 +1368,10 @@ fn parameter_bindings(
                 || !matches!(
                     (prop, ty),
                     ("visible" | "active", Type::Bool) | ("text", Type::Text)
-                )
+                ) && !(matches!(m.revision, MappingRevision::NumericParameters)
+                    && kind == "numericField"
+                    && prop == "value"
+                    && ty == Type::Number)
             {
                 return refuse(m, &sp, "reusable-binding-type-not-mapped");
             }

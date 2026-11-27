@@ -289,7 +289,7 @@ fn fixed(v: f64) -> Value {
 /// initial supported subset is identical across versions. Unsupported features
 /// refuse the entire result, and report only paths/codes, not source values. The report may contain source key names; keep it local.
 pub fn import_portable(input: &[u8]) -> ImportOutcome {
-    import_with_revision(input, MappingRevision::PassiveInstruments)
+    import_with_revision(input, MappingRevision::NumericParameters)
 }
 
 #[derive(Clone, Copy)]
@@ -297,6 +297,7 @@ enum MappingRevision {
     Original,
     VerifiedSize,
     PassiveInstruments,
+    NumericParameters,
 }
 
 /// Replay a saved review report using its recorded mapping revision.
@@ -322,6 +323,7 @@ pub fn replay_portable(input: &[u8], report: &Value) -> Option<ImportOutcome> {
         }
         "0.1.1" => MappingRevision::VerifiedSize,
         "0.1.2" => MappingRevision::PassiveInstruments,
+        "0.1.3" => MappingRevision::NumericParameters,
         _ => return None,
     };
     Some(import_with_revision(input, revision))
@@ -336,6 +338,7 @@ fn import_with_revision(input: &[u8], revision: MappingRevision) -> ImportOutcom
             MappingRevision::Original => "0.1.0",
             MappingRevision::VerifiedSize => "0.1.1",
             MappingRevision::PassiveInstruments => "0.1.2",
+            MappingRevision::NumericParameters => "0.1.3",
         },
         findings: vec![],
         id_map: BTreeMap::new(),

@@ -1653,7 +1653,10 @@ fn reusable_numeric_parameter_specializes_exact_type_and_replays() {
         assert!(a.report.has_complete_mapping(), "{:?}", a.report);
         let project = a.project.unwrap();
         let doc = serde_json::to_value(&project).unwrap();
-        assert_eq!(doc["components"][0]["parameters"][0]["type"]["dataType"], canonical);
+        assert_eq!(
+            doc["components"][0]["parameters"][0]["type"]["dataType"],
+            canonical
+        );
         assert_eq!(
             doc["components"][0]["root"]["children"][0]["bindings"][0]["source"]["tagParameter"],
             "reading"
@@ -1688,11 +1691,16 @@ fn reusable_numeric_parameter_refuses_ambiguous_or_writable_wiring() {
             .is_none());
     }
     let mut f = numeric_parameter_fixture("DOUBLE");
-    f["variables"]["other"] = json!({"id":"other","path":"Other","type":"FLOAT","access":"READ_ONLY"});
+    f["variables"]["other"] =
+        json!({"id":"other","path":"Other","type":"FLOAT","access":"READ_ONLY"});
     f["screens"]["screen/a"]["components"]["other"] = json!({"id":"other","type":"composite","componentDefinitionId":"def","zIndex":1,"bindings":{"reading":"other"}});
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.project.is_none());
-    assert!(a.report.findings.iter().any(|f| f.code == "numeric-parameter-mixed-types"));
+    assert!(a
+        .report
+        .findings
+        .iter()
+        .any(|f| f.code == "numeric-parameter-mixed-types"));
     f["variables"]["other"]["type"] = json!("DOUBLE");
     let a = import_portable(&serde_json::to_vec(&f).unwrap());
     assert!(a.report.has_complete_mapping(), "{:?}", a.report);

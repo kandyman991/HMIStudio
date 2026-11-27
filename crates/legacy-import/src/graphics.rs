@@ -30,8 +30,20 @@ pub(super) fn component(v: &Value, key: &str, p: &str, t: &str, m: &mut Mapping)
         "rectangle" => "rectangle",
         "ellipse" => "ellipse",
         "numericField" => "numericDisplay",
-        "gauge" if matches!(m.revision, MappingRevision::PassiveInstruments | MappingRevision::NumericParameters) => "gauge",
-        "levelIndicator" if matches!(m.revision, MappingRevision::PassiveInstruments | MappingRevision::NumericParameters) => {
+        "gauge"
+            if matches!(
+                m.revision,
+                MappingRevision::PassiveInstruments | MappingRevision::NumericParameters
+            ) =>
+        {
+            "gauge"
+        }
+        "levelIndicator"
+            if matches!(
+                m.revision,
+                MappingRevision::PassiveInstruments | MappingRevision::NumericParameters
+            ) =>
+        {
             "progressBar"
         }
         "indicator" => "indicator",
@@ -1023,8 +1035,10 @@ pub(super) fn finish(v: &Value, doc: &mut Value, m: &mut Mapping) -> Option<()> 
                     let ep = path(&path(&cp, "elements"), key);
                     let et = format!("{t}/root/children/{j}");
                     // Composition bindings refer to local typed parameters.
-                    if matches!(m.revision, MappingRevision::PassiveInstruments | MappingRevision::NumericParameters)
-                        && matches!(e["type"].as_str(), Some("gauge" | "levelIndicator"))
+                    if matches!(
+                        m.revision,
+                        MappingRevision::PassiveInstruments | MappingRevision::NumericParameters
+                    ) && matches!(e["type"].as_str(), Some("gauge" | "levelIndicator"))
                     {
                         return refuse(m, &ep, "nested-instrument-parameter-not-mapped");
                     }
@@ -1253,9 +1267,10 @@ fn numeric_parameter_types(
         if let Some(definitions) = project.get("componentDefinitions") {
             for other in definitions.as_object()?.values() {
                 if let Some(elements) = other["composition"]["elements"].as_object() {
-                    if elements.values().any(|e| {
-                        e["type"] == "composite" && e["componentDefinitionId"] == key
-                    }) {
+                    if elements
+                        .values()
+                        .any(|e| e["type"] == "composite" && e["componentDefinitionId"] == key)
+                    {
                         return refuse(m, &sp, "nested-numeric-parameter-not-mapped");
                     }
                 }

@@ -899,11 +899,21 @@ impl Host {
         target: &Path,
         discard: bool,
     ) -> Result<()> {
+        self.import_package_review_with(source, target, discard, read_revision_record)
+    }
+
+    fn import_package_review_with(
+        &mut self,
+        source: &Path,
+        target: &Path,
+        discard: bool,
+        mut read: impl FnMut(&Path, usize) -> Result<Vec<u8>>,
+    ) -> Result<()> {
         self.prepare_review_switch(discard)?;
         let (source, target) = self.check_package_import_paths(source, target)?;
-        let bytes = read_revision_record(&source, package_transport::MAX_PACKAGE_BYTES)?;
+        let bytes = read(&source, package_transport::MAX_PACKAGE_BYTES)?;
         let prepared = QuarantinedImport::prepare_package(&bytes).map_err(err)?;
-        if bytes != read_revision_record(&source, package_transport::MAX_PACKAGE_BYTES)? {
+        if bytes != read(&source, package_transport::MAX_PACKAGE_BYTES)? {
             return Err("Legacy runtime package changed during import; retry".into());
         }
         let guard = lock_dir(&sidecar_dir(&target))?;
@@ -1774,6 +1784,45 @@ mod tests {
         assert_eq!(fs::read(&overlap).unwrap(), archive);
         assert!(!target.exists());
         assert_eq!(host.snapshot(), before);
+    }
+
+    #[test]
+    fn native_package_import_refuses_detected_source_replacement() {
+        let t = Temp::new();
+        let source = t.0.join("legacy.hmipkg");
+        let target = t.0.join("review.hmi-review");
+        let first = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-signed-java.synthetic"
+        );
+        let replacement = include_bytes!(
+            "../../crates/legacy-import/tests/fixtures/runtime-unsigned-java.synthetic"
+        );
+        assert_ne!(first.as_slice(), replacement.as_slice());
+        fs::write(&source, first).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        edit(&mut host, "Active edit");
+        host.autosave();
+        let before = host.snapshot();
+        let recovery = host.active_recovery().unwrap();
+        let recovery_bytes = fs::read(&recovery).unwrap();
+        let generation = host.generation;
+        let mut reads = 0;
+        let result = host.import_package_review_with(&source, &target, true, |path, limit| {
+            let bytes = read_revision_record(path, limit)?;
+            reads += 1;
+            if reads == 1 {
+                fs::write(path, replacement).map_err(err)?;
+            }
+            Ok(bytes)
+        });
+        assert!(result.unwrap_err().contains("changed during import"));
+        assert_eq!(reads, 2);
+        assert_eq!(host.snapshot(), before);
+        assert_eq!(host.generation, generation);
+        assert_eq!(fs::read(&recovery).unwrap(), recovery_bytes);
+        assert_eq!(fs::read(&source).unwrap(), replacement);
+        assert!(!target.exists());
+        assert!(!sidecar_dir(&target).exists());
     }
 
     #[cfg(unix)]

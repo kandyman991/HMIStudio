@@ -24,7 +24,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-02C.4A](#reuse-02c.4a) Write lifecycle and termination safety | Reuse | Merged | [REUSE-02C.3](#reuse-02c.3) (merged) |
 | [REUSE-02C.4B](#reuse-02c.4b) Write-capable EngineDriver integration | Reuse | Planned | [REUSE-02C.4A](#reuse-02c.4a) (merged) |
 | [REUSE-02C](#reuse-02c) Supervised bridge | Reuse | In progress | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
-| [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | In progress | [REUSE-01](#reuse-01) (merged) |
+| [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | Proposed completion | [REUSE-01](#reuse-01) (merged) |
 | [REUSE-04](#reuse-04) Runtime compatibility | Reuse | Planned | [REUSE-03](#reuse-03) (merged) |
 | [REUSE-05](#reuse-05) Deployment Modes A and B | Reuse | Planned | [REUSE-04](#reuse-04) (merged) |
 | [REUSE-06](#reuse-06) Migration acceptance and retirement | Reuse | Planned | [REUSE-02](#reuse-02) (merged), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged), [REUSE-05](#reuse-05) (merged) |
@@ -733,7 +733,7 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 <a id="reuse-03"></a>
 ### REUSE-03 — Legacy import and canonical model v2
 
-**In progress** · Draft PR #36 completes REUSE-03B portable, revision and runtime ZIP admission, quarantine, persisted replay, reconciled semantic coverage and explicit refusal matrix; ready for comprehensive independent technical review.
+**Proposed completion** · REUSE-03B completion candidate: bounded legacy import, semantic coverage/refusal matrix, quarantine, persisted replay and redacted native refusal diagnostics. Full successor validation and cumulative independent review remain required.
 
 **Acceptance criteria**
 
@@ -748,11 +748,13 @@ Records · [docs/ENGINEERING\_DECISIONS.md](ENGINEERING_DECISIONS.md) · [docs/r
 
 **Blockers**
 
-- Complete comprehensive independent technical review of REUSE-03B on draft PR #36 and verify full exact-head CI before merge; actual production publisher/live admission consumer enforcement and Kotlin/Compose runtime parity remain downstream milestone gates (REUSE-04/RUST-05/RUST-07).
+- Verify full CI on the F01/F02 correction head and close the cumulative independent milestone review before integration. Actual production publisher/live admission consumer enforcement and runtime parity remain separate downstream gates.
 
 **Assignment** · ChatGPT, feat/reuse-03b-legacy-import (recorded 2026-11-27T16:23:34Z)
 
-[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [f5c021b](https://github.com/kandyman991/HMIStudio/commit/f5c021be3032518a4c47ae0c3a8c16a61e381226) · snapshot 2026-11-27T17:37:13Z · [Desktop CI #46043011080](https://github.com/kandyman991/HMIStudio/actions/runs/46043011080) success, [Tag engine CI #46043011201](https://github.com/kandyman991/HMIStudio/actions/runs/46043011201) success, [Engineering handoff snapshot #46043011026](https://github.com/kandyman991/HMIStudio/actions/runs/46043011026) success
+**Proposal** · PR #36 is the completion proposal for REUSE-03. No acceptance or merge claimed. Corrected candidate requires full exact-head CI and closure of cumulative milestone review.
+
+[PR #36](https://github.com/kandyman991/HMIStudio/pull/36) · draft · head [7afef8c](https://github.com/kandyman991/HMIStudio/commit/7afef8c9a4b298a01dc45439d312af291f947150) · snapshot 2026-11-27T19:50:32Z · [Desktop CI #46051484034](https://github.com/kandyman991/HMIStudio/actions/runs/46051484034) success, [Tag engine CI #46051484040](https://github.com/kandyman991/HMIStudio/actions/runs/46051484040) success, [Engineering handoff snapshot #46051484038](https://github.com/kandyman991/HMIStudio/actions/runs/46051484038) success
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/reuse/REUSE\_03A\_MODEL\_V2.md](reuse/REUSE_03A_MODEL_V2.md) · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
@@ -796,6 +798,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-27 · handoff · Independent REUSE-03B.13D review closed at 62c188b: all 19 hosted jobs passed, including Windows 28+2 and Linux 31+2 native tests and deterministic archive replacement refusal on both platforms. Native package consent, source preservation, quarantine and v4 evidence replay validated within documented limits. REUSE-03B.14 semantic coverage starts under retained RUST-05 claim. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-27 · handoff · Owner authorized CI-03 scoped importer-only draft validation; extend RUST-05 scope for shared classifier and regression tests. Full checkpoint and focused independent control review required before activation; existing production and final milestone gates retained. Applied hosted 14C formatting corrections. · [docs/CI\_RUNNER\_POLICY.md](CI_RUNNER_POLICY.md)
 - 2026-11-27 · handoff · Verified 458c6b9 full 21/21 CI (Desktop 46040301725, Tag engine 46040301676, handoff 46040301761) and REUSE-03B.14D active-input write boundaries. Fixed CI-03 live Actions API run-name matching in 9448aba (full 21/21 CI: 46042131780/46042131718/46042131709), activated checkpoint and demonstrated targeted CI on f5c021b (46043011080/46043011201/46043011026, ci03\_targeted=true, 85 importer tests) with reconciled REUSE-03B semantic coverage and explicit refusal matrix. Disabled CI-03 pin and regenerated roadmap views for full 21/21 exact-head validation at the REUSE-03B milestone review boundary; RUST-05 claim retained and PR #36 remains draft. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-27 · handoff · Verified predecessor 7afef8c full 21/21 hosted CI. Address F01 completion proposal metadata and F02 bounded redacted native refusal diagnostics in the successor candidate; cumulative independent review and successor CI remain pending. Retain the RUST-05 claim and disabled CI-03 pin. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility

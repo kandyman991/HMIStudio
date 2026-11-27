@@ -2,9 +2,9 @@
   "id": "REUSE-03",
   "title": "Legacy import and canonical model v2",
   "track": "Reuse",
-  "phase": "in_progress",
+  "phase": "proposed",
   "counts": true,
-  "summary": "Draft PR #36 completes REUSE-03B portable, revision and runtime ZIP admission, quarantine, persisted replay, reconciled semantic coverage and explicit refusal matrix; ready for comprehensive independent technical review.",
+  "summary": "REUSE-03B completion candidate: bounded legacy import, semantic coverage/refusal matrix, quarantine, persisted replay and redacted native refusal diagnostics. Full successor validation and cumulative independent review remain required.",
   "dependencies": [
     {
       "id": "REUSE-01",
@@ -16,7 +16,7 @@
     "Verify read-only V1–V10 import, migration reports, deterministic fixtures, negative cases and leaf accounting under the existing migration plan."
   ],
   "blockers": [
-    "Complete comprehensive independent technical review of REUSE-03B on draft PR #36 and verify full exact-head CI before merge; actual production publisher/live admission consumer enforcement and Kotlin/Compose runtime parity remain downstream milestone gates (REUSE-04/RUST-05/RUST-07)."
+    "Verify full CI on the F01/F02 correction head and close the cumulative independent milestone review before integration. Actual production publisher/live admission consumer enforcement and runtime parity remain separate downstream gates."
   ],
   "docs": [
     "docs/reuse/REUSE_MILESTONE_PLAN.md",
@@ -31,33 +31,33 @@
   "prs": [
     {
       "number": 36,
-      "head": "f5c021be3032518a4c47ae0c3a8c16a61e381226",
+      "head": "7afef8c9a4b298a01dc45439d312af291f947150",
       "branch": "feat/reuse-03b-legacy-import",
       "state": "draft",
       "runs": [
         {
-          "id": 46043011080,
+          "id": 46051484034,
           "name": "Desktop CI",
-          "head": "f5c021be3032518a4c47ae0c3a8c16a61e381226",
+          "head": "7afef8c9a4b298a01dc45439d312af291f947150",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46043011201,
+          "id": 46051484040,
           "name": "Tag engine CI",
-          "head": "f5c021be3032518a4c47ae0c3a8c16a61e381226",
+          "head": "7afef8c9a4b298a01dc45439d312af291f947150",
           "state": "completed",
           "result": "success"
         },
         {
-          "id": 46043011026,
+          "id": 46051484038,
           "name": "Engineering handoff snapshot",
-          "head": "f5c021be3032518a4c47ae0c3a8c16a61e381226",
+          "head": "7afef8c9a4b298a01dc45439d312af291f947150",
           "state": "completed",
           "result": "success"
         }
       ],
-      "observedAt": "2026-11-27T17:37:13Z"
+      "observedAt": "2026-11-27T19:50:32Z"
     }
   ],
   "assignment": {
@@ -316,6 +316,14 @@
       "type": "handoff",
       "summary": "Verified 458c6b9 full 21/21 CI (Desktop 46040301725, Tag engine 46040301676, handoff 46040301761) and REUSE-03B.14D active-input write boundaries. Fixed CI-03 live Actions API run-name matching in 9448aba (full 21/21 CI: 46042131780/46042131718/46042131709), activated checkpoint and demonstrated targeted CI on f5c021b (46043011080/46043011201/46043011026, ci03_targeted=true, 85 importer tests) with reconciled REUSE-03B semantic coverage and explicit refusal matrix. Disabled CI-03 pin and regenerated roadmap views for full 21/21 exact-head validation at the REUSE-03B milestone review boundary; RUST-05 claim retained and PR #36 remains draft.",
       "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-27",
+      "type": "handoff",
+      "summary": "Verified predecessor 7afef8c full 21/21 hosted CI. Address F01 completion proposal metadata and F02 bounded redacted native refusal diagnostics in the successor candidate; cumulative independent review and successor CI remain pending. Retain the RUST-05 claim and disabled CI-03 pin.",
+      "record": "docs/LEGACY_IMPORT.md"
     }
-  ]
+  ],
+  "proposal": "PR #36 is the completion proposal for REUSE-03. No acceptance or merge claimed. Corrected candidate requires full exact-head CI and closure of cumulative milestone review.",
+  "completionPr": 36
 }

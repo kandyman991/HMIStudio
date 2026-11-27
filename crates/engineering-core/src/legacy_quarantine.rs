@@ -1,11 +1,11 @@
 //! Review-only legacy import bundles. No live or publishing authorization.
 //! A single immutable envelope is the atomic commit unit. Save copies never
 //! overwrite an existing file, including the original legacy source.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use hmi_legacy_import::{import_portable, replay_portable};
+use hmi_legacy_import::{import_portable, replay_portable, MigrationReport};
 pub use hmi_legacy_import::{package as package_transport, revision as revision_transport};
 use hmi_project_model::model::Project;
 use hmi_project_model::serialization::{load_project, save_project};
@@ -64,6 +64,12 @@ pub(crate) fn storage_requires_review(bytes: &[u8]) -> bool {
 pub enum ImportError {
     #[error("legacy input was refused; no project was admitted")]
     Refused,
+    #[error("Portable legacy import refused; {0}")]
+    PortableRefused(String),
+    #[error("Legacy runtime package refused ({0:?}): {0}")]
+    PackageRefused(package_transport::PackageError),
+    #[error("Legacy revision refused ({0:?}): {0}")]
+    RevisionRefused(revision_transport::RevisionError),
     #[error("invalid or incomplete review bundle")]
     InvalidBundle,
     #[error("review recovery does not match the saved bundle or is damaged")]
@@ -72,6 +78,26 @@ pub enum ImportError {
     SizeLimit,
     #[error("bundle I/O failed at {0}")]
     Io(&'static str),
+}
+
+// Only fixed importer reason codes cross the native error boundary. Never
+// include source paths, values, identifiers, hashes, or review-only records.
+fn portable_refusal(report: &MigrationReport) -> ImportError {
+    let codes: BTreeSet<_> = report
+        .findings
+        .iter()
+        .filter(|finding| finding.disposition == "refused" || finding.severity == "blocking")
+        .map(|finding| finding.code)
+        .collect();
+    if codes.is_empty() {
+        return ImportError::PortableRefused("incomplete-migration-report".into());
+    }
+    let visible = codes.iter().take(12).copied().collect::<Vec<_>>().join(", ");
+    ImportError::PortableRefused(format!(
+        "{} distinct reason code(s); first 12: {}",
+        codes.len(),
+        visible
+    ))
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -109,9 +135,9 @@ impl RevisionSource {
         revision: &[u8],
     ) -> Result<Self, ImportError> {
         let selection = revision_transport::select_current_revision(descriptor, head)
-            .map_err(|_| ImportError::Refused)?;
+            .map_err(ImportError::RevisionRefused)?;
         revision_transport::decode_current_revision(&selection, revision)
-            .map_err(|_| ImportError::Refused)?;
+            .map_err(ImportError::RevisionRefused)?;
         let text = |bytes: &[u8]| {
             std::str::from_utf8(bytes)
                 .map(str::to_owned)
@@ -427,8 +453,8 @@ impl QuarantinedImport {
     /// Validate the complete candidate without filesystem writes, before the
     /// native caller obtains a destination lock or switches its workspace.
     pub fn prepare_package(archive: &[u8]) -> Result<PreparedPackageReview, ImportError> {
-        let decoded =
-            package_transport::decode_runtime_package(archive).map_err(|_| ImportError::Refused)?;
+        let decoded = package_transport::decode_runtime_package(archive)
+            .map_err(ImportError::PackageRefused)?;
         let evidence = PackageSource {
             decoder_version: 1,
             archive: archive.to_vec(),
@@ -446,9 +472,11 @@ impl QuarantinedImport {
     ) -> Result<(Payload, Project), ImportError> {
         let outcome = import_portable(source);
         if !outcome.report.has_complete_mapping() {
-            return Err(ImportError::Refused);
+            return Err(portable_refusal(&outcome.report));
         }
-        let project = outcome.project.ok_or(ImportError::Refused)?;
+        let Some(project) = outcome.project else {
+            return Err(portable_refusal(&outcome.report));
+        };
         let text = canonical(&project)?;
         let payload = Payload {
             source: std::str::from_utf8(source)

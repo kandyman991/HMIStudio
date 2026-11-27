@@ -184,10 +184,12 @@ fn read_revision_source_with(
     let head_path = root.join("HEAD");
     let descriptor = read(&descriptor_path, MAX_DESCRIPTOR_BYTES)?;
     let head = read(&head_path, MAX_HEAD_BYTES)?;
-    let selected = select_current_revision(&descriptor, &head).map_err(err)?;
+    let selected = select_current_revision(&descriptor, &head)
+        .map_err(|error| format!("Legacy revision refused ({error:?}): {error}"))?;
     let revision_path = root.join(selected.revision_relative_path());
     let revision = read(&revision_path, MAX_REVISION_BYTES)?;
-    decode_current_revision(&selected, &revision).map_err(err)?;
+    decode_current_revision(&selected, &revision)
+        .map_err(|error| format!("Legacy revision refused ({error:?}): {error}"))?;
     // Re-read the immutable record and published pointer, refusing detectable
     // concurrent replacement. Do not acquire or create the legacy LOCK.
     if revision != read(&revision_path, MAX_REVISION_BYTES)?
@@ -1753,7 +1755,11 @@ mod tests {
         let recovery = host.active_recovery().unwrap();
         let recovery_bytes = fs::read(&recovery).unwrap();
         fs::write(&source, b"not a package").unwrap();
-        assert!(host.import_package_review(&source, &target, true).is_err());
+        let error = host
+            .import_package_review(&source, &target, true)
+            .unwrap_err();
+        assert!(error.contains("InvalidArchive"));
+        assert!(!error.contains("not a package"));
         assert!(!target.exists());
         assert!(!sidecar_dir(&target).exists());
         assert_eq!(host.snapshot(), before);
@@ -1763,7 +1769,11 @@ mod tests {
         );
         fs::write(&source, unsupported).unwrap();
         assert!(package_transport::decode_runtime_package(unsupported).is_ok());
-        assert!(host.import_package_review(&source, &target, true).is_err());
+        let error = host
+            .import_package_review(&source, &target, true)
+            .unwrap_err();
+        assert!(error.contains("Portable legacy import refused"));
+        assert!(error.contains("unsupported-or-invalid-field"));
         assert!(!target.exists());
         assert!(!sidecar_dir(&target).exists());
         assert_eq!(host.snapshot(), before);
@@ -2134,7 +2144,8 @@ mod tests {
         let target = t.0.join("refused.hmi-review");
         let before = host.snapshot();
         let generation = host.generation;
-        assert!(host.import_review(&source, &target, true).is_err());
+        let error = host.import_review(&source, &target, true).unwrap_err();
+        assert!(error.contains("unsupported-or-missing-version"));
         assert!(host.import_review(&recovery, &target, true).is_err());
         assert_eq!(host.snapshot(), before);
         assert_eq!(host.generation, generation);
@@ -2202,7 +2213,11 @@ mod tests {
         let target = t.0.join("review.hmi-review");
         let mut host = Host::new(&t.0.join("app")).unwrap();
         let before = host.snapshot();
-        assert!(host.import_revision_review(&root, &target, false).is_err());
+        let error = host
+            .import_revision_review(&root, &target, false)
+            .unwrap_err();
+        assert!(error.contains("Portable legacy import refused"));
+        assert!(error.contains("unsupported-or-invalid-field"));
         assert!(!target.exists());
         assert!(!sidecar_dir(&target).exists());
         assert!(!root.join("LOCK").exists());

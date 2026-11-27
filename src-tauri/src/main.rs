@@ -390,7 +390,22 @@ async fn project_action(
     generation: u64,
 ) -> Result<ProjectReply, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        handle_project_action(&app, action, Some(generation))
+        let importing = matches!(
+            &action,
+            ProjectAction::ImportLegacy
+                | ProjectAction::ImportLegacyRevision
+                | ProjectAction::ImportLegacyPackage
+        );
+        let result = handle_project_action(&app, action, Some(generation));
+        if importing {
+            if let Err(error) = &result {
+                app.dialog()
+                    .message(error.as_str())
+                    .title("HMI Studio — legacy import refused")
+                    .blocking_show();
+            }
+        }
+        result
     })
     .await
     .map_err(|e| e.to_string())?

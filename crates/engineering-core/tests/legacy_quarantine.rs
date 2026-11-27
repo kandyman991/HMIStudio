@@ -126,6 +126,28 @@ fn refused_import_and_persistence_faults_do_not_publish() {
 }
 
 #[test]
+fn refused_import_diagnostics_are_redacted_and_distinct() {
+    use hmi_engineering_core::legacy_quarantine::{ImportError, PreparedReview};
+
+    let message = |result: Result<PreparedReview, ImportError>| match result {
+        Err(error) => error.to_string(),
+        Ok(_) => panic!("Invalid import was admitted"),
+    };
+    let malformed = message(QuarantinedImport::prepare_portable(b"{"));
+    assert!(malformed.contains("invalid-or-duplicate-json"));
+    let future = br#"{"schemaVersion":11,"private-key-sentinel":"secret-value-sentinel"}"#;
+    let version = message(QuarantinedImport::prepare_portable(future));
+    assert!(version.contains("unsupported-or-missing-version"));
+    assert_eq!(version, message(QuarantinedImport::prepare_portable(future)));
+    assert!(!version.contains("private-key-sentinel"));
+    assert!(!version.contains("secret-value-sentinel"));
+    let package = message(QuarantinedImport::prepare_package(b"not a package"));
+    assert!(package.contains("InvalidArchive"));
+    assert_ne!(package, malformed);
+    assert!(!package.contains("not a package"));
+}
+
+#[test]
 fn corrupt_bundle_refused_and_existing_target_unchanged() {
     let dir = TempDir::new("review-corrupt");
     let path = dir.join("review.bundle");

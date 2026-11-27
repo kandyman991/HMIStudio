@@ -114,7 +114,7 @@ fn original_java_streaming_packages_decode_without_granting_trust() {
 fn stored_and_deflated_transport_preserve_portable_bytes_and_inert_settings() {
     for method in [CompressionMethod::Stored, CompressionMethod::Deflated] {
         let settings =
-            br#"{"values":"LIVE","fullScreen":false,"statusBar":true,"keepScreenOn":false}"#;
+            br#"{"values":"SIMULATED","fullScreen":false,"statusBar":true,"keepScreenOn":false}"#;
         let m = manifest(PROJECT, settings);
         let text = serde_json::to_vec(&m).unwrap();
         let bytes = archive(
@@ -129,7 +129,7 @@ fn stored_and_deflated_transport_preserve_portable_bytes_and_inert_settings() {
         assert_eq!(p.project_bytes(), PROJECT);
         assert_eq!(p.package_id(), m["packageId"].as_str().unwrap());
         assert_eq!(p.signature_status(), SignatureStatus::Unsigned);
-        assert_eq!(p.source_settings().values, LegacyValues::Live);
+        assert_eq!(p.source_settings().values, LegacyValues::Simulated);
         assert!(!p.source_settings().full_screen);
         assert!(import_portable(p.project_bytes())
             .report
@@ -386,5 +386,100 @@ fn deflate_stream_must_consume_the_entire_declared_payload() {
         bad[eocd + 16..eocd + 20]
             .copy_from_slice(&((central as isize + delta) as u32).to_le_bytes());
         assert!(decode_runtime_package(&bad).is_err(), "append={append}");
+    }
+}
+
+#[test]
+fn package_schema_is_the_feature_floor_not_the_declared_version() {
+    let baseline: Value = serde_json::from_slice(PROJECT).unwrap();
+    // Raw shape fixtures isolate package feature-floor semantics. Full
+    // portable validation is independent and still required for admission.
+    for (version, pointer, feature) in [
+        (
+            2,
+            "/screens/main/layout",
+            json!({"root":{"node":"stack","direction":"ROW"}}),
+        ),
+        (
+            3,
+            "/screens/main/layout",
+            json!({"root":{"node":"stack","direction":"GRID"}}),
+        ),
+        (
+            4,
+            "/screens/main/components",
+            json!({"c":{"expressions":{"value":"x"}}}),
+        ),
+        (5, "/screenOrder", json!(["main"])),
+        (6, "/componentDefinitions", json!({"d":{"kind":"SYMBOL"}})),
+        (7, "/theme", json!({})),
+        (8, "/security", json!({})),
+        (9, "/externalSources", json!({"s":{"commissioningAllowed":true}})),
+        (10, "/enumerations", json!({"e":{}})),
+        (
+            10,
+            "/screens/main/components",
+            json!({"c":{"actions":{"press":[{"action":"navigate.back"},{"action":"navigate.back"}]}}}),
+        ),
+    ] {
+        let mut source = baseline.clone();
+        source["schemaVersion"] = json!(10);
+        let (parent, key) = pointer.rsplit_once('/').unwrap();
+        source.pointer_mut(parent).unwrap()[key] = feature;
+        let bytes = serde_json::to_vec(&source).unwrap();
+        let mut m = manifest(&bytes, SETTINGS);
+        m["schemaVersion"] = json!(version);
+        assert!(
+            decode_runtime_package(&package(&m, &bytes, SETTINGS)).is_ok(),
+            "{pointer}: {version}"
+        );
+        m["schemaVersion"] = json!(version - 1);
+        assert_eq!(
+            decode_runtime_package(&package(&m, &bytes, SETTINGS)).err(),
+            Some(PackageError::InvalidProject),
+            "{pointer}: understated"
+        );
+        if version < 10 {
+            m["schemaVersion"] = json!(version + 1);
+            assert_eq!(
+                decode_runtime_package(&package(&m, &bytes, SETTINGS)).err(),
+                Some(PackageError::InvalidProject),
+                "{pointer}: overstated"
+            );
+        }
+    }
+    let mut source = baseline;
+    source["schemaVersion"] = json!(10);
+    let bytes = serde_json::to_vec(&source).unwrap();
+    assert!(decode_runtime_package(&package(&manifest(&bytes, SETTINGS), &bytes, SETTINGS)).is_ok());
+}
+
+#[test]
+fn live_package_requires_a_source_and_variable_reference() {
+    let settings = br#"{"values":"LIVE","fullScreen":false,"statusBar":true,"keepScreenOn":false}"#;
+    assert_eq!(
+        decode_runtime_package(&package(&manifest(PROJECT, settings), PROJECT, settings)).err(),
+        Some(PackageError::InvalidSettings)
+    );
+    let mut source: Value = serde_json::from_slice(PROJECT).unwrap();
+    source["externalSources"] = json!({"s":{}});
+    source["variables"] = json!({"v":{}});
+    for (device, variable, valid) in [
+        ("s", "v", true),
+        ("other", "v", false),
+        ("s", "other", false),
+    ] {
+        source["externalMappings"] = json!({"m":{"sourceId":device,"internalVariableId":variable}});
+        let bytes = serde_json::to_vec(&source).unwrap();
+        let result =
+            decode_runtime_package(&package(&manifest(&bytes, settings), &bytes, settings));
+        if valid {
+            let decoded = result.unwrap();
+            assert_eq!(decoded.source_settings().values, LegacyValues::Live);
+            // The transport gate must not be confused with portable validation.
+            assert!(import_portable(decoded.project_bytes()).project.is_none());
+        } else {
+            assert_eq!(result.err(), Some(PackageError::InvalidSettings));
+        }
     }
 }

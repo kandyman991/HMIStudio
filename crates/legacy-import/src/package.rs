@@ -4,6 +4,7 @@ use crate::{revision, MAX_INPUT_BYTES};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use flate2::{Decompress, FlushDecompress, Status};
 use serde::{de, Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Cursor, Read};
@@ -90,7 +91,7 @@ impl DecodedRuntimePackage {
     pub fn package_id(&self) -> &str {
         &self.package_id
     }
-    /// The manifest's claimed minimum schema, not a fully validated feature floor.
+    /// The manifest's minimum schema, checked against source feature predicates.
     pub fn manifest_schema_version(&self) -> u32 {
         self.manifest_schema_version
     }
@@ -483,7 +484,131 @@ impl<'de> Deserialize<'de> for OrderedScreenKeys {
     }
 }
 
-fn verify_project(bytes: &[u8], manifest: &Manifest) -> Result<(), PackageError> {
+// Source-format feature predicates, independent of the canonical schema.
+// Full source shape and reference validation still requires portable migration.
+fn object_values(v: &Value) -> impl Iterator<Item = &Value> {
+    v.as_object().into_iter().flat_map(|m| m.values())
+}
+
+fn nonempty(v: &Value) -> bool {
+    v.as_array().is_some_and(|a| !a.is_empty()) || v.as_object().is_some_and(|m| !m.is_empty())
+}
+
+fn event_actions(v: &Value) -> &[Value] {
+    match v {
+        Value::Array(a) => a,
+        _ => std::slice::from_ref(v),
+    }
+}
+
+fn action_kind(v: &Value) -> Option<&str> {
+    v["action"].as_str()
+}
+
+fn component_v10(v: &Value) -> bool {
+    matches!(
+        v["type"].as_str(),
+        Some("switch" | "slider" | "numericInput" | "textInput" | "dropDown")
+    ) || v["actions"].as_object().is_some_and(|events| {
+        events.iter().any(|(event, value)| {
+            let actions = event_actions(value);
+            event != "press"
+                || actions.len() != 1
+                || actions.iter().any(|a| match action_kind(a) {
+                    Some("navigate.screen" | "navigate.back" | "navigate.startup") => false,
+                    Some("open.faceplate") => a["modal"] == false || nonempty(&a["parameters"]),
+                    _ => true,
+                })
+        })
+    })
+}
+
+fn layout_v3(v: &Value) -> bool {
+    match v["node"].as_str() {
+        Some("slot") => ["maxHeightDp", "alignH", "alignV"]
+            .iter()
+            .any(|k| !v[*k].is_null()),
+        Some("stack") => {
+            v["direction"] == "GRID"
+                || v["columns"].as_i64().is_some_and(|n| n != 0)
+                || v["children"]
+                    .as_array()
+                    .is_some_and(|a| a.iter().any(layout_v3))
+        }
+        _ => false,
+    }
+}
+
+fn required_schema_version(v: &Value) -> u32 {
+    let screens = || object_values(&v["screens"]);
+    let components = || screens().flat_map(|s| object_values(&s["components"]));
+    let definitions = || object_values(&v["componentDefinitions"]);
+    let elements = || definitions().flat_map(|d| object_values(&d["composition"]["elements"]));
+    let layouts = || screens().filter_map(|s| s.get("layout").filter(|l| !l.is_null()));
+    if nonempty(&v["enumerations"])
+        || screens().any(|s| nonempty(&s["actions"]))
+        || components().chain(elements()).any(component_v10)
+    {
+        10
+    } else if object_values(&v["externalMappings"]).any(|m| !m["command"].is_null())
+        || object_values(&v["externalSources"]).any(|s| s["commissioningAllowed"] == true)
+    {
+        9
+    } else if !v["security"].is_null()
+        || screens()
+            .chain(components())
+            .chain(elements())
+            .any(|s| !s["requiredPermission"].is_null())
+    {
+        8
+    } else if nonempty(&v["assets"]) || !v["theme"].is_null() {
+        7
+    } else if definitions().any(|d| {
+        d.get("kind").is_some_and(|k| k != "COMPONENT")
+            || !d["category"].is_null()
+            || !d["description"].is_null()
+            || nonempty(&d["parameters"])
+            || !d["composition"].is_null()
+    }) || components().any(|c| {
+        object_values(&c["actions"])
+            .flat_map(event_actions)
+            .any(|a| action_kind(a) == Some("open.faceplate"))
+    }) {
+        6
+    } else if nonempty(&v["screenOrder"]) || components().any(|c| nonempty(&c["actions"])) {
+        5
+    } else if components().any(|c| nonempty(&c["expressions"])) {
+        4
+    } else if layouts().any(|l| layout_v3(&l["root"])) {
+        3
+    } else if layouts().next().is_some() {
+        2
+    } else {
+        1
+    }
+}
+
+fn has_live_mapping(v: &Value) -> bool {
+    let (Some(sources), Some(variables)) =
+        (v["externalSources"].as_object(), v["variables"].as_object())
+    else {
+        return false;
+    };
+    object_values(&v["externalMappings"]).any(|m| {
+        m["sourceId"]
+            .as_str()
+            .is_some_and(|id| sources.contains_key(id))
+            && m["internalVariableId"]
+                .as_str()
+                .is_some_and(|id| variables.contains_key(id))
+    })
+}
+
+fn verify_project(
+    bytes: &[u8],
+    manifest: &Manifest,
+    settings: &LegacyRuntimeSettings,
+) -> Result<(), PackageError> {
     let header: ProjectHeader = parse(bytes, PackageError::InvalidProject)?;
     let screens = &header.screens.0;
     let startup = header
@@ -493,15 +618,19 @@ fn verify_project(bytes: &[u8], manifest: &Manifest) -> Result<(), PackageError>
         .filter(|id| screens.contains(id))
         .or_else(|| header.screen_order.iter().find(|id| screens.contains(id)))
         .or_else(|| screens.iter().find(|id| !id.starts_with("definition:")));
-    // The writer puts the minimum required schema in the manifest but retains
-    // higher declared project versions. Exact minimum-feature semantics and
-    // full project validation belong to subsequent portable migration.
+    // The writer retains higher declared versions. Compute the minimum
+    // feature version from the original source, not the canonical model.
+    let source: Value = serde_json::from_slice(bytes).map_err(|_| PackageError::InvalidProject)?;
     if header.metadata.name != manifest.project_name
         || !matches!(header.schema_version, 1..=10)
         || header.schema_version < manifest.schema_version
+        || required_schema_version(&source) != manifest.schema_version
         || startup != manifest.startup_screen.as_ref()
     {
         return Err(PackageError::InvalidProject);
+    }
+    if settings.values == LegacyValues::Live && !has_live_mapping(&source) {
+        return Err(PackageError::InvalidSettings);
     }
     Ok(())
 }
@@ -571,8 +700,8 @@ pub fn decode_runtime_package(bytes: &[u8]) -> Result<DecodedRuntimePackage, Pac
     if !entries.is_empty() {
         return Err(PackageError::UnexpectedEntry);
     }
-    verify_project(&project, &manifest)?;
     let settings = parse(&settings, PackageError::InvalidSettings)?;
+    verify_project(&project, &manifest, &settings)?;
     Ok(DecodedRuntimePackage {
         project,
         package_id: manifest.package_id,

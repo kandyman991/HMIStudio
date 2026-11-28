@@ -101,3 +101,26 @@ B5-07 required full bounded pixel decoding for imported PNG and JPEG images befo
 ## Independent P1 review corrections
 
 The public package writers require a `CompiledProject` and refuse runtime settings that differ from the mode checked by the compiler. Both paths therefore require compiler resource validation before serialization. The raw ZIP serializers are private and exercised directly by the transport golden tests. The Ed25519 verifier uses the original entries returned by the bounded transport decoder. Caller-provided raster limits can tighten the consumer bounds.
+
+## 7. Post-Review CI Verification, Archive vs. Entry Equality & Remaining Blockers (`2bcc3c1`)
+
+- **Hosted CI verified on exact review-fix head `2bcc3c1eb42848e3bd548952c6c9be483b88b0aa` (18/18 checks passed):**
+  - [Desktop CI run 46106604087](https://github.com/kandyman991/HMIStudio/actions/runs/46106604087): **17/17 PASS** — `changes`, `frontend`, all 6 crates on `ubuntu-24.04` and `windows-latest` (`project-model`, `engineering-core`, `legacy-import`, `runtime-package`, `hmi-engine`, `tag-engine`), zero-ignored `cargo audit` on all audited lockfiles, `desktop (ubuntu-24.04, deb)` (`5m43s`, artifact `hmi-studio-ubuntu-24.04`, 6,118,503 B), `desktop (windows-latest, msi)` (`11m53s`, artifact `hmi-studio-windows-latest`, 5,640,961 B), and `Required CI`.
+  - [Engineering handoff snapshot run 46106604091](https://github.com/kandyman991/HMIStudio/actions/runs/46106604091): **1/1 PASS**.
+- **Archive-level vs. entry-level byte equality (JDK 21 `ZipOutputStream` vs. Rust `zip::ZipWriter`):**
+  - **Entry-level equality: 100% byte-for-byte identical.** Against `RuntimePackageFixture.java` (`runtime-unsigned-java.synthetic` and `runtime-signed-java.synthetic`), Rust emits byte-identical `manifest.json`, `project.json`, `runtime.json`, `signature.json`, `packageId`, CRC-32 checksums, uncompressed sizes, entry order, and fixed DOS timestamp `(1980, 1, 1, 0, 0, 0)`.
+  - **Archive-level equality: differs at the ZIP framing layer (expected and explained).** Inspecting the raw ZIP headers shows two exact differences:
+    1. *General-purpose bit flags & data descriptors:* JDK 21 `java.util.zip.ZipOutputStream` writes streaming entries with `flag_bits = 0x0808` (bit 3 `0x0008` trailing 16-byte data descriptor per entry + bit 11 `0x0800` UTF-8 flag), leaving local header CRC/sizes zeroed. Rust `zip::ZipWriter` over seekable `Cursor<Vec<u8>>` writes `flag_bits = 0x0000` (pure-ASCII entry names) with exact CRC/sizes in the local file header and no trailing data descriptors.
+    2. *DEFLATE encoder implementation:* JDK 21 uses native `zlib` (`java.util.zip.Deflater`) while Rust uses `flate2` + `zlib-rs`; both produce valid RFC 1951 streams with identical uncompressed bytes and CRCs, though compressed bitstreams may differ across encoders.
+  - Both formats are bit-for-bit deterministic across repeated runs within the same serializer.
+- **OpenJDK 21 (`21.0.13`) cross-reader & JCA Ed25519 check (non-substitute for private Kotlin Tink admission):**
+  - Compiled `crates/project-model/fixtures/valid/minimal.hmi.json` with `compile_project` + `build_signed_package` using deterministic RFC 8032 TV1 test seed (`keyId = "interop-test-key"`, `sequence = 1`, `createdAtMs = 1700000000000`, `createdBy = "hmi-studio-interop-check"`, `Deflated`):
+    - `packageId`: `bb2ed9278a7e4a7265a108059d981694e67dd113b8315eeef43b03981100a381`
+    - Archive size / SHA-256: `1315 B` / `c453ae8bdccd2cb28b2a38082873399883ab599c779d92453676ebc1f3469171`
+    - `project.json` SHA-256: `2f38522fa44107037c38a5d49e9381c1ba4ba3d4d5663f1b46da86c9e5b9da9a`
+    - `runtime.json` SHA-256: `6febe16a44ea2f76835d52722560307123be3f19ca8935a778c808fc343f0ab0`
+  - Verified with OpenJDK 21 `java.util.zip.ZipFile`, `java.util.zip.ZipInputStream`, `MessageDigest("SHA-256")`, and `Signature.getInstance("Ed25519")`: entry lists and bytes match identically across streaming and random-access ZIP readers, `packageId` recomputes identically, and Ed25519 signature over the finalized `manifest.json` bytes verifies (`true`).
+- **Exact blockers remaining before P1 merge (re-verified 2026-11-28):**
+  1. **Private HMI Forge checkout (`92a612d104693800d7119ee4dc0114636b19002f`) unavailable in this VM:** GitHub token is scoped to `kandyman991/HMIStudio` only (`gh repo view kandyman991/hmiforge` and `kandyman991/HMIForge` return `GraphQL: Resource not accessible by integration (repository)`), and no local private checkout exists. Executing the actual private Kotlin `RuntimePackages.build` serializer and `PackageAdmission` verifier (JVM and Android) remains blocked on access to an authorized private checkout.
+  2. **Android API 26 emulator unavailable in this VM:** `/opt/android-sdk` has only `platforms/android-34..36` and `build-tools/33.0.2..35.0.0`, with no `emulator/` binary, no `system-images/`, no `platforms/android-26`, and `adb devices` empty.
+

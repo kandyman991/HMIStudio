@@ -814,8 +814,8 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 **Blockers**
 
-- Verify the P1 review corrections on hosted CI and complete Kotlin interoperability validation before merging P1.
-- Generate a golden fixture using the pinned private Kotlin serializer and verify Rust-signed packages through Kotlin PackageAdmission on JVM and Android API 26.
+- Generate a synthetic format-2 golden fixture with the actual private Kotlin RuntimePackages.build serializer at pinned revision 92a612d104693800d7119ee4dc0114636b19002f (blocked in this VM: private HMI Forge repository is not accessible to the VM GitHub integration and not checked out locally).
+- Verify that actual Kotlin PackageAdmission accepts a Rust-signed format-2 package on JVM and Android API 26 (blocked in this VM: no private runtime checkout, no Android emulator binary, no android-26 platform/system image, and no attached Android device).
 
 **Assignment** · Antigravity, feat/reuse-04-p1-runtime-package (recorded 2026-11-28T02:59:23Z)
 
@@ -827,6 +827,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-28 · started · Reserved RUST-05 for REUSE-04 P1 on branch feat/reuse-04-p1-runtime-package from verified main 05146d7. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 - 2026-11-28 · handoff · Completed independently validatable REUSE-04 P1 deliverables: B5-07 bounded PNG/JPEG pixel decoding across legacy-import, engineering-core, src-tauri and runtime-package; deterministic Rust format-1/2 compiler & serializer matching JDK 21 golden fixtures byte-for-byte; RFC 8032 Ed25519 O-8 recommendation and tests. Recorded private-repo and Android API 26 access gaps; paused for independent review before merge or P2. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 - 2026-11-28 · note · Independent P1 review confirmed the format-2 signing input from pinned Kotlin source and corrected package writer validation, ZIP verifier entry provenance, and raster limit enforcement. Kotlin execution evidence is pending. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Verified 18/18 hosted CI checks passed on PR #40 review-fix head 2bcc3c1 (including Windows MSI 11m53s and Ubuntu DEB 5m43s), documented entry-level vs. archive-level ZIP comparison and OpenJDK 21 ZipFile/ZipInputStream/Ed25519 cross-check, and re-verified exact VM blockers for private HMI Forge 92a612d checkout and Android API 26 emulator. PR #40 remains draft pending private Kotlin golden/admission checks and final review. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 
 <a id="reuse-05"></a>
 ### REUSE-05 — Deployment Modes A and B

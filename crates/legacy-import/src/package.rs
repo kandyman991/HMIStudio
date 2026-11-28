@@ -80,7 +80,7 @@ pub struct DecodedRuntimePackage {
     package_id: String,
     manifest_schema_version: u32,
     archive_sha256: String,
-    signature_status: SignatureStatus,
+    signed_entries: Option<(Vec<u8>, Vec<u8>)>,
     settings: LegacyRuntimeSettings,
 }
 
@@ -99,7 +99,17 @@ impl DecodedRuntimePackage {
         &self.archive_sha256
     }
     pub fn signature_status(&self) -> SignatureStatus {
-        self.signature_status
+        if self.signed_entries.is_some() {
+            SignatureStatus::PresentUnverified
+        } else {
+            SignatureStatus::Unsigned
+        }
+    }
+    /// Exact manifest and signature entry bytes from the validated transport.
+    pub fn signed_entries(&self) -> Option<(&[u8], &[u8])> {
+        self.signed_entries
+            .as_ref()
+            .map(|(manifest, signature)| (manifest.as_slice(), signature.as_slice()))
     }
     /// Inert source settings, never host driver or deployment settings.
     pub fn source_settings(&self) -> LegacyRuntimeSettings {
@@ -653,14 +663,14 @@ pub fn decode_runtime_package(bytes: &[u8]) -> Result<DecodedRuntimePackage, Pac
     {
         return Err(PackageError::InvalidManifest);
     }
-    let signature_status = if manifest.format == 1 {
+    let signed_entries = if manifest.format == 1 {
         if entries.contains_key(SIGNATURE)
             || manifest.sequence.is_some()
             || manifest.publisher_key_id.is_some()
         {
             return Err(PackageError::InvalidSignature);
         }
-        SignatureStatus::Unsigned
+        None
     } else {
         let raw = entries
             .remove(SIGNATURE)
@@ -674,7 +684,7 @@ pub fn decode_runtime_package(bytes: &[u8]) -> Result<DecodedRuntimePackage, Pac
         {
             return Err(PackageError::InvalidSignature);
         }
-        SignatureStatus::PresentUnverified
+        Some((manifest_bytes, raw))
     };
     let mut seen = BTreeSet::new();
     for file in &manifest.files {
@@ -707,7 +717,7 @@ pub fn decode_runtime_package(bytes: &[u8]) -> Result<DecodedRuntimePackage, Pac
         package_id: manifest.package_id,
         manifest_schema_version: manifest.schema_version,
         archive_sha256: digest(bytes),
-        signature_status,
+        signed_entries,
         settings,
     })
 }

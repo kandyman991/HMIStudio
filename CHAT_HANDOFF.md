@@ -496,3 +496,5 @@ Verified predecessor `7afef8c9a4b298a01dc45439d312af291f947150` all 21 jobs (Des
   - Owner O-8 decision remains open on REUSE-05 keystore compatibility (PBKDF2+AES-GCM migration vs. fresh keystore + re-pair) and exact signed byte slice confirmation against private `RuntimePackages.kt`.
 - **Next exact action:** Verify full exact-head hosted CI (including Windows/Linux crates, native desktop tests, zero-ignored `cargo audit` on all 4 lockfiles, and expected CI-02 MSI/DEB installers triggered by `src-tauri/Cargo.lock`), then **pause for independent P1 review** before any merge or REUSE-04 P2 work. Retain `RUST-05` reservation; keep PR in draft; no merge or production deployment claimed.
 
+
+Independent PR #40 review confirmed that Kotlin signs the finalized manifest bytes. Follow-up fixes bind package writing to validated compiler output, use the bounded ZIP reader for signature inputs, and enforce raster limit ceilings. Complete private Kotlin golden generation and JVM/API 26 admission verification before P1 integration. Publisher keystore migration remains a REUSE-05 decision.

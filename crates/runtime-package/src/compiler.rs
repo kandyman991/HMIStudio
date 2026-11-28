@@ -75,6 +75,7 @@ impl Default for CompileOptions {
 /// Output of compiling a canonical schema v2 [`Project`] to legacy `HmiProject` JSON.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompiledProject {
+    mode: CompileMode,
     project_json: Vec<u8>,
     schema_version: u32,
     project_name: String,
@@ -83,6 +84,10 @@ pub struct CompiledProject {
 }
 
 impl CompiledProject {
+    pub(crate) fn mode(&self) -> CompileMode {
+        self.mode
+    }
+
     pub fn project_json(&self) -> &[u8] {
         &self.project_json
     }
@@ -1681,6 +1686,7 @@ pub fn compile_project(
     }
 
     Ok(CompiledProject {
+        mode: options.mode,
         project_json,
         schema_version,
         project_name: project.metadata.name.clone(),

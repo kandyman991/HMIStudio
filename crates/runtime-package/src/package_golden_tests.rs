@@ -2,12 +2,12 @@
 
 use std::io::{Cursor, Read};
 
-use hmi_legacy_import::package::{decode_runtime_package, LegacyValues, SignatureStatus};
-use hmi_runtime_package::{
-    build_signed_package, build_unsigned_package, Compression, Ed25519TestSigner, ManifestSigner,
-    PackageBuildError, PackageFormat, PackageSignature, RuntimeSettings, RuntimeValues,
-    SignedPackageMeta, SigningError, UnsignedPackageMeta,
+use crate::{
+    Compression, Ed25519TestSigner, ManifestSigner, PackageBuildError, PackageFormat,
+    PackageSignature, RuntimeSettings, RuntimeValues, SignedPackageMeta, SigningError,
+    UnsignedPackageMeta,
 };
+use hmi_legacy_import::package::{decode_runtime_package, LegacyValues, SignatureStatus};
 use zip::ZipArchive;
 
 const JAVA_UNSIGNED_ARCHIVE: &[u8] =
@@ -57,7 +57,7 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
     let java_runtime_v1 = read_zip_entry(JAVA_UNSIGNED_ARCHIVE, "runtime.json");
     let java_decoded_v1 = decode_runtime_package(JAVA_UNSIGNED_ARCHIVE).unwrap();
 
-    let rust_v1 = build_unsigned_package(
+    let rust_v1 = super::build_unsigned_bytes(
         &java_project_v1,
         RuntimeSettings {
             values: RuntimeValues::Simulated,
@@ -122,7 +122,7 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
         algorithm: "TEST",
         value: "AQID",
     };
-    let rust_v2 = build_signed_package(
+    let rust_v2 = super::build_signed_bytes(
         &java_project_v2,
         RuntimeSettings::default(),
         SignedPackageMeta {
@@ -167,7 +167,7 @@ fn package_serialization_is_bit_for_bit_deterministic() {
     let project = read_zip_entry(JAVA_SIGNED_ARCHIVE, "project.json");
     let signer = Ed25519TestSigner::from_seed("publisher-det-1", [0x42u8; 32]).unwrap();
     for compression in [Compression::Deflated, Compression::Stored] {
-        let a = build_signed_package(
+        let a = super::build_signed_bytes(
             &project,
             RuntimeSettings::default(),
             SignedPackageMeta {
@@ -180,7 +180,7 @@ fn package_serialization_is_bit_for_bit_deterministic() {
             compression,
         )
         .unwrap();
-        let b = build_signed_package(
+        let b = super::build_signed_bytes(
             &project,
             RuntimeSettings::default(),
             SignedPackageMeta {
@@ -206,7 +206,7 @@ fn package_builder_explicit_refusal_matrix() {
 
     // LIVE without external mapping fails closed.
     assert_eq!(
-        build_unsigned_package(
+        super::build_unsigned_bytes(
             &project,
             RuntimeSettings {
                 values: RuntimeValues::Live,
@@ -224,7 +224,7 @@ fn package_builder_explicit_refusal_matrix() {
 
     // Format 2 requires strictly positive sequence.
     assert_eq!(
-        build_signed_package(
+        super::build_signed_bytes(
             &project,
             RuntimeSettings::default(),
             SignedPackageMeta {
@@ -243,7 +243,7 @@ fn package_builder_explicit_refusal_matrix() {
 
     // Empty version, empty createdBy, negative createdAtMs fail closed.
     assert!(matches!(
-        build_unsigned_package(
+        super::build_unsigned_bytes(
             &project,
             RuntimeSettings::default(),
             UnsignedPackageMeta {
@@ -256,7 +256,7 @@ fn package_builder_explicit_refusal_matrix() {
         Err(PackageBuildError::InvalidMetadata(_))
     ));
     assert!(matches!(
-        build_unsigned_package(
+        super::build_unsigned_bytes(
             &project,
             RuntimeSettings::default(),
             UnsignedPackageMeta {
@@ -269,7 +269,7 @@ fn package_builder_explicit_refusal_matrix() {
         Err(PackageBuildError::InvalidMetadata(_))
     ));
     assert!(matches!(
-        build_unsigned_package(
+        super::build_unsigned_bytes(
             &project,
             RuntimeSettings::default(),
             UnsignedPackageMeta {
@@ -284,7 +284,7 @@ fn package_builder_explicit_refusal_matrix() {
 
     // Invalid project JSON fails closed.
     assert_eq!(
-        build_unsigned_package(
+        super::build_unsigned_bytes(
             b"{not json",
             RuntimeSettings::default(),
             UnsignedPackageMeta {

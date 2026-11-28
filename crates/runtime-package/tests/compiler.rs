@@ -27,8 +27,9 @@ use hmi_project_model::model::{
 };
 use hmi_runtime_package::package::verify_signed_package_archive;
 use hmi_runtime_package::{
-    build_signed_package, compile_project, CompileError, CompileMode, CompileOptions, Compression,
-    Ed25519TestSigner, RuntimeSettings, RuntimeValues, SignedPackageMeta,
+    build_signed_package, build_unsigned_package, compile_project, CompileError, CompileMode,
+    CompileOptions, Compression, Ed25519TestSigner, PackageBuildError, RuntimeSettings,
+    RuntimeValues, SignedPackageMeta, UnsignedPackageMeta,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -134,7 +135,7 @@ fn minimal_canonical_v2_compiles_deterministically_and_roundtrips_format2() {
     // Build format-2 signed package for isolated development/simulation (D-004).
     let signer = Ed25519TestSigner::from_seed("dev-sim-key", [0x33u8; 32]).unwrap();
     let pkg = build_signed_package(
-        compiled_a.project_json(),
+        &compiled_a,
         RuntimeSettings::default(),
         SignedPackageMeta {
             version: "0.1.0".into(),
@@ -320,7 +321,7 @@ fn industrial_live_v10_project_with_b5_07_verified_assets_compiles_and_packages(
     // Package as LIVE format-2 signed package.
     let signer = Ed25519TestSigner::from_seed("prod-test-key", [0x77u8; 32]).unwrap();
     let pkg = build_signed_package(
-        compiled.project_json(),
+        &compiled,
         RuntimeSettings {
             values: RuntimeValues::Live,
             ..RuntimeSettings::default()
@@ -511,16 +512,49 @@ fn quarantine_and_explicit_v2_feature_refusal_matrix() {
         ),
         Err(CompileError::QuarantinedProjectRefused)
     );
-    assert!(compile_project(
+    let simulation = compile_project(
         &quarantined,
         &empty,
         CompileOptions {
             mode: CompileMode::DevelopmentSimulation,
             allow_quarantined_simulation: true,
             ..CompileOptions::default()
-        }
+        },
     )
-    .is_ok());
+    .unwrap();
+    let live_settings = RuntimeSettings {
+        values: RuntimeValues::Live,
+        ..RuntimeSettings::default()
+    };
+    assert!(matches!(
+        build_unsigned_package(
+            &simulation,
+            live_settings,
+            UnsignedPackageMeta {
+                version: "1.0".into(),
+                created_at_ms: 1000,
+                created_by: "synthetic".into(),
+            },
+            Compression::Stored,
+        ),
+        Err(PackageBuildError::CompileModeMismatch)
+    ));
+    let signer = Ed25519TestSigner::from_seed("simulation-test", [0x33; 32]).unwrap();
+    assert!(matches!(
+        build_signed_package(
+            &simulation,
+            live_settings,
+            SignedPackageMeta {
+                version: "1.0".into(),
+                created_at_ms: 1000,
+                created_by: "synthetic".into(),
+                sequence: 1,
+            },
+            &signer,
+            Compression::Stored,
+        ),
+        Err(PackageBuildError::CompileModeMismatch)
+    ));
 
     // ProductionLive without external mappings fails closed.
     assert_eq!(

@@ -2,13 +2,13 @@
 
 use std::io::{Cursor, Read, Write};
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use hmi_runtime_package::package::verify_signed_package_archive;
-use hmi_runtime_package::signing::verify_manifest_signature;
-use hmi_runtime_package::{
-    build_signed_package, Compression, Ed25519TestSigner, ManifestSigner, PackageBuildError,
-    PackageSignature, RuntimeSettings, SignedPackageMeta, SigningError, ED25519_ALGORITHM,
+use crate::package::verify_signed_package_archive;
+use crate::signing::verify_manifest_signature;
+use crate::{
+    Compression, Ed25519TestSigner, ManifestSigner, PackageBuildError, PackageSignature,
+    RuntimeSettings, SignedPackageMeta, SigningError, ED25519_ALGORITHM,
 };
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 
@@ -86,7 +86,7 @@ fn signed_format2_package_verifies_and_refuses_tampering() {
     let signer = Ed25519TestSigner::from_seed("pub-o8-test", [0x5au8; 32]).unwrap();
     let other = Ed25519TestSigner::from_seed("pub-o8-other", [0xa5u8; 32]).unwrap();
 
-    let built = build_signed_package(
+    let built = super::build_signed_bytes(
         project,
         RuntimeSettings::default(),
         SignedPackageMeta {

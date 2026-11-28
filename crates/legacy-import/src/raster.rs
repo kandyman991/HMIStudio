@@ -323,7 +323,8 @@ pub fn decode_bounded_raster(media_type: &str, bytes: &[u8]) -> Result<DecodedRa
 }
 
 /// Fully decode and validate an imported PNG or JPEG against explicit bounds
-/// and optional declared `(width, height)` metadata.
+/// and optional declared `(width, height)` metadata. Callers may tighten the
+/// default consumer limits.
 pub fn decode_bounded_raster_checked(
     media_type: &str,
     bytes: &[u8],
@@ -332,6 +333,13 @@ pub fn decode_bounded_raster_checked(
 ) -> Result<DecodedRaster, RasterError> {
     let format =
         RasterFormat::from_media_type(media_type).ok_or(RasterError::UnsupportedMediaType)?;
+    let limits = RasterLimits {
+        max_input_bytes: limits.max_input_bytes.min(MAX_RASTER_INPUT_BYTES),
+        max_width: limits.max_width.min(MAX_RASTER_DIMENSION),
+        max_height: limits.max_height.min(MAX_RASTER_DIMENSION),
+        max_pixels: limits.max_pixels.min(MAX_RASTER_PIXELS),
+        max_decoded_bytes: limits.max_decoded_bytes.min(MAX_DECODED_BYTES),
+    };
     if bytes.is_empty() || bytes.len() > limits.max_input_bytes {
         return Err(if bytes.is_empty() {
             RasterError::InvalidContainer
@@ -340,7 +348,7 @@ pub fn decode_bounded_raster_checked(
         });
     }
     match format {
-        RasterFormat::Png => decode_png(bytes, expected_dimensions, limits),
-        RasterFormat::Jpeg => decode_jpeg(bytes, expected_dimensions, limits),
+        RasterFormat::Png => decode_png(bytes, expected_dimensions, &limits),
+        RasterFormat::Jpeg => decode_jpeg(bytes, expected_dimensions, &limits),
     }
 }

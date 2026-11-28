@@ -278,3 +278,16 @@ fn malformed_compressed_png_and_jpeg_streams_are_refused() {
         Err(RasterError::InvalidContainer)
     );
 }
+
+#[test]
+fn custom_limits_cannot_expand_the_consumer_input_cap() {
+    let limits = RasterLimits {
+        max_input_bytes: RasterLimits::DEFAULT.max_input_bytes + 1,
+        ..RasterLimits::DEFAULT
+    };
+    let bytes = vec![0; limits.max_input_bytes];
+    assert_eq!(
+        decode_bounded_raster_checked("image/png", &bytes, None, &limits),
+        Err(RasterError::InputSizeLimit)
+    );
+}

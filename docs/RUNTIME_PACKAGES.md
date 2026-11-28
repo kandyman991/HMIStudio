@@ -31,7 +31,7 @@ TZ=UTC java RuntimePackageFixture.java
 | `runtime-unsigned-java.synthetic` | 1 (unsigned) | 935 B | `0dacc3d7e07de017ae6d963ff6414d5f4c0688457c5cbcce7e58b201bc9cb630` | `69c8a76ecf25fd9e230db772436d78391db321e07488327c6fbf0afa859281bf` |
 | `runtime-signed-java.synthetic` | 2 (signed) | 1144 B | `cfcef06c70d6fef87bcca84a86e0853f62a671d8285c808cd0584740839ae9f4` | `d10ca7a25c967be500f4c74cb2a4e310ac08aa786f4589bd81c25872483ce2a5` |
 
-### Rust differential compatibility (`crates/runtime-package/tests/package_golden.rs`)
+### Rust differential compatibility (`crates/runtime-package/src/package_golden_tests.rs`)
 - Matches `packageId`, 4-space pretty `manifest.json`, `project.json`, `runtime.json`, `signature.json`, and exact ZIP entry order (`manifest.json`, `project.json`, `runtime.json`, optional `signature.json`) **byte-for-byte** against both JDK 21 golden fixtures.
 - Emits ordinary single-disk ZIPs with fixed DOS timestamp `1980-01-01 00:00:00`, no ZIP64, no comments, and no extra fields; repeated builds are bit-for-bit identical in both `Deflated` and `Stored` modes.
 - Every built package is self-verified through `hmi_legacy_import::package::decode_runtime_package`.
@@ -60,11 +60,13 @@ TZ=UTC java RuntimePackageFixture.java
 
 ### Recommendation
 - **Adopt RFC 8032 Ed25519** in Rust using **`ed25519-dalek` `=2.2.0`** (`default-features = false, features = ["std"]`, BSD-3-Clause).
-- Verified in `crates/runtime-package/tests/signing_o8.rs` against official RFC 8032 Section 7.1 test vectors (TV1, TV2, TV3) plus end-to-end signed format-2 package creation, archive cryptographic verification, and tamper refusal (wrong key, wrong `keyId`, bit-flipped signature, unsupported algorithm, redacted `Debug` output).
+- Verified in `crates/runtime-package/src/signing_o8_tests.rs` against official RFC 8032 Section 7.1 test vectors (TV1, TV2, TV3) plus end-to-end signed format-2 package creation, archive cryptographic verification, and tamper refusal (wrong key, wrong `keyId`, bit-flipped signature, unsupported algorithm, redacted `Debug` output).
 
-### Remaining O-8 decisions (paused before REUSE-05 / production signing)
-1. **Publisher key store migration (O-8):** Owner decision on whether HMIStudio's future REUSE-05 publisher key store preserves HMI Forge's PBKDF2-SHA256 (210,000 iterations) + AES-256-GCM key file format and existing paired device trust, or starts a fresh HMIStudio publisher keystore and re-pairs target devices.
-2. **Live Kotlin `PackageAdmission` verification:** Once private repo (`kandyman991/hmiforge`) and Android API 26 emulator access are available, confirm the exact signed byte slice in `RuntimePackages.kt` (final `manifest.json` bytes with `packageId` populated vs. canonical blank-`packageId` manifest) and run live Kotlin JVM + Android API 26 verification of Rust-signed format-2 packages.
+### Signed payload and remaining validation
+
+Independent source review at pinned HMI Forge revision `92a612d104693800d7119ee4dc0114636b19002f` confirmed that `RuntimePackages.build` signs the exact final manifest bytes, with `packageId` populated. `PackageAdmission` verifies those original bytes. Rust uses the same signing input. The blank ID is used to compute the package identity.
+
+Generate a golden fixture with the pinned private Kotlin serializer and verify Rust-signed packages on the Kotlin JVM and Android API 26 runtimes. Publisher key store migration or re-pairing is a REUSE-05 decision.
 
 ## 5. B5-07 Bounded Full Raster Decoding Closure
 
@@ -94,3 +96,8 @@ B5-07 required full bounded pixel decoding for imported PNG and JPEG images befo
   - `crates/runtime-package`: `ed25519-dalek = "=2.2.0"` (BSD-3-Clause) + `curve25519-dalek`/`ed25519`/`signature`/`subtle`/`zeroize` (BSD-3-Clause/MIT/Apache-2.0).
   - `src-tauri/Cargo.lock`: adds `jpeg-decoder v0.3.2` only (`png` was already in the Tauri dependency graph). Under CI-02, updating `src-tauri/Cargo.lock` triggers full desktop + MSI/DEB installer verification.
 - **Advisory gate:** `.github/workflows/ci.yml` enforces `cargo audit --version 0.23.0` with zero ignored advisories on `crates/legacy-import/Cargo.lock`, `crates/engineering-core/Cargo.lock`, `crates/runtime-package/Cargo.lock`, and `src-tauri/Cargo.lock`.
+
+
+## Independent P1 review corrections
+
+The public package writers require a `CompiledProject` and refuse runtime settings that differ from the mode checked by the compiler. Both paths therefore require compiler resource validation before serialization. The raw ZIP serializers are private and exercised directly by the transport golden tests. The Ed25519 verifier uses the original entries returned by the bounded transport decoder. Caller-provided raster limits can tighten the consumer bounds.

@@ -35,9 +35,8 @@
     "docs/RUNTIME_PACKAGES.md"
   ],
   "blockers": [
-    "Independent P1 review required before merging P1 or starting P2.",
-    "Private Kotlin runtime repository (kandyman991/hmiforge) and Android API 26 emulator target are unavailable in this environment; live Kotlin RuntimePackages.build / PackageAdmission verification and Android API 26 instrumented testing remain pending access.",
-    "Owner O-8 decision pending on REUSE-05 publisher keystore compatibility (preserve PBKDF2+AES-GCM keystore vs. fresh keystore + re-pair) and confirmation of exact signed payload bytes in private RuntimePackages.kt."
+    "Verify the P1 review corrections on hosted CI and complete Kotlin interoperability validation before merging P1.",
+    "Generate a golden fixture using the pinned private Kotlin serializer and verify Rust-signed packages through Kotlin PackageAdmission on JVM and Android API 26."
   ],
   "parent": "RUST-05",
   "claimGroup": "RUST-05",
@@ -58,6 +57,12 @@
       "date": "2026-11-28",
       "type": "handoff",
       "summary": "Completed independently validatable REUSE-04 P1 deliverables: B5-07 bounded PNG/JPEG pixel decoding across legacy-import, engineering-core, src-tauri and runtime-package; deterministic Rust format-1/2 compiler & serializer matching JDK 21 golden fixtures byte-for-byte; RFC 8032 Ed25519 O-8 recommendation and tests. Recorded private-repo and Android API 26 access gaps; paused for independent review before merge or P2.",
+      "record": "docs/RUNTIME_PACKAGES.md"
+    },
+    {
+      "date": "2026-11-28",
+      "type": "note",
+      "summary": "Independent P1 review confirmed the format-2 signing input from pinned Kotlin source and corrected package writer validation, ZIP verifier entry provenance, and raster limit enforcement. Kotlin execution evidence is pending.",
       "record": "docs/RUNTIME_PACKAGES.md"
     }
   ]

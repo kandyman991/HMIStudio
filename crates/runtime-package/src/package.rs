@@ -5,7 +5,7 @@
 //! `runtime.json`, and `signature.json` for format 2), 4-space pretty-printed
 //! `manifest.json`, and exact `packageId` digests matching HMI Forge format 1/2.
 
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Write};
 
 use hmi_legacy_import::package::{decode_runtime_package, MAX_PACKAGE_BYTES};
 use hmi_legacy_import::MAX_INPUT_BYTES;
@@ -13,8 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
+use zip::{CompressionMethod, DateTime, ZipWriter};
 
+use crate::compiler::{CompileMode, CompiledProject};
 use crate::signing::{verify_manifest_signature, ManifestSigner, PackageSignature, SigningError};
 
 const MANIFEST_ENTRY: &str = "manifest.json";
@@ -183,6 +184,8 @@ pub enum PackageBuildError {
     InvalidMetadata(&'static str),
     #[error("LIVE runtime settings require at least one valid external source mapping")]
     LiveMappingRequired,
+    #[error("runtime settings do not match the validated project compile mode")]
+    CompileModeMismatch,
     #[error("manifest or runtime metadata serialization failed")]
     SerializationFailed,
     #[error("signing failed: {0}")]
@@ -349,6 +352,30 @@ fn write_deterministic_zip(
 
 /// Build a deterministic format-1 (unsigned) `.hmipkg` runtime package.
 pub fn build_unsigned_package(
+    project: &CompiledProject,
+    settings: RuntimeSettings,
+    meta: UnsignedPackageMeta,
+    compression: Compression,
+) -> Result<BuiltPackage, PackageBuildError> {
+    validate_compile_mode(project, settings.values)?;
+    build_unsigned_bytes(project.project_json(), settings, meta, compression)
+}
+
+fn validate_compile_mode(
+    project: &CompiledProject,
+    values: RuntimeValues,
+) -> Result<(), PackageBuildError> {
+    let expected = match project.mode() {
+        CompileMode::DevelopmentSimulation => RuntimeValues::Simulated,
+        CompileMode::ProductionLive => RuntimeValues::Live,
+    };
+    if values != expected {
+        return Err(PackageBuildError::CompileModeMismatch);
+    }
+    Ok(())
+}
+
+fn build_unsigned_bytes(
     project_json: &[u8],
     settings: RuntimeSettings,
     meta: UnsignedPackageMeta,
@@ -434,6 +461,17 @@ pub fn build_unsigned_package(
 /// The `packageId` is the SHA-256 of the canonical 4-space `manifest.json` with
 /// `packageId: ""`, and `signer` signs the finalized `manifest.json` bytes.
 pub fn build_signed_package(
+    project: &CompiledProject,
+    settings: RuntimeSettings,
+    meta: SignedPackageMeta,
+    signer: &dyn ManifestSigner,
+    compression: Compression,
+) -> Result<BuiltPackage, PackageBuildError> {
+    validate_compile_mode(project, settings.values)?;
+    build_signed_bytes(project.project_json(), settings, meta, signer, compression)
+}
+
+fn build_signed_bytes(
     project_json: &[u8],
     settings: RuntimeSettings,
     meta: SignedPackageMeta,
@@ -544,30 +582,11 @@ pub fn verify_signed_package_archive(
 ) -> Result<VerifiedPackageSummary, PackageBuildError> {
     let decoded = decode_runtime_package(archive_bytes)
         .map_err(|e| PackageBuildError::SelfVerificationFailed(format!("{e:?}")))?;
-    let mut zip = ZipArchive::new(Cursor::new(archive_bytes))
-        .map_err(|_| PackageBuildError::SelfVerificationFailed("zip open failed".into()))?;
-    let read_entry = |zip: &mut ZipArchive<Cursor<&[u8]>>, name: &str| {
-        let f = zip
-            .by_name(name)
-            .map_err(|_| PackageBuildError::SelfVerificationFailed("missing entry".into()))?;
-        let mut buf = Vec::new();
-        f.take((MAX_METADATA_BYTES + 1) as u64)
-            .read_to_end(&mut buf)
-            .map_err(|_| PackageBuildError::SelfVerificationFailed("read failed".into()))?;
-        if buf.len() > MAX_METADATA_BYTES {
-            return Err(PackageBuildError::SizeLimit);
-        }
-        Ok(buf)
-    };
-    let manifest_bytes = read_entry(&mut zip, MANIFEST_ENTRY)?;
-    let signature_bytes = read_entry(&mut zip, SIGNATURE_ENTRY)?;
-    let manifest: PackageManifest = serde_json::from_slice(&manifest_bytes)
+    let (manifest_bytes, signature_bytes) = decoded.signed_entries().ok_or_else(|| {
+        PackageBuildError::SelfVerificationFailed("archive is not format 2".into())
+    })?;
+    let manifest: PackageManifest = serde_json::from_slice(manifest_bytes)
         .map_err(|_| PackageBuildError::SelfVerificationFailed("invalid manifest".into()))?;
-    if manifest.format != 2 {
-        return Err(PackageBuildError::SelfVerificationFailed(
-            "archive is not format 2".into(),
-        ));
-    }
     let sequence = manifest
         .sequence
         .filter(|&s| s > 0)
@@ -578,12 +597,12 @@ pub fn verify_signed_package_archive(
     if publisher_key_id != expected_key_id {
         return Err(PackageBuildError::Signing(SigningError::KeyIdMismatch));
     }
-    let signature: PackageSignature = serde_json::from_slice(&signature_bytes)
+    let signature: PackageSignature = serde_json::from_slice(signature_bytes)
         .map_err(|_| PackageBuildError::SelfVerificationFailed("invalid signature json".into()))?;
     verify_manifest_signature(
         public_key_bytes,
         expected_key_id,
-        &manifest_bytes,
+        manifest_bytes,
         &signature,
     )?;
 
@@ -595,3 +614,11 @@ pub fn verify_signed_package_archive(
         publisher_key_id,
     })
 }
+
+#[cfg(test)]
+#[path = "package_golden_tests.rs"]
+mod golden_tests;
+
+#[cfg(test)]
+#[path = "signing_o8_tests.rs"]
+mod signing_o8_tests;

@@ -1,0 +1,29 @@
+[package]
+name = "hmi-runtime-package"
+version = "0.1.0"
+edition = "2021"
+description = "Deterministic format-1/format-2 HMI runtime package compiler, ZIP serializer, and RFC 8032 Ed25519 signing/verification."
+repository = "https://github.com/kandyman991/HMIStudio"
+publish = false
+# No `license` field on purpose: the project owner has not selected a license yet.
+
+[workspace]
+
+[dependencies]
+hmi-project-model = { path = "../project-model" }
+hmi-legacy-import = { path = "../legacy-import" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.145", features = ["float_roundtrip"] }
+sha2 = "0.10.9"
+base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
+zip = { version = "=9.8.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["std"] }
+thiserror = "2"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"

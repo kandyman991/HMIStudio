@@ -8,6 +8,7 @@ mod industrial;
 mod navigation;
 pub mod package;
 mod primitives;
+pub mod raster;
 mod resources;
 mod review;
 pub mod revision;

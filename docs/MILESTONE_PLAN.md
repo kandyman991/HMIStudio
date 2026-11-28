@@ -25,7 +25,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-02C.4B](#reuse-02c.4b) Write-capable EngineDriver integration | Reuse | Planned | [REUSE-02C.4A](#reuse-02c.4a) (merged) |
 | [REUSE-02C](#reuse-02c) Supervised bridge | Reuse | In progress | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
-| [REUSE-04](#reuse-04) Runtime compatibility | Reuse | Planned | [REUSE-03](#reuse-03) (merged) |
+| [REUSE-04](#reuse-04) Runtime compatibility | Reuse | In progress | [REUSE-03](#reuse-03) (merged) |
 | [REUSE-05](#reuse-05) Deployment Modes A and B | Reuse | Planned | [REUSE-04](#reuse-04) (merged) |
 | [REUSE-06](#reuse-06) Migration acceptance and retirement | Reuse | Planned | [REUSE-02](#reuse-02) (merged), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged), [REUSE-05](#reuse-05) (merged) |
 | [RUST-00](#rust-00) Repository foundation | Engineering | Merged | — |
@@ -797,7 +797,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
 
-**Planned** · Proposed RUST-05B mapping. P1 compatibility package and P2 Kotlin parity remain separate slices.
+**In progress** · P1 delivered and Kotlin/Android-validated on draft branch feat/reuse-04-p1-runtime-package (predecessor f506dfd: 18/18 CI, Kotlin 92a612d JVM 3/3 PASS, Android API 26 5/5 PASS); F01/F02 fail-closed write-policy validation and 13/13 Rust compiler regression tests added without altering frozen schema v2; paused for exact-head CI, focused Legion JVM/API 26 boundary differential run, and final independent P1 review before merge or P2.
 
 **Acceptance criteria**
 
@@ -814,13 +814,21 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 **Blockers**
 
-- Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work.
+- Execute focused Kotlin JVM and Android API 26 differential regression tests on the Legion (private HMI Forge 92a612d + hmistudio-api-26 AVD unavailable in cloud VM) against the F01/F02 corrected commit and f01\_f02\_boundaries\_v10\_signed\_seq1.hmipkg, then complete final independent P1 pre-merge review.
 
-Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+**Assignment** · Antigravity, feat/reuse-04-p1-runtime-package (recorded 2026-11-28T02:59:23Z)
+
+Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 
 **History**
 
 - 2026-11-27 · note · Owner assigned the bounded raster decoding gate from REUSE-03B to this milestone. Imported bytes remain inert pending validation. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-28 · started · Reserved RUST-05 for REUSE-04 P1 on branch feat/reuse-04-p1-runtime-package from verified main 05146d7. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Completed independently validatable REUSE-04 P1 deliverables: B5-07 bounded PNG/JPEG pixel decoding across legacy-import, engineering-core, src-tauri and runtime-package; deterministic Rust format-1/2 compiler & serializer matching JDK 21 golden fixtures byte-for-byte; RFC 8032 Ed25519 O-8 recommendation and tests. Recorded private-repo and Android API 26 access gaps; paused for independent review before merge or P2. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · note · Independent P1 review confirmed the format-2 signing input from pinned Kotlin source and corrected package writer validation, ZIP verifier entry provenance, and raster limit enforcement. Kotlin execution evidence is pending. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Verified 18/18 hosted CI checks passed on PR #40 review-fix head 2bcc3c1 (including Windows MSI 11m53s and Ubuntu DEB 5m43s), documented entry-level vs. archive-level ZIP comparison and OpenJDK 21 ZipFile/ZipInputStream/Ed25519 cross-check, and re-verified exact VM blockers for private HMI Forge 92a612d checkout and Android API 26 emulator. PR #40 remains draft pending private Kotlin golden/admission checks and final review. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Completed Kotlin golden comparison and JVM/Android API 26 PackageAdmission validation against pinned private HMI Forge 92a612d (from Rust predecessor bea6ec3). Fixed two confirmed Rust defects (omitting WriteCommand.confirm on SETPOINT/MAINTAINED per WriteRules.kt; 4-space pretty-printing runtime.json/signature.json and trimming/bounding version 1..=40 per RuntimePackages.kt). Verified Kotlin JVM 3/3 PASS, Android API 26 (hmistudio-api-26, SDK 26, tink-android) 5/5 PASS, and Rust fmt/strict Clippy/regression tests PASS. Paused for exact-head CI and independent P1 pre-merge review. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Resolved independent review findings F01 and F02 on PR #40 predecessor f506dfd (18/18 CI pass): enforced fail-closed momentary pulse bounds (100..=5000 ms), required setpoint min/max with strict min \< max and step \> 0, and exact IEEE 754 binary64 representability for INT64 engineering limits at the Rust compiler boundary without altering frozen schema v2 or silently adjusting limits. Local Rust fmt/Clippy/rustdoc/13-of-13 runtime-package tests pass and all 7 prior interop fixtures remain byte-identical; added optional --f01-f02-boundaries fixture (f01\_f02\_boundaries\_v10\_signed\_seq1.hmipkg). Focused Legion Kotlin JVM and Android API 26 differential tests on the corrected commit remain pending execution on the owner's Legion machine (private hmiforge 92a612d and hmistudio-api-26 AVD unavailable in cloud VM). PR #40 remains draft with RUST-05 reserved. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 
 <a id="reuse-05"></a>
 ### REUSE-05 — Deployment Modes A and B

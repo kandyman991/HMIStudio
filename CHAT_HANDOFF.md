@@ -481,3 +481,5 @@ Verified predecessor `7afef8c9a4b298a01dc45439d312af291f947150` all 21 jobs (Des
 ## REUSE-03B integrated (2026-11-27)
 
 [PR #36](https://github.com/kandyman991/HMIStudio/pull/36) merged at `e2b94059f815f549a1186ce565f30e08f9db96a1` after independent F01/F02 verification and full CI on `5f476d065bb09f40d060f862a64fadeaa0208e27`. The [review closure](docs/LEGACY_IMPORT.md#reuse-03b-engineering-review-closure-2026-11-27) records the 21 jobs and B5-07 disposition. REUSE-04 requires bounded full raster decoding before any renderer or runtime consumes imported image bytes.
+
+2026-11-28: Verified the live reservation list was empty after release of the REUSE-03 claim on RUST-05. The roadmap snapshot now reflects that release.

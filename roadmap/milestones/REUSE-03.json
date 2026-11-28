@@ -298,6 +298,12 @@
       "type": "merged",
       "summary": "Codex independently verified F01/F02 on 5f476d0, closed cumulative engineering review, confirmed 21/21 hosted jobs and verified merge e2b9405 on main. Owner deferred B5-07 to REUSE-04 before image use.",
       "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-28",
+      "type": "note",
+      "summary": "Verified that the RUST-05 reservation for merged PR #36 was released. The live reservation list was empty at closeout.",
+      "record": "CHAT_HANDOFF.md"
     }
   ],
   "completionPr": 36

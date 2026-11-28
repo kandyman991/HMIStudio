@@ -124,3 +124,57 @@ The public package writers require a `CompiledProject` and refuse runtime settin
   1. **Private HMI Forge checkout (`92a612d104693800d7119ee4dc0114636b19002f`) unavailable in this VM:** GitHub token is scoped to `kandyman991/HMIStudio` only (`gh repo view kandyman991/hmiforge` and `kandyman991/HMIForge` return `GraphQL: Resource not accessible by integration (repository)`), and no local private checkout exists. Executing the actual private Kotlin `RuntimePackages.build` serializer and `PackageAdmission` verifier (JVM and Android) remains blocked on access to an authorized private checkout.
   2. **Android API 26 emulator unavailable in this VM:** `/opt/android-sdk` has only `platforms/android-34..36` and `build-tools/33.0.2..35.0.0`, with no `emulator/` binary, no `system-images/`, no `platforms/android-26`, and `adb devices` empty.
 
+## 8. Verified Kotlin Golden Comparison, JVM Admission & Android API 26 Instrumentation (2026-11-28)
+
+Both environment blockers recorded in §7 were resolved in an authorized local validation environment with the pinned private HMI Forge checkout (`92a612d104693800d7119ee4dc0114636b19002f`), OpenJDK `21.0.13.1`, Gradle `9.5.0`, and the `hmistudio-api-26` KVM-accelerated Android emulator (`ro.build.version.sdk = 26`, Android `8.0.0`, `x86_64`). All private Kotlin source and private-side test harnesses remain strictly outside this public repository; only the original public fixture emitter (`crates/runtime-package/examples/emit_interop_fixtures.rs`), Rust corrections/regression tests, and sanitized synthetic evidence are recorded here.
+
+### Exact tested revisions
+- **Rust predecessor baseline:** `bea6ec36043c88b56db725e442187155bc4641d1` (PR #40 branch `feat/reuse-04-p1-runtime-package`; corrections applied on successor commit).
+- **Pinned private Kotlin runtime baseline:** `92a612d104693800d7119ee4dc0114636b19002f` (`RuntimePackages.build`, `RuntimePackages.read`, `HmiProjectJson`, `HmiProjectValidator`, `PackageAdmission`, `PackageStore`, `TrustList`, Google Tink `Ed25519Sign`/`Ed25519Verify` on JVM and `tink-android` on Android API 26).
+- **Frozen canonical schema v2 preserved:** `crates/project-model/` unchanged (`schema/hmi-project.v2.schema.json` SHA-256 `b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738`).
+
+### Discrepancies discovered on `bea6ec3` and corrections applied
+1. **Confirmed semantic defect (`crates/runtime-package/src/compiler.rs`):**
+   - *Finding:* Rust emitted `"confirm": true` on `SETPOINT` and `MAINTAINED` write commands whenever `TagWritePolicy.confirmation_required == true`. Running the actual Kotlin `RuntimePackages.read` -> `HmiProjectValidator.validate` rejected the compiled `industrial_live_v10` package with `The project has 1 error(s), first: Setpoints are always confirmed` (`WriteRules.kt` reserves `WriteCommand.confirm` strictly for `MOMENTARY` commands).
+   - *Correction:* Emit `"confirm": true` only for `CommandKind::Momentary` when `confirmation_required == true`; omit `"confirm"` for `CommandKind::Maintained` and `CommandKind::Setpoint` when `confirmation_required == true`, and fail closed (`CompileError::UnsupportedFeature("unconfirmedSetpointOrMaintained")`) if `confirmation_required == false`. Added regression test `write_command_confirm_matches_kotlin_write_rules` in `crates/runtime-package/tests/compiler.rs`.
+2. **Confirmed wire formatting & metadata parity defect (`crates/runtime-package/src/package.rs`):**
+   - *Finding:* Rust serialized `runtime.json` and `signature.json` as compact JSON (77 B / 197 B) instead of 4-space pretty-printed JSON (102 B / 216 B) matching Kotlin `RuntimePackages.build` (`Json { prettyPrint = true; encodeDefaults = false; ignoreUnknownKeys = false }`), and did not trim `version` or enforce Kotlin's 40-character maximum length.
+   - *Correction:* Generalized `format_json_4space` in `crates/runtime-package/src/package.rs` for `manifest.json`, `runtime.json`, and `signature.json`; trimmed `version` and enforced `1..=40` UTF-16 code units. Updated `crates/runtime-package/src/package_golden_tests.rs` to verify exact 4-space Kotlin wire formatting while preserving historical `crates/legacy-import/tests/fixtures/runtime-*-java.synthetic` replay fixtures untouched.
+3. **Harmless / expected differences distinguished from semantic defects:**
+   - *`project.json` serialization:* Rust `compile_project` emits compact JSON omitting default fields (`501 B` for `minimal`, `2,652 B` for `industrial_live_v10`), whereas Kotlin `HmiProjectJson.encode` emits 4-space pretty-printed JSON with `encodeDefaults = true` (`1,931 B` / `5,343 B`). Deserialized `HmiProject` semantics are **100% identical** (`kotlinReloaded.project == rustDecoded.project`), `HmiProjectValidator.validate` reports **0 errors**, and because `manifest.json` hashes the actual `project.json` bytes, `runtime.json`, `manifest.json` 4-space serialization, `packageId` formula, ZIP entry order, and Tink `Ed25519Sign` vs. Rust `ed25519-dalek` `signature.json` bytes are **100% byte-for-byte identical**.
+   - *ZIP archive framing:* Rust `zip::ZipWriter` (`flag_bits = 0x0000`, header CRC/sizes, `zlib-rs`) vs. JDK/Android `ZipOutputStream` (`flag_bits = 0x0808`, trailing data descriptors, native `zlib`). Entry names, order, and unpacked entry bytes match identically across both serializers and readers.
+
+### Synthetic interop fixtures (`cargo run --locked --example emit_interop_fixtures -- <dir>`)
+Deterministic public RFC 8032 test keys (non-production):
+- **TV1 (trusted publisher):** `keyId = 21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9` (`publicKeyHex = d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a`)
+- **TV2 (untrusted publisher):** `keyId = 39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f` (`publicKeyHex = 3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c`)
+
+| Fixture | Format | Size | `packageId` | Archive SHA-256 |
+| --- | --- | ---: | --- | --- |
+| `minimal_v2_unsigned.hmipkg` | 1 | 1035 B | `1cefbb4db5f5870227a2e3cea74ad0d899a75c2ae4de25fd31a57fbf1e423f7c` | `607331a9836008db0bf976531021e73d6d15f795b5635fe60b384faea5a89680` |
+| `minimal_v2_signed_seq1.hmipkg` | 2 (TV1, seq 1) | 1394 B | `932b10e150a30cde8908af2c5f34659eb0131ffe66eabcfdfa2a0dba691de9b5` | `0adfae75e0ef3f0b911b5b396bc1a48c28629697d25adda48332fd2cd1d0b26a` |
+| `minimal_v2_signed_seq2.hmipkg` | 2 (TV1, seq 2) | 1393 B | `4d29b0e31c491d1094faf69ae2018add2d011e42442153281c337fa0d7519c97` | `cc0153a6ea868822934984e17206c571916665fdb5993a598dcbe057064bd93f` |
+| `minimal_v2_signed_untrusted.hmipkg` | 2 (TV2, seq 3) | 1395 B | `9d94cbeeaca184f0360e68d0cae168c55d0513424cf79cccccb0d89bc0382598` | `172107b6cec7069bf08bdc08474dad1646feb5f16e5a672c85b91d602fd7bac2` |
+| `industrial_live_v10_unsigned.hmipkg` | 1 | 2057 B | `4373c0183f11fcf1ab6f30f2f83cf7eb9c6a8f6f5adb637784a5f7b27f09532c` | `6bc4c041c3109e53ea97d384c4384103dc47813a3cfef0ea4ca654f5cf84e8a1` |
+| `industrial_live_v10_signed_seq1.hmipkg` | 2 (TV1, seq 1) | 2411 B | `f8f069096a5919cc83558c4db5e11c257c9dbf464b467a70b776bd2dafa1ddc9` | `7f388dfd4e9f647ed92985b1e098383838da3a344b0fe6a05194d0ebf4db93d9` |
+| `industrial_live_v10_signed_seq2.hmipkg` | 2 (TV1, seq 2) | 2416 B | `3f20deccec4c723bd25e9c3e81ee50314254aa1bbb9c22c5066adbd320a94c16` | `e790f1d734d0fd96ef0a23b69da3a141409524761e018e043ec356cdc8ea182a` |
+
+### Execution evidence & test counts
+- **Kotlin JVM golden & `PackageAdmission` (`:runtime:jvmTest`, private harness `Reuse04P1InteropTest` against pinned `92a612d` + Google Tink):** **3/3 PASS** (`0` failures, `0` skipped):
+  - `goldenDifferentialComparisonAgainstKotlinRuntimePackagesBuild`: PASS across format-1 & format-2 `minimal` (v2, `SIMULATED`) and `industrial_live_v10` (v10, `LIVE`, S7 connection, `TagWritePolicy`, `SecurityPolicy`, `EnumerationDefinition`, B5-07 verified PNG/JPEG/SVG assets). Confirmed byte-for-byte `runtime.json`, 4-space `manifest.json`, `packageId` formula, ZIP entry order, Tink `Ed25519Sign` vs. Rust `signature.json`, and 100% identical deserialized `HmiProject` semantics.
+  - `jvmPackageAdmissionAcceptsValidRustSignedPackagesAndEnforcesSequenceAndPolicy`: PASS (unsigned `FILE`/`NETWORK` policy, pre-pairing refusal, TV1 pairing, `minimal` & `industrial_live_v10` `seq=1` & `seq=2` `Trusted` admission, `NETWORK` replay/downgrade refusal, TV2 untrusted key refusal on `FILE` and `NETWORK`).
+  - `jvmPackageAdmissionRejectsAllTamperedAndMalformedRustPackages`: PASS (modified `project.json`, modified `runtime.json`, modified `manifest.json` with recomputed `packageId`, bit-flipped Ed25519 signature, mismatched `signature.json` `keyId`, legacy `ECDSA-P256-SHA256`, corrupt ZIP, empty ZIP, missing `signature.json`, path traversal entry).
+- **Android API 26 instrumentation (`:runtime-android:connectedDebugAndroidTest` on `hmistudio-api-26` AVD, verified `ro.build.version.sdk = 26`, Android `8.0.0`, `x86_64`, `Android/sdk_phone_x86_64/generic_x86_64:8.0.0/OSR1.180418.004/4931640:userdebug/test-keys`, Tink Android pure-Java Ed25519):** **5/5 PASS** (`0` failures, `0` errors, `0` skipped, `1.51s`):
+  - `Reuse04P1AndroidAdmissionTest`: **3/3 PASS** (`verifyRunningOnAndroidApi26`, `androidApi26AdmitsValidRustSignedPackagesAndEnforcesSequenceAndPolicy`, `androidApi26RejectsAllTamperedAndMalformedRustPackages`).
+  - `SignedPackagesOnAndroidTest`: **2/2 PASS** (`rfc8032VectorsAndTheDesktopInteropSignatureMatch`, `aSignedPackageIsAdmittedOnlyFromAPairedPublisherAndUnchanged`).
+- **Rust regression checks:**
+  - `crates/runtime-package`: `cargo fmt --check` PASS, `cargo clippy --locked --all-targets -- -D warnings` PASS, `cargo test --locked` **10/10 PASS** (5 unit + 5 integration).
+  - `crates/legacy-import`: `tests/package.rs` **11/11 PASS**, `tests/raster.rs` **4/4 PASS**.
+  - `crates/engineering-core`: `tests/legacy_quarantine.rs` **28/28 PASS**.
+
+### Remaining limitations
+- Production publisher key store, passphrase KDF, hardware-backed keystore, and device pairing remain gated on REUSE-05 and the owner O-8 decision.
+- Format-3 decoding, Compose layout parity, and manual RUST-05 desktop/device acceptance belong to REUSE-04 P2.
+- PR #40 remains draft with `RUST-05` reserved pending exact-head hosted CI on the corrected commit and final independent pre-merge review.
+
+

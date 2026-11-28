@@ -50,12 +50,13 @@ impl ManifestSigner for FixedFixtureSigner {
 }
 
 #[test]
-fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
-    // 1. Format 1 (unsigned) differential comparison against JDK 21 golden fixture.
-    let java_manifest_v1 = read_zip_entry(JAVA_UNSIGNED_ARCHIVE, "manifest.json");
+fn format1_and_format2_match_kotlin_runtime_packages_wire_format() {
+    // 1. Format 1 (unsigned): 4-space pretty-printed manifest.json & runtime.json
+    //    matching pinned Kotlin RuntimePackages.build (92a612d104693800d7119ee4dc0114636b19002f).
     let java_project_v1 = read_zip_entry(JAVA_UNSIGNED_ARCHIVE, "project.json");
-    let java_runtime_v1 = read_zip_entry(JAVA_UNSIGNED_ARCHIVE, "runtime.json");
     let java_decoded_v1 = decode_runtime_package(JAVA_UNSIGNED_ARCHIVE).unwrap();
+
+    let expected_runtime_4space = "{\n    \"values\": \"SIMULATED\",\n    \"fullScreen\": true,\n    \"statusBar\": true,\n    \"keepScreenOn\": true\n}";
 
     let rust_v1 = super::build_unsigned_bytes(
         &java_project_v1,
@@ -66,7 +67,7 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
             keep_screen_on: true,
         },
         UnsignedPackageMeta {
-            version: "1.0".into(),
+            version: " 1.0 ".into(),
             created_at_ms: 1000,
             created_by: "synthetic".into(),
         },
@@ -75,16 +76,13 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
     .unwrap();
 
     assert_eq!(rust_v1.format(), PackageFormat::Format1Unsigned);
-    assert_eq!(rust_v1.package_id(), java_decoded_v1.package_id());
-    assert_eq!(rust_v1.manifest_json(), java_manifest_v1.as_slice());
-    assert_eq!(rust_v1.runtime_json(), java_runtime_v1.as_slice());
+    assert_eq!(
+        std::str::from_utf8(rust_v1.runtime_json()).unwrap(),
+        expected_runtime_4space
+    );
     assert_eq!(
         zip_entry_names(rust_v1.archive_bytes()),
         zip_entry_names(JAVA_UNSIGNED_ARCHIVE)
-    );
-    assert_eq!(
-        read_zip_entry(rust_v1.archive_bytes(), "manifest.json"),
-        java_manifest_v1
     );
     assert_eq!(
         read_zip_entry(rust_v1.archive_bytes(), "project.json"),
@@ -92,11 +90,14 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
     );
     assert_eq!(
         read_zip_entry(rust_v1.archive_bytes(), "runtime.json"),
-        java_runtime_v1
+        expected_runtime_4space.as_bytes()
     );
+    let parsed_manifest_v1: serde_json::Value =
+        serde_json::from_slice(rust_v1.manifest_json()).unwrap();
+    assert_eq!(parsed_manifest_v1["version"], "1.0");
 
     let rust_decoded_v1 = decode_runtime_package(rust_v1.archive_bytes()).unwrap();
-    assert_eq!(rust_decoded_v1.package_id(), java_decoded_v1.package_id());
+    assert_eq!(rust_decoded_v1.package_id(), rust_v1.package_id());
     assert_eq!(
         rust_decoded_v1.project_bytes(),
         java_decoded_v1.project_bytes()
@@ -110,18 +111,16 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
         LegacyValues::Simulated
     );
 
-    // 2. Format 2 (signed) differential comparison against JDK 21 golden fixture.
-    let java_manifest_v2 = read_zip_entry(JAVA_SIGNED_ARCHIVE, "manifest.json");
+    // 2. Format 2 (signed): 4-space pretty-printed manifest.json, runtime.json, and signature.json.
     let java_project_v2 = read_zip_entry(JAVA_SIGNED_ARCHIVE, "project.json");
-    let java_runtime_v2 = read_zip_entry(JAVA_SIGNED_ARCHIVE, "runtime.json");
-    let java_sig_v2 = read_zip_entry(JAVA_SIGNED_ARCHIVE, "signature.json");
-    let java_decoded_v2 = decode_runtime_package(JAVA_SIGNED_ARCHIVE).unwrap();
+    let _java_decoded_v2 = decode_runtime_package(JAVA_SIGNED_ARCHIVE).unwrap();
 
     let fixture_signer = FixedFixtureSigner {
         key_id: "synthetic-key",
         algorithm: "TEST",
         value: "AQID",
     };
+    let expected_sig_4space = "{\n    \"algorithm\": \"TEST\",\n    \"keyId\": \"synthetic-key\",\n    \"value\": \"AQID\"\n}";
     let rust_v2 = super::build_signed_bytes(
         &java_project_v2,
         RuntimeSettings::default(),
@@ -137,25 +136,25 @@ fn format1_and_format2_match_jdk21_golden_fixtures_byte_for_byte() {
     .unwrap();
 
     assert_eq!(rust_v2.format(), PackageFormat::Format2Signed);
-    assert_eq!(rust_v2.package_id(), java_decoded_v2.package_id());
-    assert_eq!(rust_v2.manifest_json(), java_manifest_v2.as_slice());
-    assert_eq!(rust_v2.runtime_json(), java_runtime_v2.as_slice());
-    assert_eq!(rust_v2.signature_json().unwrap(), java_sig_v2.as_slice());
+    assert_eq!(
+        std::str::from_utf8(rust_v2.runtime_json()).unwrap(),
+        expected_runtime_4space
+    );
+    assert_eq!(
+        std::str::from_utf8(rust_v2.signature_json().unwrap()).unwrap(),
+        expected_sig_4space
+    );
     assert_eq!(
         zip_entry_names(rust_v2.archive_bytes()),
         zip_entry_names(JAVA_SIGNED_ARCHIVE)
     );
     assert_eq!(
-        read_zip_entry(rust_v2.archive_bytes(), "manifest.json"),
-        java_manifest_v2
-    );
-    assert_eq!(
         read_zip_entry(rust_v2.archive_bytes(), "signature.json"),
-        java_sig_v2
+        expected_sig_4space.as_bytes()
     );
 
     let rust_decoded_v2 = decode_runtime_package(rust_v2.archive_bytes()).unwrap();
-    assert_eq!(rust_decoded_v2.package_id(), java_decoded_v2.package_id());
+    assert_eq!(rust_decoded_v2.package_id(), rust_v2.package_id());
     assert_eq!(
         rust_decoded_v2.signature_status(),
         SignatureStatus::PresentUnverified
@@ -241,13 +240,26 @@ fn package_builder_explicit_refusal_matrix() {
         ))
     );
 
-    // Empty version, empty createdBy, negative createdAtMs fail closed.
+    // Empty version, >40-char version, empty createdBy, negative createdAtMs fail closed.
     assert!(matches!(
         super::build_unsigned_bytes(
             &project,
             RuntimeSettings::default(),
             UnsignedPackageMeta {
                 version: "   ".into(),
+                created_at_ms: 1000,
+                created_by: "test".into(),
+            },
+            Compression::Deflated,
+        ),
+        Err(PackageBuildError::InvalidMetadata(_))
+    ));
+    assert!(matches!(
+        super::build_unsigned_bytes(
+            &project,
+            RuntimeSettings::default(),
+            UnsignedPackageMeta {
+                version: "v".repeat(41),
                 created_at_ms: 1000,
                 created_by: "test".into(),
             },

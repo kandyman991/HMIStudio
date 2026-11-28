@@ -927,3 +927,163 @@ fn quarantine_and_explicit_v2_feature_refusal_matrix() {
         Err(CompileError::UnsupportedFeature("eventConfirmationPrompt"))
     );
 }
+
+#[test]
+fn write_command_confirm_matches_kotlin_write_rules() {
+    fn project_with_command(
+        data_type: DataType,
+        initial: serde_json::Value,
+        command: CommandKind,
+        confirmation_required: bool,
+        limits: WriteLimits,
+        pulse_ms: Option<u32>,
+    ) -> Project {
+        let mut p = absolute_project_with_label();
+        p.connections.push(Connection {
+            id: ConnectionId::new("conn-plc").unwrap(),
+            name: "PLC".into(),
+            driver: DriverKind::SiemensS7,
+            endpoint: Some("10.0.0.10:102".into()),
+            parameters: BTreeMap::from([("rack".into(), json!(0)), ("slot".into(), json!(1))]),
+            credential_ref: None,
+            extensions: BTreeMap::new(),
+        });
+        p.v2.industrial.connections.push(ConnectionPolicy {
+            connection: ConnectionId::new("conn-plc").unwrap(),
+            driver: DriverKindV2::SiemensS7,
+            commissioning_allowed: false,
+        });
+        p.tags.push(Tag {
+            id: TagId::new("tag-cmd").unwrap(),
+            name: "Cmd".into(),
+            data_type,
+            connection: Some(ConnectionId::new("conn-plc").unwrap()),
+            address: Some("DB1.DBX0.0".into()),
+            access: TagAccess::ReadWrite,
+            unit: None,
+            range: None,
+            initial_value: Some(initial),
+            scan_rate_ms: 250,
+            description: None,
+            extensions: BTreeMap::new(),
+        });
+        p.v2.industrial.tags.push(TagWritePolicy {
+            tag: TagId::new("tag-cmd").unwrap(),
+            command,
+            confirmation_required,
+            critical: false,
+            write_confirmed: true,
+            pulse_ms,
+            limits,
+        });
+        p
+    }
+
+    let empty = BTreeMap::new();
+    let live_opts = CompileOptions {
+        mode: CompileMode::ProductionLive,
+        ..CompileOptions::default()
+    };
+
+    // 1. Setpoint with confirmation_required=true must omit `confirm` (Kotlin WriteRules forbids it).
+    let sp_limits = WriteLimits {
+        min: Some(serde_json::Number::from(0)),
+        max: Some(serde_json::Number::from(100)),
+        step: Some(serde_json::Number::from(5)),
+    };
+    let sp_ok = project_with_command(
+        DataType::Int32,
+        json!(10),
+        CommandKind::Setpoint,
+        true,
+        sp_limits.clone(),
+        None,
+    );
+    let sp_compiled = compile_project(&sp_ok, &empty, live_opts).unwrap();
+    let sp_json: serde_json::Value = serde_json::from_slice(sp_compiled.project_json()).unwrap();
+    assert!(sp_json["externalMappings"]["map-tag-cmd"]["command"]
+        .get("confirm")
+        .is_none());
+
+    // 2. Setpoint with confirmation_required=false fails closed.
+    let sp_bad = project_with_command(
+        DataType::Int32,
+        json!(10),
+        CommandKind::Setpoint,
+        false,
+        sp_limits,
+        None,
+    );
+    assert_eq!(
+        compile_project(&sp_bad, &empty, live_opts),
+        Err(CompileError::UnsupportedFeature(
+            "unconfirmedSetpointOrMaintained"
+        ))
+    );
+
+    // 3. Maintained with confirmation_required=true omits `confirm`; false fails closed.
+    let no_limits = WriteLimits {
+        min: None,
+        max: None,
+        step: None,
+    };
+    let maint_ok = project_with_command(
+        DataType::Bool,
+        json!(false),
+        CommandKind::Maintained,
+        true,
+        no_limits.clone(),
+        None,
+    );
+    let maint_compiled = compile_project(&maint_ok, &empty, live_opts).unwrap();
+    let maint_json: serde_json::Value =
+        serde_json::from_slice(maint_compiled.project_json()).unwrap();
+    assert!(maint_json["externalMappings"]["map-tag-cmd"]["command"]
+        .get("confirm")
+        .is_none());
+
+    let maint_bad = project_with_command(
+        DataType::Bool,
+        json!(false),
+        CommandKind::Maintained,
+        false,
+        no_limits.clone(),
+        None,
+    );
+    assert_eq!(
+        compile_project(&maint_bad, &empty, live_opts),
+        Err(CompileError::UnsupportedFeature(
+            "unconfirmedSetpointOrMaintained"
+        ))
+    );
+
+    // 4. Momentary preserves `confirm: true` when requested and omits it when false.
+    let mom_confirm = project_with_command(
+        DataType::Bool,
+        json!(false),
+        CommandKind::Momentary,
+        true,
+        no_limits.clone(),
+        Some(500),
+    );
+    let mom_c = compile_project(&mom_confirm, &empty, live_opts).unwrap();
+    let mom_c_json: serde_json::Value = serde_json::from_slice(mom_c.project_json()).unwrap();
+    assert_eq!(
+        mom_c_json["externalMappings"]["map-tag-cmd"]["command"]["confirm"],
+        json!(true)
+    );
+
+    let mom_noconfirm = project_with_command(
+        DataType::Bool,
+        json!(false),
+        CommandKind::Momentary,
+        false,
+        no_limits,
+        Some(500),
+    );
+    let mom_nc = compile_project(&mom_noconfirm, &empty, live_opts).unwrap();
+    let mom_nc_json: serde_json::Value = serde_json::from_slice(mom_nc.project_json()).unwrap();
+    assert!(mom_nc_json["externalMappings"]["map-tag-cmd"]["command"]
+        .get("confirm")
+        .is_none());
+}

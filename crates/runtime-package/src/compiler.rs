@@ -1443,8 +1443,21 @@ pub fn compile_project(
                         CommandKind::Setpoint => "SETPOINT",
                     }),
                 );
-                if policy.confirmation_required {
-                    cmd.insert("confirm".into(), json!(true));
+                match policy.command {
+                    CommandKind::Momentary => {
+                        if policy.confirmation_required {
+                            cmd.insert("confirm".into(), json!(true));
+                        }
+                    }
+                    CommandKind::Maintained | CommandKind::Setpoint => {
+                        // HMI Forge treats MAINTAINED and SETPOINT commands as always
+                        // confirmed and rejects an explicit `confirm: true` flag.
+                        if !policy.confirmation_required {
+                            return Err(CompileError::UnsupportedFeature(
+                                "unconfirmedSetpointOrMaintained",
+                            ));
+                        }
+                    }
                 }
                 if policy.critical {
                     cmd.insert("critical".into(), json!(true));

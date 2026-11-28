@@ -200,11 +200,11 @@ fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn format_manifest_4space(manifest: &PackageManifest) -> Result<Vec<u8>, PackageBuildError> {
+fn format_json_4space<T: Serialize>(value: &T) -> Result<Vec<u8>, PackageBuildError> {
     let mut out = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser = serde_json::Serializer::with_formatter(&mut out, formatter);
-    manifest
+    value
         .serialize(&mut ser)
         .map_err(|_| PackageBuildError::SerializationFailed)?;
     if out.len() > MAX_METADATA_BYTES {
@@ -295,9 +295,9 @@ fn validate_common_meta(
     created_at_ms: i64,
     created_by: &str,
 ) -> Result<(), PackageBuildError> {
-    if version.trim().is_empty() {
+    if version.trim().is_empty() || version.encode_utf16().count() > 40 {
         return Err(PackageBuildError::InvalidMetadata(
-            "version must be non-empty",
+            "version must be 1-40 non-blank characters",
         ));
     }
     if created_at_ms < 0 {
@@ -387,8 +387,7 @@ fn build_unsigned_bytes(
         return Err(PackageBuildError::LiveMappingRequired);
     }
 
-    let runtime_json =
-        serde_json::to_vec(&settings).map_err(|_| PackageBuildError::SerializationFailed)?;
+    let runtime_json = format_json_4space(&settings)?;
     let project_sha = sha256_hex(project_json);
     let runtime_sha = sha256_hex(&runtime_json);
     let project_size =
@@ -406,7 +405,7 @@ fn build_unsigned_bytes(
         format: 1,
         package_id: package_id.clone(),
         project_name: info.project_name,
-        version: meta.version,
+        version: meta.version.trim().to_owned(),
         schema_version: info.schema_version,
         created_at_ms: meta.created_at_ms,
         created_by: meta.created_by,
@@ -426,7 +425,7 @@ fn build_unsigned_bytes(
         sequence: None,
         publisher_key_id: None,
     };
-    let manifest_json = format_manifest_4space(&manifest)?;
+    let manifest_json = format_json_4space(&manifest)?;
     let archive_bytes = write_deterministic_zip(
         &[
             (MANIFEST_ENTRY, &manifest_json),
@@ -493,8 +492,7 @@ fn build_signed_bytes(
         return Err(PackageBuildError::LiveMappingRequired);
     }
 
-    let runtime_json =
-        serde_json::to_vec(&settings).map_err(|_| PackageBuildError::SerializationFailed)?;
+    let runtime_json = format_json_4space(&settings)?;
     let project_sha = sha256_hex(project_json);
     let runtime_sha = sha256_hex(&runtime_json);
     let project_size =
@@ -506,7 +504,7 @@ fn build_signed_bytes(
         format: 2,
         package_id: String::new(),
         project_name: info.project_name,
-        version: meta.version,
+        version: meta.version.trim().to_owned(),
         schema_version: info.schema_version,
         created_at_ms: meta.created_at_ms,
         created_by: meta.created_by,
@@ -528,20 +526,16 @@ fn build_signed_bytes(
     };
 
     // Format 2 packageId = SHA-256 of canonical 4-space manifest with blank packageId.
-    let canonical_blank = format_manifest_4space(&manifest)?;
+    let canonical_blank = format_json_4space(&manifest)?;
     let package_id = sha256_hex(&canonical_blank);
     manifest.package_id = package_id.clone();
-    let manifest_json = format_manifest_4space(&manifest)?;
+    let manifest_json = format_json_4space(&manifest)?;
 
     let signature = signer.sign_manifest(&manifest_json)?;
     if signature.key_id != key_id {
         return Err(PackageBuildError::Signing(SigningError::KeyIdMismatch));
     }
-    let signature_json =
-        serde_json::to_vec(&signature).map_err(|_| PackageBuildError::SerializationFailed)?;
-    if signature_json.len() > MAX_METADATA_BYTES {
-        return Err(PackageBuildError::SizeLimit);
-    }
+    let signature_json = format_json_4space(&signature)?;
 
     let archive_bytes = write_deterministic_zip(
         &[

@@ -1,0 +1,14 @@
+{
+  "milestone": "REUSE-04",
+  "owner": "Antigravity",
+  "branch": "feat/reuse-04-p1-runtime-package",
+  "scope": [
+    ".github/workflows/ci.yml",
+    "crates/engineering-core/",
+    "crates/legacy-import/",
+    "crates/runtime-package/",
+    "src-tauri/Cargo.lock",
+    "src-tauri/src/persistence_host.rs"
+  ],
+  "observedAt": "2026-11-28T02:59:23Z"
+}

@@ -792,6 +792,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-27 · handoff · Verified 458c6b9 full 21/21 CI (Desktop 46040301725, Tag engine 46040301676, handoff 46040301761) and REUSE-03B.14D active-input write boundaries. Fixed CI-03 live Actions API run-name matching in 9448aba (full 21/21 CI: 46042131780/46042131718/46042131709), activated checkpoint and demonstrated targeted CI on f5c021b (46043011080/46043011201/46043011026, ci03\_targeted=true, 85 importer tests) with reconciled REUSE-03B semantic coverage and explicit refusal matrix. Disabled CI-03 pin and regenerated roadmap views for full 21/21 exact-head validation at the REUSE-03B milestone review boundary; RUST-05 claim retained and PR #36 remains draft. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-27 · handoff · Verified predecessor 7afef8c full 21/21 hosted CI. Address F01 completion proposal metadata and F02 bounded redacted native refusal diagnostics in the successor candidate; cumulative independent review and successor CI remain pending. Retain the RUST-05 claim and disabled CI-03 pin. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
 - 2026-11-27 · merged · Codex independently verified F01/F02 on 5f476d0, closed cumulative engineering review, confirmed 21/21 hosted jobs and verified merge e2b9405 on main. Owner deferred B5-07 to REUSE-04 before image use. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-28 · note · Verified that the RUST-05 reservation for merged PR #36 was released. The live reservation list was empty at closeout. · [CHAT\_HANDOFF.md](../CHAT_HANDOFF.md)
 
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
@@ -863,10 +864,6 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 **Parent** · RUST-08
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
-
-## Shared reservation snapshot
-
-- REUSE-03 · ChatGPT · feat/reuse-03b-legacy-import · 2026-11-27T16:23:34Z
 
 ## Engineering decisions
 

@@ -1087,3 +1087,304 @@ fn write_command_confirm_matches_kotlin_write_rules() {
         .get("confirm")
         .is_none());
 }
+
+fn project_with_opcua_write_policy(
+    data_type: DataType,
+    initial: serde_json::Value,
+    command: CommandKind,
+    confirmation_required: bool,
+    limits: WriteLimits,
+    pulse_ms: Option<u32>,
+) -> Project {
+    let mut p = absolute_project_with_label();
+    p.connections.push(Connection {
+        id: ConnectionId::new("conn-opc").unwrap(),
+        name: "OPC UA".into(),
+        driver: DriverKind::OpcUa,
+        endpoint: Some("opc.tcp://10.0.0.10:4840".into()),
+        parameters: BTreeMap::from([
+            ("securityPolicy".into(), json!("None")),
+            ("securityMode".into(), json!("None")),
+        ]),
+        credential_ref: None,
+        extensions: BTreeMap::new(),
+    });
+    p.v2.industrial.connections.push(ConnectionPolicy {
+        connection: ConnectionId::new("conn-opc").unwrap(),
+        driver: DriverKindV2::OpcUa,
+        commissioning_allowed: false,
+    });
+    p.tags.push(Tag {
+        id: TagId::new("tag-cmd").unwrap(),
+        name: "Cmd".into(),
+        data_type,
+        connection: Some(ConnectionId::new("conn-opc").unwrap()),
+        address: Some("ns=2;s=Cmd".into()),
+        access: TagAccess::ReadWrite,
+        unit: None,
+        range: None,
+        initial_value: Some(initial),
+        scan_rate_ms: 250,
+        description: None,
+        extensions: BTreeMap::new(),
+    });
+    p.v2.industrial.tags.push(TagWritePolicy {
+        tag: TagId::new("tag-cmd").unwrap(),
+        command,
+        confirmation_required,
+        critical: false,
+        write_confirmed: true,
+        pulse_ms,
+        limits,
+    });
+    p
+}
+
+#[test]
+fn f01_momentary_pulse_duration_boundaries_fail_closed() {
+    let empty = BTreeMap::new();
+    let live_opts = CompileOptions {
+        mode: CompileMode::ProductionLive,
+        ..CompileOptions::default()
+    };
+
+    // Out-of-range momentary pulses are valid in frozen schema v2, but MUST be
+    // refused fail-closed by the format-2 compiler (Kotlin WriteRules: 100..=5000 ms).
+    for bad_pulse in [1u32, 99, 5_001, 60_000] {
+        let p = project_with_opcua_write_policy(
+            DataType::Bool,
+            json!(false),
+            CommandKind::Momentary,
+            false,
+            WriteLimits::default(),
+            Some(bad_pulse),
+        );
+        assert!(
+            !hmi_project_model::validation::validate(&p).has_errors(),
+            "canonical schema v2 must remain unchanged and accept pulse_ms={bad_pulse}"
+        );
+        assert_eq!(
+            compile_project(&p, &empty, live_opts),
+            Err(CompileError::UnsupportedFeature("momentaryPulseOutOfRange")),
+            "compiler must refuse momentary pulse_ms={bad_pulse}"
+        );
+    }
+
+    // Exact inclusive boundary values (100 ms and 5000 ms) compile verbatim and round-trip.
+    for ok_pulse in [100u32, 5_000] {
+        let p = project_with_opcua_write_policy(
+            DataType::Bool,
+            json!(false),
+            CommandKind::Momentary,
+            true,
+            WriteLimits::default(),
+            Some(ok_pulse),
+        );
+        let compiled = compile_project(&p, &empty, live_opts).unwrap();
+        let doc: serde_json::Value = serde_json::from_slice(compiled.project_json()).unwrap();
+        assert_eq!(
+            doc["externalMappings"]["map-tag-cmd"]["command"]["pulseMs"],
+            json!(ok_pulse)
+        );
+        let imported = import_portable(compiled.project_json());
+        assert!(
+            imported.report.has_complete_mapping(),
+            "round-trip failed for pulseMs={ok_pulse}: {:?}",
+            imported.report.findings
+        );
+    }
+}
+
+#[test]
+fn f01_setpoint_missing_and_equal_limits_fail_closed() {
+    let empty = BTreeMap::new();
+    let live_opts = CompileOptions {
+        mode: CompileMode::ProductionLive,
+        ..CompileOptions::default()
+    };
+
+    // Missing min, missing max, or both missing are canonical-valid in schema v2,
+    // but MUST be refused fail-closed by the format-2 compiler.
+    for missing in [
+        WriteLimits {
+            min: None,
+            max: None,
+            step: None,
+        },
+        WriteLimits {
+            min: Some(serde_json::Number::from(0)),
+            max: None,
+            step: None,
+        },
+        WriteLimits {
+            min: None,
+            max: Some(serde_json::Number::from(100)),
+            step: None,
+        },
+        WriteLimits {
+            min: None,
+            max: None,
+            step: Some(serde_json::Number::from(5)),
+        },
+    ] {
+        let p = project_with_opcua_write_policy(
+            DataType::Int32,
+            json!(10),
+            CommandKind::Setpoint,
+            true,
+            missing,
+            None,
+        );
+        assert!(!hmi_project_model::validation::validate(&p).has_errors());
+        assert_eq!(
+            compile_project(&p, &empty, live_opts),
+            Err(CompileError::UnsupportedFeature("missingSetpointLimits"))
+        );
+    }
+
+    // Equal min == max across Int32, Int64, Float32, and Float64 are canonical-valid,
+    // but Kotlin WriteRules requires strictly min < max -> MUST fail closed.
+    let equal_cases = [
+        (
+            DataType::Int32,
+            json!(50),
+            serde_json::Number::from(50),
+            serde_json::Number::from(50),
+        ),
+        (
+            DataType::Int64,
+            json!(9_007_199_254_740_992_i64),
+            serde_json::Number::from(9_007_199_254_740_992_i64),
+            serde_json::Number::from(9_007_199_254_740_992_i64),
+        ),
+        (
+            DataType::Float32,
+            json!(1.5),
+            serde_json::Number::from_f64(1.5).unwrap(),
+            serde_json::Number::from_f64(1.5).unwrap(),
+        ),
+        (
+            DataType::Float64,
+            json!(2.25),
+            serde_json::Number::from_f64(2.25).unwrap(),
+            serde_json::Number::from_f64(2.25).unwrap(),
+        ),
+    ];
+    for (dt, init, min, max) in equal_cases {
+        let p = project_with_opcua_write_policy(
+            dt,
+            init,
+            CommandKind::Setpoint,
+            true,
+            WriteLimits {
+                min: Some(min),
+                max: Some(max),
+                step: None,
+            },
+            None,
+        );
+        assert!(!hmi_project_model::validation::validate(&p).has_errors());
+        assert_eq!(
+            compile_project(&p, &empty, live_opts),
+            Err(CompileError::UnsupportedFeature("invalidSetpointRange"))
+        );
+    }
+
+    // Strictly ordered limits without step compile cleanly and preserve exact values.
+    let ok = project_with_opcua_write_policy(
+        DataType::Float64,
+        json!(0.0),
+        CommandKind::Setpoint,
+        true,
+        WriteLimits {
+            min: Some(serde_json::Number::from_f64(-12.5).unwrap()),
+            max: Some(serde_json::Number::from_f64(12.5).unwrap()),
+            step: None,
+        },
+        None,
+    );
+    let compiled = compile_project(&ok, &empty, live_opts).unwrap();
+    let doc: serde_json::Value = serde_json::from_slice(compiled.project_json()).unwrap();
+    let cmd = &doc["externalMappings"]["map-tag-cmd"]["command"];
+    assert_eq!(cmd["min"], json!(-12.5));
+    assert_eq!(cmd["max"], json!(12.5));
+    assert!(cmd.get("step").is_none());
+}
+
+#[test]
+fn f02_int64_setpoint_exact_binary64_representability() {
+    let empty = BTreeMap::new();
+    let live_opts = CompileOptions {
+        mode: CompileMode::ProductionLive,
+        ..CompileOptions::default()
+    };
+
+    // Unrepresentable INT64 limits (not exact in IEEE 754 binary64 / Kotlin Double)
+    // remain valid in frozen schema v2, but MUST be refused fail-closed without silent rounding.
+    let lossy_cases: &[(i64, i64, Option<i64>)] = &[
+        // 2^53 + 1 would round down to 2^53 and collapse distinct endpoints [2^53, 2^53+1]
+        (9_007_199_254_740_992, 9_007_199_254_740_993, None),
+        // -(2^53 + 1) in min
+        (-9_007_199_254_740_993, 0, None),
+        // 2^53 + 3 in max
+        (0, 9_007_199_254_740_995, None),
+        // i64::MAX (2^63 - 1) rounds up to 2^63 in binary64 (catches saturating-cast trap)
+        (0, i64::MAX, None),
+        // i64::MIN + 1 (-2^63 + 1) is not exact in binary64
+        (i64::MIN + 1, 0, None),
+        // Largest exact i64 + 1 (2^63 - 1023) is not exact in binary64
+        (0, i64::MAX - 1022, None),
+        // Lossy step on otherwise exact endpoints
+        (0, 9_007_199_254_740_994, Some(9_007_199_254_740_993)),
+    ];
+    for &(min, max, step) in lossy_cases {
+        let p = project_with_opcua_write_policy(
+            DataType::Int64,
+            json!(0_i64),
+            CommandKind::Setpoint,
+            true,
+            WriteLimits {
+                min: Some(serde_json::Number::from(min)),
+                max: Some(serde_json::Number::from(max)),
+                step: step.map(serde_json::Number::from),
+            },
+            None,
+        );
+        assert!(
+            !hmi_project_model::validation::validate(&p).has_errors(),
+            "canonical schema v2 must accept exact INT64 limits ({min}, {max}, {step:?})"
+        );
+        assert_eq!(
+            compile_project(&p, &empty, live_opts),
+            Err(CompileError::UnsupportedFeature("inexactSetpointLimit")),
+            "compiler must refuse lossy binary64 INT64 limits ({min}, {max}, {step:?})"
+        );
+    }
+
+    // Exact binary64 INT64 limits compile verbatim with zero silent adjustment.
+    let exact_cases: &[(i64, i64, Option<i64>)] = &[
+        (-9_007_199_254_740_992, 9_007_199_254_740_992, Some(1)),
+        (9_007_199_254_740_992, 9_007_199_254_740_994, Some(2)),
+        (i64::MIN, i64::MAX - 1023, Some(1024)),
+    ];
+    for &(min, max, step) in exact_cases {
+        let p = project_with_opcua_write_policy(
+            DataType::Int64,
+            json!(0_i64),
+            CommandKind::Setpoint,
+            true,
+            WriteLimits {
+                min: Some(serde_json::Number::from(min)),
+                max: Some(serde_json::Number::from(max)),
+                step: step.map(serde_json::Number::from),
+            },
+            None,
+        );
+        let compiled = compile_project(&p, &empty, live_opts).unwrap();
+        let doc: serde_json::Value = serde_json::from_slice(compiled.project_json()).unwrap();
+        let cmd = &doc["externalMappings"]["map-tag-cmd"]["command"];
+        assert_eq!(cmd["min"].as_i64(), Some(min));
+        assert_eq!(cmd["max"].as_i64(), Some(max));
+        assert_eq!(cmd["step"].as_i64(), step);
+    }
+}

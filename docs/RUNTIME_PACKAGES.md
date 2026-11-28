@@ -177,4 +177,43 @@ Deterministic public RFC 8032 test keys (non-production):
 - Format-3 decoding, Compose layout parity, and manual RUST-05 desktop/device acceptance belong to REUSE-04 P2.
 - PR #40 remains draft with `RUST-05` reserved pending exact-head hosted CI on the corrected commit and final independent pre-merge review.
 
+## 9. Independent Review Findings F01 & F02 Resolution (2026-11-28)
 
+Independent review of PR #40 predecessor `f506dfdcbeec681816e1cd4dd28a06ebcd42e6eb` (18/18 hosted CI pass: Desktop CI `46129480588`, Engineering handoff snapshot `46129480577`) identified two compiler-boundary write-policy compatibility gaps between canonical schema v2 (`crates/project-model/src/validation/v2.rs`) and the pinned Kotlin runtime (`92a612d104693800d7119ee4dc0114636b19002f`, `WriteRules.kt` / `WriteCommands.kt`).
+
+### Fail-closed compiler rules implemented (`crates/runtime-package/src/compiler.rs`)
+Frozen canonical schema v2 (`crates/project-model/schema/hmi-project.v2.schema.json`, SHA-256 `b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738`) was **not modified**, and no engineering limits or pulse durations are silently clamped, rounded, or adjusted:
+
+1. **F01 — Momentary pulse duration bounds & setpoint limit requirements:**
+   - `CommandKind::Momentary`: enforces empty write limits (`unexpectedWriteLimits`), requires `pulse_ms` (`missingMomentaryPulse`), and enforces inclusive bounds `100..=5000` ms (`MIN_MOMENTARY_PULSE_MS = 100`, `MAX_MOMENTARY_PULSE_MS = 5_000`; refuses `< 100` or `> 5000` with `CompileError::UnsupportedFeature("momentaryPulseOutOfRange")`).
+   - `CommandKind::Maintained`: enforces `confirmation_required == true` (`unconfirmedSetpointOrMaintained`), omits `"confirm"`, and rejects `pulse_ms` (`unexpectedPulseDuration`) and write limits (`unexpectedWriteLimits`).
+   - `CommandKind::Setpoint`: enforces `confirmation_required == true` (`unconfirmedSetpointOrMaintained`), omits `"confirm"`, rejects `pulse_ms` (`unexpectedPulseDuration`), requires **both** `limits.min` and `limits.max` (`CompileError::UnsupportedFeature("missingSetpointLimits")`), enforces strict ordering `min < max` (`CompileError::UnsupportedFeature("invalidSetpointRange")`), and requires optional `step > 0` (`CompileError::UnsupportedFeature("invalidSetpointStep")`).
+2. **F02 — Exact IEEE 754 binary64 representability of `INT64` setpoint limits:**
+   - Because Kotlin `WriteCommand.min`, `max`, and `step` are IEEE 754 binary64 (`Double`), any canonical `INT64` limit not exactly representable in binary64 would silently round or collapse adjacent endpoints (for example `[9007199254740992, 9007199254740993]` collapsing to `[2^53, 2^53]`).
+   - `is_exact_binary64_i64(v: i64) -> bool` verifies exact representability in integer arithmetic (`let mag = v.unsigned_abs(); mag == 0 || (mag >> mag.trailing_zeros()) < (1u64 << 53)`), avoiding saturating float-to-int cast edge cases (such as `i64::MAX`). Non-exact `INT64` `min`, `max`, or `step` values fail closed with `CompileError::UnsupportedFeature("inexactSetpointLimit")`. Exact values are emitted verbatim from the validated `serde_json::Number`.
+
+### Committed source digests & Rust regression verification
+- **Modified public source SHA-256 digests:**
+  - `crates/runtime-package/src/compiler.rs`: `97c1512250754fe932d77f3b8dfad46956b8ddd0706237309ccc2d0bfb486803`
+  - `crates/runtime-package/tests/compiler.rs`: `f689bf37bdcb6897bb81dcb05a32bc519f600bd23404af77e6a6c52e5fa1f71b`
+  - `crates/runtime-package/examples/emit_interop_fixtures.rs`: `d3164b2b7bdd0c85aad855f917479471f78297a83f93fe5648ecc7d8bf36bf80`
+  - `crates/project-model/schema/hmi-project.v2.schema.json`: `b7d49729750bea7a598afa89f64fa57598d5603a88d0fba0dd664abd75ab2738` (zero diff in `crates/project-model/`)
+- **New Rust regression tests (`crates/runtime-package/tests/compiler.rs`):**
+  - `f01_momentary_pulse_duration_boundaries_fail_closed`: confirms canonical schema v2 still accepts `1, 99, 5001, 60000` ms, compiler refuses all four with `momentaryPulseOutOfRange`, accepts exact boundaries `100` ms and `5000` ms verbatim, and round-trips both via `hmi_legacy_import::import_portable`.
+  - `f01_setpoint_missing_and_equal_limits_fail_closed`: confirms canonical schema v2 still accepts missing `min`/`max` and equal `min == max` (`Int32`, `Int64`, `Float32`, `Float64`), compiler refuses missing with `missingSetpointLimits` and equal with `invalidSetpointRange`, and strictly ordered limits without `step` compile verbatim.
+  - `f02_int64_setpoint_exact_binary64_representability`: confirms canonical schema v2 still accepts lossy `INT64` limits (`[2^53, 2^53+1]`, `-(2^53+1)`, `2^53+3`, `i64::MAX`, `i64::MIN+1`, `i64::MAX-1022`, and lossy `step = 2^53+1`), compiler refuses all seven with `inexactSetpointLimit`, and exact binary64 `INT64` ranges (`[-2^53, 2^53]` step `1`, `[2^53, 2^53+2]` step `2`, `[i64::MIN, i64::MAX-1023]` step `1024`) compile verbatim.
+- **Local verification passed:**
+  - `crates/runtime-package`: `cargo fmt --check` PASS, `cargo clippy --all-targets --locked -- -D warnings` PASS, `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked` PASS, `cargo test --locked` **13/13 PASS** (5 unit + 8 integration).
+  - `crates/legacy-import`: `tests/package.rs` **11/11 PASS**, `tests/raster.rs` **4/4 PASS**.
+  - `crates/engineering-core`: `tests/legacy_quarantine.rs` **28/28 PASS**.
+
+### Preserved interoperability evidence & boundary fixture for Legion execution
+- **Prior §8 evidence preserved unchanged:** Running `emit_interop_fixtures` produces **100% byte-for-byte identical** archives, `packageId`s, and SHA-256 digests for all 7 default fixtures (`minimal_v2_*` and `industrial_live_v10_*`) validated on `f506dfd` (Kotlin JVM 3/3 PASS, Android API 26 5/5 PASS).
+- **Optional boundary fixture (`cargo run --manifest-path crates/runtime-package/Cargo.toml --locked --example emit_interop_fixtures -- <dir> --f01-f02-boundaries`):**
+  - `f01_f02_boundaries_v10_signed_seq1.hmipkg` (format 2, TV1, seq 1, OPC UA `LIVE`, containing `pulseMs = 100`, `pulseMs = 5000`, `Int64` setpoint `[-9007199254740992, 9007199254740994]` `step = 2`, and `Float64` setpoint `[-12.5, 12.5]` `step = 0.5`):
+    - Size: `1846 B`
+    - `packageId`: `8cf7abe0c24f1026712ca31b05ed2fee078450ebad3fd2ea28860e688a410ef9`
+    - Archive SHA-256: `30ec7b88efbc95fb781812509cc2978e8586a4b82cc6f1459b5b1c78a1a1e843`
+    - `manifest.json` SHA-256: `1559feecf45c0964e64bb42b8eddfdc1f830503104fe829a6a004243230e98b9`
+    - `signature.json` SHA-256: `2bf60ce54f2f376bcd5818859d40a0422aab078c2512f2df8ff0952fcff21f52`
+- **Pending Legion execution (environment gap honestly recorded):** Focused Kotlin JVM (`:runtime:jvmTest`) and Android API 26 (`:runtime-android:connectedDebugAndroidTest` on `hmistudio-api-26`) differential regression checks against the corrected Rust commit and `f01_f02_boundaries_v10_signed_seq1.hmipkg` were **not** executed from this cloud VM because the pinned private HMI Forge checkout (`92a612d104693800d7119ee4dc0114636b19002f`) and the `hmistudio-api-26` AVD exist only on the owner's Legion machine. Execute the focused Legion differential check against this pushed commit and record its exact observed pass evidence before final P1 sign-off and merge.

@@ -266,11 +266,175 @@ fn make_fingerprint_signer(seed: [u8; 32]) -> Result<Ed25519TestSigner, String> 
     Ed25519TestSigner::from_seed(key_id, seed).map_err(|e| e.to_string())
 }
 
+fn build_f01_f02_boundaries_v10() -> Result<Project, String> {
+    let mut root = Node::new(
+        NodeId::new("n-root").map_err(|e| e.to_string())?,
+        Element::Absolute {},
+    );
+    root.layout.width = Size::fixed(800.0);
+    root.layout.height = Size::fixed(480.0);
+
+    let mut lbl = Node::new(
+        NodeId::new("n-lbl").map_err(|e| e.to_string())?,
+        Element::Component {
+            kind: ComponentKind::Text,
+        },
+    );
+    lbl.layout.position = Some(Position { x: 16.0, y: 24.0 });
+    lbl.layout.width = Size::fixed(240.0);
+    lbl.layout.height = Size::fixed(36.0);
+    lbl.properties
+        .insert("text".into(), json!("F01/F02 Write Boundaries"));
+    root.children.push(lbl);
+
+    let screen = Screen {
+        id: ScreenId::new("scr-main").map_err(|e| e.to_string())?,
+        name: "Main".into(),
+        kind: ScreenKind::Page,
+        title: Some(LocalizedText::Literal("Boundaries".into())),
+        design_profile: None,
+        events: Vec::new(),
+        root,
+        extensions: BTreeMap::new(),
+    };
+    let mut project = Project::new(
+        ProjectId::new("prj-f01-f02").map_err(|e| e.to_string())?,
+        "Write Policy Boundaries",
+        screen,
+    );
+
+    let conn_id = ConnectionId::new("conn-opc").map_err(|e| e.to_string())?;
+    project.connections.push(Connection {
+        id: conn_id.clone(),
+        name: "Boundaries OPC UA".into(),
+        driver: DriverKind::OpcUa,
+        endpoint: Some("opc.tcp://10.0.0.10:4840".into()),
+        parameters: BTreeMap::from([
+            ("securityPolicy".into(), json!("None")),
+            ("securityMode".into(), json!("None")),
+        ]),
+        credential_ref: None,
+        extensions: BTreeMap::new(),
+    });
+    project.v2.industrial.connections.push(ConnectionPolicy {
+        connection: conn_id.clone(),
+        driver: DriverKindV2::OpcUa,
+        commissioning_allowed: false,
+    });
+
+    // Momentary lower boundary (100 ms) and upper boundary (5000 ms).
+    for (id, name, addr, pulse, confirm) in [
+        (
+            "tag-pulse-min",
+            "Cmd/PulseMin",
+            "ns=2;s=PulseMin",
+            100u32,
+            false,
+        ),
+        (
+            "tag-pulse-max",
+            "Cmd/PulseMax",
+            "ns=2;s=PulseMax",
+            5_000u32,
+            true,
+        ),
+    ] {
+        let tid = TagId::new(id).map_err(|e| e.to_string())?;
+        project.tags.push(Tag {
+            id: tid.clone(),
+            name: name.into(),
+            data_type: DataType::Bool,
+            connection: Some(conn_id.clone()),
+            address: Some(addr.into()),
+            access: TagAccess::ReadWrite,
+            unit: None,
+            range: None,
+            initial_value: Some(json!(false)),
+            scan_rate_ms: 250,
+            description: None,
+            extensions: BTreeMap::new(),
+        });
+        project.v2.industrial.tags.push(TagWritePolicy {
+            tag: tid,
+            command: CommandKind::Momentary,
+            confirmation_required: confirm,
+            critical: false,
+            write_confirmed: true,
+            pulse_ms: Some(pulse),
+            limits: WriteLimits::default(),
+        });
+    }
+
+    // Exact binary64 INT64 setpoint spanning [-2^53, 2^53 + 2] with step 2.
+    let tid_i64 = TagId::new("tag-sp-i64").map_err(|e| e.to_string())?;
+    project.tags.push(Tag {
+        id: tid_i64.clone(),
+        name: "Cmd/SetpointI64".into(),
+        data_type: DataType::Int64,
+        connection: Some(conn_id.clone()),
+        address: Some("ns=2;s=SetpointI64".into()),
+        access: TagAccess::ReadWrite,
+        unit: None,
+        range: None,
+        initial_value: Some(json!(0_i64)),
+        scan_rate_ms: 250,
+        description: None,
+        extensions: BTreeMap::new(),
+    });
+    project.v2.industrial.tags.push(TagWritePolicy {
+        tag: tid_i64,
+        command: CommandKind::Setpoint,
+        confirmation_required: true,
+        critical: false,
+        write_confirmed: true,
+        pulse_ms: None,
+        limits: WriteLimits {
+            min: Some(serde_json::Number::from(-9_007_199_254_740_992_i64)),
+            max: Some(serde_json::Number::from(9_007_199_254_740_994_i64)),
+            step: Some(serde_json::Number::from(2_i64)),
+        },
+    });
+
+    // Exact binary64 FLOAT64 setpoint without step rounding.
+    let tid_f64 = TagId::new("tag-sp-f64").map_err(|e| e.to_string())?;
+    project.tags.push(Tag {
+        id: tid_f64.clone(),
+        name: "Cmd/SetpointF64".into(),
+        data_type: DataType::Float64,
+        connection: Some(conn_id),
+        address: Some("ns=2;s=SetpointF64".into()),
+        access: TagAccess::ReadWrite,
+        unit: None,
+        range: None,
+        initial_value: Some(json!(0.0)),
+        scan_rate_ms: 250,
+        description: None,
+        extensions: BTreeMap::new(),
+    });
+    project.v2.industrial.tags.push(TagWritePolicy {
+        tag: tid_f64,
+        command: CommandKind::Setpoint,
+        confirmation_required: true,
+        critical: false,
+        write_confirmed: true,
+        pulse_ms: None,
+        limits: WriteLimits {
+            min: Some(serde_json::Number::from_f64(-12.5).ok_or("min f64")?),
+            max: Some(serde_json::Number::from_f64(12.5).ok_or("max f64")?),
+            step: Some(serde_json::Number::from_f64(0.5).ok_or("step f64")?),
+        },
+    });
+
+    Ok(project)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let out_dir = env::args()
-        .nth(1)
+    let args: Vec<String> = env::args().skip(1).collect();
+    let out_dir = args
+        .first()
         .map(PathBuf::from)
-        .ok_or("usage: emit_interop_fixtures <output-dir>")?;
+        .ok_or("usage: emit_interop_fixtures <output-dir> [--f01-f02-boundaries]")?;
+    let include_boundaries = args.iter().skip(1).any(|a| a == "--f01-f02-boundaries");
     fs::create_dir_all(&out_dir)?;
 
     let tv1 = make_fingerprint_signer(TV1_SEED)?;
@@ -383,7 +547,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Compression::Deflated,
     )?;
 
-    let packages = vec![
+    let mut packages = vec![
         write_pkg(&out_dir, "minimal_v2_unsigned.hmipkg", &min_v1)?,
         write_pkg(&out_dir, "minimal_v2_signed_seq1.hmipkg", &min_v2_seq1)?,
         write_pkg(&out_dir, "minimal_v2_signed_seq2.hmipkg", &min_v2_seq2)?,
@@ -404,6 +568,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &ind_v2_seq2,
         )?,
     ];
+
+    if include_boundaries {
+        let boundaries = build_f01_f02_boundaries_v10()?;
+        let boundaries_compiled = compile_project(
+            &boundaries,
+            &BTreeMap::new(),
+            CompileOptions {
+                mode: CompileMode::ProductionLive,
+                ..CompileOptions::default()
+            },
+        )?;
+        let boundaries_pkg = build_signed_package(
+            &boundaries_compiled,
+            live_settings,
+            SignedPackageMeta {
+                version: "2.1.0".into(),
+                created_at_ms: 1_700_000_002_000,
+                created_by: "reuse-04-p1-interop".into(),
+                sequence: 1,
+            },
+            &tv1,
+            Compression::Deflated,
+        )?;
+        packages.push(write_pkg(
+            &out_dir,
+            "f01_f02_boundaries_v10_signed_seq1.hmipkg",
+            &boundaries_pkg,
+        )?);
+    }
 
     let meta = json!({
         "keys": {

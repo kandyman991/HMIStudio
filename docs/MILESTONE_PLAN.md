@@ -797,7 +797,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
 
-**In progress** · P1 delivered and Kotlin/Android-validated on draft branch feat/reuse-04-p1-runtime-package (Rust format-1/2 compiler, B5-07 raster gate, O-8 Ed25519 signing, Kotlin 92a612d golden comparison & JVM PackageAdmission 3/3 PASS, Android API 26 Tink instrumentation 5/5 PASS); paused for exact-head CI and independent pre-merge P1 review before merge or P2.
+**In progress** · P1 delivered and Kotlin/Android-validated on draft branch feat/reuse-04-p1-runtime-package (predecessor f506dfd: 18/18 CI, Kotlin 92a612d JVM 3/3 PASS, Android API 26 5/5 PASS); F01/F02 fail-closed write-policy validation and 13/13 Rust compiler regression tests added without altering frozen schema v2; paused for exact-head CI, focused Legion JVM/API 26 boundary differential run, and final independent P1 review before merge or P2.
 
 **Acceptance criteria**
 
@@ -812,6 +812,10 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 **Parent** · RUST-05
 
+**Blockers**
+
+- Execute focused Kotlin JVM and Android API 26 differential regression tests on the Legion (private HMI Forge 92a612d + hmistudio-api-26 AVD unavailable in cloud VM) against the F01/F02 corrected commit and f01\_f02\_boundaries\_v10\_signed\_seq1.hmipkg, then complete final independent P1 pre-merge review.
+
 **Assignment** · Antigravity, feat/reuse-04-p1-runtime-package (recorded 2026-11-28T02:59:23Z)
 
 Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
@@ -824,6 +828,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 - 2026-11-28 · note · Independent P1 review confirmed the format-2 signing input from pinned Kotlin source and corrected package writer validation, ZIP verifier entry provenance, and raster limit enforcement. Kotlin execution evidence is pending. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 - 2026-11-28 · handoff · Verified 18/18 hosted CI checks passed on PR #40 review-fix head 2bcc3c1 (including Windows MSI 11m53s and Ubuntu DEB 5m43s), documented entry-level vs. archive-level ZIP comparison and OpenJDK 21 ZipFile/ZipInputStream/Ed25519 cross-check, and re-verified exact VM blockers for private HMI Forge 92a612d checkout and Android API 26 emulator. PR #40 remains draft pending private Kotlin golden/admission checks and final review. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 - 2026-11-28 · handoff · Completed Kotlin golden comparison and JVM/Android API 26 PackageAdmission validation against pinned private HMI Forge 92a612d (from Rust predecessor bea6ec3). Fixed two confirmed Rust defects (omitting WriteCommand.confirm on SETPOINT/MAINTAINED per WriteRules.kt; 4-space pretty-printing runtime.json/signature.json and trimming/bounding version 1..=40 per RuntimePackages.kt). Verified Kotlin JVM 3/3 PASS, Android API 26 (hmistudio-api-26, SDK 26, tink-android) 5/5 PASS, and Rust fmt/strict Clippy/regression tests PASS. Paused for exact-head CI and independent P1 pre-merge review. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Resolved independent review findings F01 and F02 on PR #40 predecessor f506dfd (18/18 CI pass): enforced fail-closed momentary pulse bounds (100..=5000 ms), required setpoint min/max with strict min \< max and step \> 0, and exact IEEE 754 binary64 representability for INT64 engineering limits at the Rust compiler boundary without altering frozen schema v2 or silently adjusting limits. Local Rust fmt/Clippy/rustdoc/13-of-13 runtime-package tests pass and all 7 prior interop fixtures remain byte-identical; added optional --f01-f02-boundaries fixture (f01\_f02\_boundaries\_v10\_signed\_seq1.hmipkg). Focused Legion Kotlin JVM and Android API 26 differential tests on the corrected commit remain pending execution on the owner's Legion machine (private hmiforge 92a612d and hmistudio-api-26 AVD unavailable in cloud VM). PR #40 remains draft with RUST-05 reserved. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 
 <a id="reuse-05"></a>
 ### REUSE-05 — Deployment Modes A and B

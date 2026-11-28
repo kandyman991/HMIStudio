@@ -22,7 +22,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hmi_legacy_import::raster::{
     decode_bounded_raster_checked, RasterError, RasterFormat, RasterLimits,
 };
-use hmi_project_model::model::v2::{CommandKind, DriverKindV2};
+use hmi_project_model::model::v2::{CommandKind, DriverKindV2, WriteLimits};
 use hmi_project_model::model::v2_components::{
     CandidateAction, ComponentContract, DefinitionKind, EventOrigin, IndustrialSymbolKind,
     NewAction,
@@ -41,6 +41,63 @@ const RESERVED_QUARANTINE_EXTENSIONS: [&str; 3] = [
     "hmiforge.idMap",
     "hmiforge.standardCatalog",
 ];
+
+/// Pinned HMI Forge `WriteRules.kt` / `WriteCommands.kt` momentary pulse duration bounds (ms).
+const MIN_MOMENTARY_PULSE_MS: u32 = 100;
+const MAX_MOMENTARY_PULSE_MS: u32 = 5_000;
+
+/// Returns `true` iff the signed 64-bit integer `v` is exactly representable
+/// in IEEE 754 binary64 (`f64` / Kotlin `Double`) with zero rounding error.
+///
+/// Uses bit-width inspection on `v.unsigned_abs()` rather than `(v as f64) as i64`,
+/// avoiding Rust's saturating float-to-int cast trap for `i64::MAX` (`2^63 - 1`),
+/// which rounds up to `2^63` in `f64` and saturates back to `i64::MAX`.
+fn is_exact_binary64_i64(v: i64) -> bool {
+    let mag = v.unsigned_abs();
+    mag == 0 || (mag >> mag.trailing_zeros()) < (1u64 << 53)
+}
+
+/// Validate a canonical setpoint engineering limit (`min`, `max`, or `step`)
+/// against Kotlin `WriteCommand`'s IEEE 754 binary64 (`Double`) target without
+/// silently clamping, widening, or narrowing the value.
+fn validate_setpoint_limit(
+    num: &serde_json::Number,
+    data_type: &DataType,
+) -> Result<f64, CompileError> {
+    match data_type {
+        DataType::Int32 => {
+            let v = num
+                .as_i64()
+                .and_then(|n| i32::try_from(n).ok())
+                .ok_or(CompileError::UnsupportedFeature("inexactSetpointLimit"))?;
+            Ok(f64::from(v))
+        }
+        DataType::Int64 => {
+            let v = num
+                .as_i64()
+                .ok_or(CompileError::UnsupportedFeature("inexactSetpointLimit"))?;
+            if !is_exact_binary64_i64(v) {
+                return Err(CompileError::UnsupportedFeature("inexactSetpointLimit"));
+            }
+            Ok(v as f64)
+        }
+        DataType::Float32 => {
+            let f = num
+                .as_f64()
+                .filter(|x| x.is_finite() && f64::from(*x as f32) == *x)
+                .ok_or(CompileError::UnsupportedFeature("inexactSetpointLimit"))?;
+            Ok(f)
+        }
+        DataType::Float64 => {
+            let f = num
+                .as_f64()
+                .filter(|x| x.is_finite())
+                .ok_or(CompileError::UnsupportedFeature("inexactSetpointLimit"))?;
+            Ok(f)
+        }
+        _ => Err(CompileError::UnsupportedFeature("dataType")),
+    }
+}
 
 /// Target execution posture for compilation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1443,36 +1500,79 @@ pub fn compile_project(
                         CommandKind::Setpoint => "SETPOINT",
                     }),
                 );
+                if policy.critical {
+                    cmd.insert("critical".into(), json!(true));
+                }
                 match policy.command {
                     CommandKind::Momentary => {
                         if policy.confirmation_required {
                             cmd.insert("confirm".into(), json!(true));
                         }
+                        if policy.limits != WriteLimits::default() {
+                            return Err(CompileError::UnsupportedFeature("unexpectedWriteLimits"));
+                        }
+                        let Some(pulse) = policy.pulse_ms else {
+                            return Err(CompileError::UnsupportedFeature("missingMomentaryPulse"));
+                        };
+                        if !(MIN_MOMENTARY_PULSE_MS..=MAX_MOMENTARY_PULSE_MS).contains(&pulse) {
+                            return Err(CompileError::UnsupportedFeature(
+                                "momentaryPulseOutOfRange",
+                            ));
+                        }
+                        cmd.insert("pulseMs".into(), json!(pulse));
                     }
-                    CommandKind::Maintained | CommandKind::Setpoint => {
-                        // HMI Forge treats MAINTAINED and SETPOINT commands as always
-                        // confirmed and rejects an explicit `confirm: true` flag.
+                    CommandKind::Maintained => {
+                        // HMI Forge treats MAINTAINED commands as always confirmed
+                        // and rejects an explicit `confirm: true` flag.
                         if !policy.confirmation_required {
                             return Err(CompileError::UnsupportedFeature(
                                 "unconfirmedSetpointOrMaintained",
                             ));
                         }
+                        if policy.pulse_ms.is_some() {
+                            return Err(CompileError::UnsupportedFeature(
+                                "unexpectedPulseDuration",
+                            ));
+                        }
+                        if policy.limits != WriteLimits::default() {
+                            return Err(CompileError::UnsupportedFeature("unexpectedWriteLimits"));
+                        }
                     }
-                }
-                if policy.critical {
-                    cmd.insert("critical".into(), json!(true));
-                }
-                if let Some(pulse) = policy.pulse_ms {
-                    cmd.insert("pulseMs".into(), json!(pulse));
-                }
-                if let Some(min) = &policy.limits.min {
-                    cmd.insert("min".into(), Value::Number(min.clone()));
-                }
-                if let Some(max) = &policy.limits.max {
-                    cmd.insert("max".into(), Value::Number(max.clone()));
-                }
-                if let Some(step) = &policy.limits.step {
-                    cmd.insert("step".into(), Value::Number(step.clone()));
+                    CommandKind::Setpoint => {
+                        // HMI Forge treats SETPOINT commands as always confirmed
+                        // and rejects an explicit `confirm: true` flag.
+                        if !policy.confirmation_required {
+                            return Err(CompileError::UnsupportedFeature(
+                                "unconfirmedSetpointOrMaintained",
+                            ));
+                        }
+                        if policy.pulse_ms.is_some() {
+                            return Err(CompileError::UnsupportedFeature(
+                                "unexpectedPulseDuration",
+                            ));
+                        }
+                        let (Some(min_num), Some(max_num)) =
+                            (&policy.limits.min, &policy.limits.max)
+                        else {
+                            return Err(CompileError::UnsupportedFeature("missingSetpointLimits"));
+                        };
+                        let min_f = validate_setpoint_limit(min_num, &tag.data_type)?;
+                        let max_f = validate_setpoint_limit(max_num, &tag.data_type)?;
+                        if min_f.partial_cmp(&max_f) != Some(std::cmp::Ordering::Less) {
+                            return Err(CompileError::UnsupportedFeature("invalidSetpointRange"));
+                        }
+                        cmd.insert("min".into(), Value::Number(min_num.clone()));
+                        cmd.insert("max".into(), Value::Number(max_num.clone()));
+                        if let Some(step_num) = &policy.limits.step {
+                            let step_f = validate_setpoint_limit(step_num, &tag.data_type)?;
+                            if step_f.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+                                return Err(CompileError::UnsupportedFeature(
+                                    "invalidSetpointStep",
+                                ));
+                            }
+                            cmd.insert("step".into(), Value::Number(step_num.clone()));
+                        }
+                    }
                 }
                 m.insert("command".into(), Value::Object(cmd));
             } else {

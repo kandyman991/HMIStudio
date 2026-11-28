@@ -2514,7 +2514,7 @@ mod tests {
         let dst = t.0.join("review.hmi-review");
         fs::write(&src, serde_json::to_vec(&legacy).unwrap()).unwrap();
         let mut host = Host::new(&t.0.join("app")).unwrap();
-        host.import_legacy_review(&src, &dst, false).unwrap();
+        host.import_review(&src, &dst, false).unwrap();
 
         // IPC snapshot never contains raw raster bytes.
         let snapshot_json = serde_json::to_string(&host.snapshot()).unwrap();
@@ -2522,7 +2522,7 @@ mod tests {
         assert!(!snapshot_json.contains(corrupt_b64));
         assert!(host.production_candidate().is_err());
 
-        let ActiveProject::Review(review) = &host.active else {
+        let ActiveProject::Review { bundle: review, .. } = &host.active else {
             panic!("expected quarantined review session");
         };
         let find_id = |name: &str| {

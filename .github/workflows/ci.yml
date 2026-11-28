@@ -128,6 +128,11 @@ jobs:
           cargo audit --file Cargo.lock
           cargo audit --file ../engineering-core/Cargo.lock
           cargo audit --file ../../src-tauri/Cargo.lock
+      - name: Runtime package advisory gate (no ignored advisories)
+        if: matrix.crate == 'crates/runtime-package' && runner.os == 'Linux'
+        run: |
+          cargo install cargo-audit --version 0.23.0 --locked
+          cargo audit --file Cargo.lock
       - if: matrix.crate == 'crates/project-model'
         run: cargo run --locked --example validate -- fixtures/valid/minimal.hmi.json fixtures/valid/bottling-line.hmi.json
       - run: git diff --exit-code -- Cargo.lock

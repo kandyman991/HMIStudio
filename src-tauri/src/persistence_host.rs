@@ -2455,4 +2455,95 @@ mod tests {
         std::os::unix::fs::symlink(external.join("file"), &path).unwrap();
         assert!(a.save_as(&path).is_err());
     }
+
+    #[test]
+    fn native_review_keeps_imported_rasters_inert_and_b5_07_gated() {
+        use hmi_engineering_core::legacy_quarantine::{
+            raster_gate::{RasterError, RasterFormat},
+            ImportError,
+        };
+
+        let valid_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+        let valid_sha = "4ff6ab670a58c14270e034e2090d9a432caa263a14e0a25785386b0c12f880b5";
+        let corrupt_b64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAABElEQVTerb7vt/ubQQAAAABJRU5ErkJggg==";
+        let corrupt_sha = "6ad575a2b9ca857f3f5db414c75770fac4c7b869b99ec15db8da467557f06693";
+
+        let legacy = serde_json::json!({
+            "schemaVersion": 7,
+            "metadata": { "name": "Native B5-07", "defaultScreenId": "screen/a", "targetProfiles": [] },
+            "screens": {
+                "screen/a": {
+                    "id": "screen/a",
+                    "title": "Main",
+                    "widthDp": 640,
+                    "heightDp": 480,
+                    "components": {
+                        "img": { "id": "img", "type": "image", "properties": { "assetId": "a-ok", "fit": "CONTAIN" } }
+                    }
+                }
+            },
+            "variables": {},
+            "externalSources": {},
+            "externalMappings": {},
+            "assets": {
+                "a-ok": {
+                    "id": "a-ok",
+                    "name": "ok.png",
+                    "kind": "PNG",
+                    "data": valid_b64,
+                    "sha256": valid_sha,
+                    "sizeBytes": 70,
+                    "widthPx": 1,
+                    "heightPx": 1
+                },
+                "a-bad": {
+                    "id": "a-bad",
+                    "name": "bad.png",
+                    "kind": "PNG",
+                    "data": corrupt_b64,
+                    "sha256": corrupt_sha,
+                    "sizeBytes": 61,
+                    "widthPx": 2,
+                    "heightPx": 2
+                }
+            }
+        });
+        let t = Temp::new();
+        let src = t.0.join("legacy.json");
+        let dst = t.0.join("review.hmi-review");
+        fs::write(&src, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        let mut host = Host::new(&t.0.join("app")).unwrap();
+        host.import_legacy_review(&src, &dst, false).unwrap();
+
+        // IPC snapshot never contains raw raster bytes.
+        let snapshot_json = serde_json::to_string(&host.snapshot()).unwrap();
+        assert!(!snapshot_json.contains(valid_b64));
+        assert!(!snapshot_json.contains(corrupt_b64));
+        assert!(host.production_candidate().is_err());
+
+        let ActiveProject::Review(review) = &host.active else {
+            panic!("expected quarantined review session");
+        };
+        let find_id = |name: &str| {
+            host.snapshot()
+                .project
+                .resources
+                .iter()
+                .find(|r| r.extensions.get("legacyName").and_then(|v| v.as_str()) == Some(name))
+                .unwrap()
+                .id
+                .as_str()
+                .to_owned()
+        };
+        let ok = review.decode_verified_raster(&find_id("ok.png")).unwrap();
+        assert_eq!(ok.format(), RasterFormat::Png);
+        assert_eq!(ok.rgba8(), &[255, 0, 0, 255]);
+        assert!(matches!(
+            review.decode_verified_raster(&find_id("bad.png")),
+            Err(ImportError::RasterRefused(
+                RasterError::MalformedCompressedData
+            ))
+        ));
+    }
 }

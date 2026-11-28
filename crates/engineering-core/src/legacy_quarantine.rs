@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hmi_legacy_import::{import_portable, replay_portable, MigrationReport};
-pub use hmi_legacy_import::{package as package_transport, revision as revision_transport};
+pub use hmi_legacy_import::{
+    package as package_transport, raster as raster_gate, revision as revision_transport,
+};
 use hmi_project_model::model::Project;
 use hmi_project_model::serialization::{load_project, save_project};
 use serde::{Deserialize, Serialize};
@@ -70,6 +72,10 @@ pub enum ImportError {
     PackageRefused(package_transport::PackageError),
     #[error("Legacy revision refused ({0:?}): {0}")]
     RevisionRefused(revision_transport::RevisionError),
+    #[error("Imported raster resource was not found")]
+    ResourceNotFound,
+    #[error("Imported raster refused ({0:?}): {0}")]
+    RasterRefused(raster_gate::RasterError),
     #[error("invalid or incomplete review bundle")]
     InvalidBundle,
     #[error("review recovery does not match the saved bundle or is damaged")]
@@ -802,6 +808,79 @@ impl QuarantinedImport {
     /// Non-fatal durability or cleanup warnings from the last publication.
     pub fn warnings(&self) -> &[&'static str] {
         &self.warnings
+    }
+
+    /// B5-07 consumer gate: decode an imported PNG or JPEG resource from inert
+    /// review storage using default bounded pixel-decoding limits.
+    ///
+    /// Raw imported raster bytes remain private and inert until they pass full
+    /// bounded decoding through this gate.
+    pub fn decode_verified_raster(
+        &self,
+        resource_id: &str,
+    ) -> Result<raster_gate::DecodedRaster, ImportError> {
+        self.decode_verified_raster_with_limits(resource_id, &raster_gate::RasterLimits::DEFAULT)
+    }
+
+    /// B5-07 consumer gate with explicit dimension, pixel-count, and decoded-byte limits.
+    pub fn decode_verified_raster_with_limits(
+        &self,
+        resource_id: &str,
+        limits: &raster_gate::RasterLimits,
+    ) -> Result<raster_gate::DecodedRaster, ImportError> {
+        let resource = self
+            .session
+            .project()
+            .resources
+            .iter()
+            .find(|r| r.id.as_str() == resource_id)
+            .ok_or(ImportError::ResourceNotFound)?;
+        let media_type = resource
+            .media_type
+            .as_deref()
+            .ok_or(ImportError::InvalidBundle)?;
+        let expected_sha256 = resource
+            .sha256
+            .as_deref()
+            .ok_or(ImportError::InvalidBundle)?;
+        let bytes = self
+            .payload
+            .resources
+            .get(&resource.path)
+            .ok_or(ImportError::InvalidBundle)?;
+        if digest(bytes) != expected_sha256 {
+            return Err(ImportError::InvalidBundle);
+        }
+        let expected_dimensions = match (
+            resource.extensions.get("legacyWidthPx"),
+            resource.extensions.get("legacyHeightPx"),
+        ) {
+            (None, None) => None,
+            (Some(w), Some(h)) => {
+                let w = w
+                    .as_u64()
+                    .and_then(|v| u32::try_from(v).ok())
+                    .filter(|&v| v > 0)
+                    .ok_or(ImportError::RasterRefused(
+                        raster_gate::RasterError::DimensionMismatch,
+                    ))?;
+                let h = h
+                    .as_u64()
+                    .and_then(|v| u32::try_from(v).ok())
+                    .filter(|&v| v > 0)
+                    .ok_or(ImportError::RasterRefused(
+                        raster_gate::RasterError::DimensionMismatch,
+                    ))?;
+                Some((w, h))
+            }
+            _ => {
+                return Err(ImportError::RasterRefused(
+                    raster_gate::RasterError::DimensionMismatch,
+                ));
+            }
+        };
+        raster_gate::decode_bounded_raster_checked(media_type, bytes, expected_dimensions, limits)
+            .map_err(ImportError::RasterRefused)
     }
 
     pub fn execute(

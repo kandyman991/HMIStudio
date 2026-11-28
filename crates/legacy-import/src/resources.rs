@@ -46,7 +46,7 @@ fn decode(s: &str) -> Option<Vec<u8>> {
 
 // Verify the complete PNG chunk envelope, CRCs and declared dimensions.
 // This is not pixel decoding or decompression-bomb validation by a renderer.
-fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+pub(crate) fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
         return None;
     }
@@ -102,7 +102,7 @@ fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 
 // Conservative baseline JPEG envelope: one sequential scan, bounded
 // dimensions, marker lengths and a terminal EOI. No entropy/pixel decoding.
-fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+pub(crate) fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     let mut rest = bytes.strip_prefix(&[0xff, 0xd8])?;
     let mut dimensions = None;
     let mut components = 0;

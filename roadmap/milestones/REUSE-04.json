@@ -2,9 +2,9 @@
   "id": "REUSE-04",
   "title": "Runtime compatibility",
   "track": "Reuse",
-  "phase": "planned",
+  "phase": "in_progress",
   "counts": true,
-  "summary": "Proposed RUST-05B mapping. P1 compatibility package and P2 Kotlin parity remain separate slices.",
+  "summary": "P1 delivered in draft branch feat/reuse-04-p1-runtime-package (Rust format-1/2 compiler, JDK 21 golden differential tests, O-8 Ed25519 recommendation & RFC 8032 tests, and B5-07 bounded full raster decoding across all consumers); paused for independent P1 review before merge or P2 Kotlin/Compose parity.",
   "dependencies": [
     {
       "id": "REUSE-03",
@@ -17,11 +17,27 @@
     "Evaluate generated Kotlin export under O-11.",
     "B5-07 blocks rendering, extraction for use and runtime consumption of imported raster images until a full bounded pixel decoder enforces dimensions, pixel count and decoded-byte limits, and rejects malformed compressed data. Verify both supported raster formats at the consumer boundary."
   ],
+  "assignment": {
+    "owner": "Antigravity",
+    "branch": "feat/reuse-04-p1-runtime-package",
+    "observedAt": "2026-11-28T02:59:23Z",
+    "scope": [
+      ".github/workflows/ci.yml",
+      "crates/engineering-core/",
+      "crates/legacy-import/",
+      "crates/runtime-package/",
+      "src-tauri/Cargo.lock",
+      "src-tauri/src/persistence_host.rs"
+    ]
+  },
   "docs": [
-    "docs/reuse/REUSE_MILESTONE_PLAN.md"
+    "docs/reuse/REUSE_MILESTONE_PLAN.md",
+    "docs/RUNTIME_PACKAGES.md"
   ],
   "blockers": [
-    "Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work."
+    "Independent P1 review required before merging P1 or starting P2.",
+    "Private Kotlin runtime repository (kandyman991/hmiforge) and Android API 26 emulator target are unavailable in this environment; live Kotlin RuntimePackages.build / PackageAdmission verification and Android API 26 instrumented testing remain pending access.",
+    "Owner O-8 decision pending on REUSE-05 publisher keystore compatibility (preserve PBKDF2+AES-GCM keystore vs. fresh keystore + re-pair) and confirmation of exact signed payload bytes in private RuntimePackages.kt."
   ],
   "parent": "RUST-05",
   "claimGroup": "RUST-05",
@@ -31,6 +47,18 @@
       "type": "note",
       "summary": "Owner assigned the bounded raster decoding gate from REUSE-03B to this milestone. Imported bytes remain inert pending validation.",
       "record": "docs/LEGACY_IMPORT.md"
+    },
+    {
+      "date": "2026-11-28",
+      "type": "started",
+      "summary": "Reserved RUST-05 for REUSE-04 P1 on branch feat/reuse-04-p1-runtime-package from verified main 05146d7.",
+      "record": "docs/RUNTIME_PACKAGES.md"
+    },
+    {
+      "date": "2026-11-28",
+      "type": "handoff",
+      "summary": "Completed independently validatable REUSE-04 P1 deliverables: B5-07 bounded PNG/JPEG pixel decoding across legacy-import, engineering-core, src-tauri and runtime-package; deterministic Rust format-1/2 compiler & serializer matching JDK 21 golden fixtures byte-for-byte; RFC 8032 Ed25519 O-8 recommendation and tests. Recorded private-repo and Android API 26 access gaps; paused for independent review before merge or P2.",
+      "record": "docs/RUNTIME_PACKAGES.md"
     }
   ]
 }

@@ -1074,3 +1074,282 @@ fn transport_integrity_is_not_complete_portable_admission() {
     .is_err());
     assert!(!target.exists());
 }
+
+#[test]
+fn b5_07_raster_consumer_gate_enforces_full_decode_and_bounds() {
+    use hmi_engineering_core::legacy_quarantine::raster_gate::{
+        RasterError, RasterFormat, RasterLimits,
+    };
+    use hmi_engineering_core::legacy_quarantine::ImportError;
+    use sha2::{Digest, Sha256};
+
+    fn b64_encode(input: &[u8]) -> String {
+        const TABLE: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
+        for chunk in input.chunks(3) {
+            let b0 = u32::from(chunk[0]);
+            let b1 = u32::from(*chunk.get(1).unwrap_or(&0));
+            let b2 = u32::from(*chunk.get(2).unwrap_or(&0));
+            let n = (b0 << 16) | (b1 << 8) | b2;
+            out.push(TABLE[((n >> 18) & 0x3f) as usize] as char);
+            out.push(TABLE[((n >> 12) & 0x3f) as usize] as char);
+            out.push(if chunk.len() > 1 {
+                TABLE[((n >> 6) & 0x3f) as usize] as char
+            } else {
+                '='
+            });
+            out.push(if chunk.len() > 2 {
+                TABLE[(n & 0x3f) as usize] as char
+            } else {
+                '='
+            });
+        }
+        out
+    }
+
+    fn crc32(data: &[u8]) -> u32 {
+        let mut crc = 0xffff_ffffu32;
+        for &byte in data {
+            crc ^= u32::from(byte);
+            for _ in 0..8 {
+                let mask = (crc & 1).wrapping_neg();
+                crc = (crc >> 1) ^ (0xedb8_8320 & mask);
+            }
+        }
+        !crc
+    }
+
+    fn png_chunk(kind: [u8; 4], body: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(12 + body.len());
+        out.extend_from_slice(&(body.len() as u32).to_be_bytes());
+        out.extend_from_slice(&kind);
+        out.extend_from_slice(body);
+        let crc = crc32(&out[4..]);
+        out.extend_from_slice(&crc.to_be_bytes());
+        out
+    }
+
+    fn corrupt_deflate_png_2x2() -> Vec<u8> {
+        let mut out = Vec::from(*b"\x89PNG\r\n\x1a\n");
+        let mut ihdr = Vec::with_capacity(13);
+        ihdr.extend_from_slice(&2u32.to_be_bytes());
+        ihdr.extend_from_slice(&2u32.to_be_bytes());
+        ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+        out.extend_from_slice(&png_chunk(*b"IHDR", &ihdr));
+        out.extend_from_slice(&png_chunk(*b"IDAT", &[0xde, 0xad, 0xbe, 0xef]));
+        out.extend_from_slice(&png_chunk(*b"IEND", &[]));
+        out
+    }
+
+    // Valid 1x1 red RGBA PNG (70 bytes).
+    let valid_png: &[u8] = &[
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f,
+        0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8,
+        0xcf, 0xc0, 0xf0, 0x1f, 0x00, 0x05, 0x00, 0x01, 0xff, 0x89, 0x99, 0x3d, 0x1d, 0x00, 0x00,
+        0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ];
+    let valid_png_b64 = b64_encode(valid_png);
+    let valid_png_sha = format!("{:x}", Sha256::digest(valid_png));
+
+    // Valid 2x3 baseline JPEG.
+    let valid_jpeg_b64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/wAALCAADAAIBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==";
+    let valid_jpeg_bytes: Vec<u8> = {
+        // Decode the known constant inline without adding a base64 dependency.
+        let mut out = Vec::new();
+        let mut buf = 0u32;
+        let mut bits = 0u32;
+        for b in valid_jpeg_b64.bytes() {
+            if b == b'=' {
+                break;
+            }
+            let v = match b {
+                b'A'..=b'Z' => u32::from(b - b'A'),
+                b'a'..=b'z' => u32::from(b - b'a' + 26),
+                b'0'..=b'9' => u32::from(b - b'0' + 52),
+                b'+' => 62,
+                b'/' => 63,
+                _ => panic!("unexpected base64 char"),
+            };
+            buf = (buf << 6) | v;
+            bits += 6;
+            if bits >= 8 {
+                bits -= 8;
+                out.push(((buf >> bits) & 0xff) as u8);
+            }
+        }
+        out
+    };
+    let valid_jpeg_sha = format!("{:x}", Sha256::digest(&valid_jpeg_bytes));
+
+    // Structurally valid PNG envelope with corrupt zlib stream (retained inert at import,
+    // MUST be refused at the B5-07 consumer gate before rendering/extraction/packaging).
+    let corrupt_png = corrupt_deflate_png_2x2();
+    let corrupt_png_b64 = b64_encode(&corrupt_png);
+    let corrupt_png_sha = format!("{:x}", Sha256::digest(&corrupt_png));
+
+    let svg_text = r##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect x="0" y="0" width="10" height="10" fill="#112233"/></svg>"##;
+    let svg_sha = format!("{:x}", Sha256::digest(svg_text.as_bytes()));
+
+    let legacy_project = serde_json::to_vec(&json!({
+        "schemaVersion": 7,
+        "metadata": {
+            "name": "B5-07 Consumer Gate",
+            "defaultScreenId": "screen/a",
+            "targetProfiles": []
+        },
+        "screens": {
+            "screen/a": {
+                "id": "screen/a",
+                "title": "Main",
+                "widthDp": 640,
+                "heightDp": 480,
+                "components": {
+                    "img-ok": { "id": "img-ok", "type": "image", "properties": { "assetId": "asset-png", "fit": "CONTAIN" } }
+                }
+            }
+        },
+        "variables": {},
+        "externalSources": {},
+        "externalMappings": {},
+        "assets": {
+            "asset-png": {
+                "id": "asset-png",
+                "name": "ok.png",
+                "kind": "PNG",
+                "data": valid_png_b64,
+                "sha256": valid_png_sha,
+                "sizeBytes": valid_png.len(),
+                "widthPx": 1,
+                "heightPx": 1
+            },
+            "asset-jpg": {
+                "id": "asset-jpg",
+                "name": "ok.jpg",
+                "kind": "JPEG",
+                "data": valid_jpeg_b64,
+                "sha256": valid_jpeg_sha,
+                "sizeBytes": valid_jpeg_bytes.len(),
+                "widthPx": 2,
+                "heightPx": 3
+            },
+            "asset-corrupt": {
+                "id": "asset-corrupt",
+                "name": "corrupt.png",
+                "kind": "PNG",
+                "data": corrupt_png_b64,
+                "sha256": corrupt_png_sha,
+                "sizeBytes": corrupt_png.len(),
+                "widthPx": 2,
+                "heightPx": 2
+            },
+            "asset-svg": {
+                "id": "asset-svg",
+                "name": "icon.svg",
+                "kind": "SVG",
+                "data": svg_text,
+                "sha256": svg_sha,
+                "sizeBytes": svg_text.len(),
+                "widthPx": 10,
+                "heightPx": 10
+            }
+        }
+    }))
+    .unwrap();
+
+    let dir = TempDir::new("b5-07-gate");
+    let bundle = dir.join("review.bundle");
+    let review =
+        QuarantinedImport::import_new(&legacy_project, &bundle, SessionConfig::default(), std_fs())
+            .unwrap();
+
+    // Snapshot remains strictly inert: no raw base64 raster bytes leak into the project snapshot.
+    let snapshot_json = serde_json::to_string(&review.snapshot()).unwrap();
+    assert!(!snapshot_json.contains(&valid_png_b64));
+    assert!(!snapshot_json.contains(&corrupt_png_b64));
+    assert!(!snapshot_json.contains(valid_jpeg_b64));
+
+    let find_id = |media: &str, name: &str| {
+        review
+            .snapshot()
+            .project
+            .resources
+            .iter()
+            .find(|r| {
+                r.media_type.as_deref() == Some(media)
+                    && r.extensions.get("legacyName").and_then(|v| v.as_str()) == Some(name)
+            })
+            .unwrap()
+            .id
+            .as_str()
+            .to_owned()
+    };
+
+    let png_id = find_id("image/png", "ok.png");
+    let jpg_id = find_id("image/jpeg", "ok.jpg");
+    let corrupt_id = find_id("image/png", "corrupt.png");
+    let svg_id = find_id("image/svg+xml", "icon.svg");
+
+    let decoded_png = review.decode_verified_raster(&png_id).unwrap();
+    assert_eq!(decoded_png.format(), RasterFormat::Png);
+    assert_eq!((decoded_png.width(), decoded_png.height()), (1, 1));
+    assert_eq!(decoded_png.rgba8(), &[255, 0, 0, 255]);
+
+    let decoded_jpg = review.decode_verified_raster(&jpg_id).unwrap();
+    assert_eq!(decoded_jpg.format(), RasterFormat::Jpeg);
+    assert_eq!((decoded_jpg.width(), decoded_jpg.height()), (2, 3));
+    assert_eq!(decoded_jpg.rgba8().len(), 24);
+
+    // Corrupt compressed stream retained in inert evidence MUST be refused at consumer decode.
+    assert!(matches!(
+        review.decode_verified_raster(&corrupt_id),
+        Err(ImportError::RasterRefused(
+            RasterError::MalformedCompressedData
+        ))
+    ));
+
+    // Tight dimension, pixel-count, and decoded-byte bounds fail closed at consumer decode.
+    assert!(matches!(
+        review.decode_verified_raster_with_limits(
+            &jpg_id,
+            &RasterLimits {
+                max_height: 2,
+                ..RasterLimits::DEFAULT
+            }
+        ),
+        Err(ImportError::RasterRefused(RasterError::DimensionLimit))
+    ));
+    assert!(matches!(
+        review.decode_verified_raster_with_limits(
+            &jpg_id,
+            &RasterLimits {
+                max_pixels: 5,
+                ..RasterLimits::DEFAULT
+            }
+        ),
+        Err(ImportError::RasterRefused(RasterError::PixelCountLimit))
+    ));
+    assert!(matches!(
+        review.decode_verified_raster_with_limits(
+            &jpg_id,
+            &RasterLimits {
+                max_decoded_bytes: 20,
+                ..RasterLimits::DEFAULT
+            }
+        ),
+        Err(ImportError::RasterRefused(RasterError::DecodedByteLimit))
+    ));
+
+    // Non-raster SVG and unknown resource IDs fail closed.
+    assert!(matches!(
+        review.decode_verified_raster(&svg_id),
+        Err(ImportError::RasterRefused(
+            RasterError::UnsupportedMediaType
+        ))
+    ));
+    assert!(matches!(
+        review.decode_verified_raster("missing-resource"),
+        Err(ImportError::ResourceNotFound)
+    ));
+}

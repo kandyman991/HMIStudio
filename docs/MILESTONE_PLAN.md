@@ -25,7 +25,7 @@ Open the [local dashboard](../roadmap/dashboard.html) from your checkout. See th
 | [REUSE-02C.4B](#reuse-02c.4b) Write-capable EngineDriver integration | Reuse | Planned | [REUSE-02C.4A](#reuse-02c.4a) (merged) |
 | [REUSE-02C](#reuse-02c) Supervised bridge | Reuse | In progress | [REUSE-02B](#reuse-02b) (merged), [RUST-06A](#rust-06a) (merged) |
 | [REUSE-03](#reuse-03) Legacy import and canonical model v2 | Reuse | Merged | [REUSE-01](#reuse-01) (merged) |
-| [REUSE-04](#reuse-04) Runtime compatibility | Reuse | Planned | [REUSE-03](#reuse-03) (merged) |
+| [REUSE-04](#reuse-04) Runtime compatibility | Reuse | In progress | [REUSE-03](#reuse-03) (merged) |
 | [REUSE-05](#reuse-05) Deployment Modes A and B | Reuse | Planned | [REUSE-04](#reuse-04) (merged) |
 | [REUSE-06](#reuse-06) Migration acceptance and retirement | Reuse | Planned | [REUSE-02](#reuse-02) (merged), [REUSE-03](#reuse-03) (merged), [REUSE-04](#reuse-04) (merged), [REUSE-05](#reuse-05) (merged) |
 | [RUST-00](#rust-00) Repository foundation | Engineering | Merged | — |
@@ -797,7 +797,7 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 <a id="reuse-04"></a>
 ### REUSE-04 — Runtime compatibility
 
-**Planned** · Proposed RUST-05B mapping. P1 compatibility package and P2 Kotlin parity remain separate slices.
+**In progress** · P1 delivered in draft branch feat/reuse-04-p1-runtime-package (Rust format-1/2 compiler, JDK 21 golden differential tests, O-8 Ed25519 recommendation & RFC 8032 tests, and B5-07 bounded full raster decoding across all consumers); paused for independent P1 review before merge or P2 Kotlin/Compose parity.
 
 **Acceptance criteria**
 
@@ -814,13 +814,19 @@ Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
 
 **Blockers**
 
-- Verify O-2 runtime repository and O-8 key compatibility before starting the corresponding runtime/package work.
+- Independent P1 review required before merging P1 or starting P2.
+- Private Kotlin runtime repository (kandyman991/hmiforge) and Android API 26 emulator target are unavailable in this environment; live Kotlin RuntimePackages.build / PackageAdmission verification and Android API 26 instrumented testing remain pending access.
+- Owner O-8 decision pending on REUSE-05 publisher keystore compatibility (preserve PBKDF2+AES-GCM keystore vs. fresh keystore + re-pair) and confirmation of exact signed payload bytes in private RuntimePackages.kt.
 
-Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md)
+**Assignment** · Antigravity, feat/reuse-04-p1-runtime-package (recorded 2026-11-28T02:59:23Z)
+
+Records · [docs/reuse/REUSE\_MILESTONE\_PLAN.md](reuse/REUSE_MILESTONE_PLAN.md) · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 
 **History**
 
 - 2026-11-27 · note · Owner assigned the bounded raster decoding gate from REUSE-03B to this milestone. Imported bytes remain inert pending validation. · [docs/LEGACY\_IMPORT.md](LEGACY_IMPORT.md)
+- 2026-11-28 · started · Reserved RUST-05 for REUSE-04 P1 on branch feat/reuse-04-p1-runtime-package from verified main 05146d7. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
+- 2026-11-28 · handoff · Completed independently validatable REUSE-04 P1 deliverables: B5-07 bounded PNG/JPEG pixel decoding across legacy-import, engineering-core, src-tauri and runtime-package; deterministic Rust format-1/2 compiler & serializer matching JDK 21 golden fixtures byte-for-byte; RFC 8032 Ed25519 O-8 recommendation and tests. Recorded private-repo and Android API 26 access gaps; paused for independent review before merge or P2. · [docs/RUNTIME\_PACKAGES.md](RUNTIME_PACKAGES.md)
 
 <a id="reuse-05"></a>
 ### REUSE-05 — Deployment Modes A and B

@@ -1291,6 +1291,8 @@ dependencies = [
  "base64 0.23.1",
  "flate2",
  "hmi-project-model",
+ "jpeg-decoder",
+ "png",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1802,6 +1804,12 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "jpeg-decoder"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00810f1d8b74be64b13dbf3db89ac67740615d6c891f0e7b6179326533011a07"
 
 [[package]]
 name = "js-sys"
